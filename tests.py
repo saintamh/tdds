@@ -17,7 +17,7 @@ from functools import wraps
 # this module
 from .record import \
     Field, ImmutableDict, \
-    FieldCheckFailed, FieldIsNotNullable, RecordsAreImmutable, \
+    FieldValueError, FieldTypeError, FieldIsNotNullable, RecordsAreImmutable, \
     record, \
     dict_of, pair_of, seq_of, set_of, \
     one_of, \
@@ -173,7 +173,7 @@ def _():
 @test("elements of the sequence must be of the correct type")
 def _():
     R = record ('R', elems=seq_of(int))
-    with expected_error(TypeError):
+    with expected_error(FieldTypeError):
         R(elems=['1','2','3'])
 
 @test("Two sequences can use types of the same name, they won't clash")
@@ -194,7 +194,7 @@ def _():
     C2 = type ('Element', (object,), {})
     R1 = record ('R1', elems=seq_of(C1))
     R2 = record ('R2', elems=seq_of(C2))
-    with expected_error(TypeError):
+    with expected_error(FieldTypeError):
         R1 (elems=[C2()])
 
 @test("sequence fields get serialized for JSON as tuples")
@@ -229,7 +229,7 @@ def _():
 @test("elements of the pair must be of the correct type")
 def _():
     R = record ('R', elems=pair_of(int))
-    with expected_error(TypeError):
+    with expected_error(FieldTypeError):
         R(elems=['1','2'])
 
 @test("pairs cannot have 1 element")
@@ -263,7 +263,7 @@ def _():
     C2 = type ('Element', (object,), {})
     R1 = record ('R1', elems=pair_of(C1))
     R2 = record ('R2', elems=pair_of(C2))
-    with expected_error(TypeError):
+    with expected_error(FieldTypeError):
         R1 (elems=[C2(),C2()])
 
 @test("pair fields get serialized for JSON as tuples")
@@ -296,7 +296,7 @@ def _():
 @test("elements of the set must be of the correct type")
 def _():
     R = record ('R', elems=set_of(int))
-    with expected_error(TypeError):
+    with expected_error(FieldTypeError):
         R(elems=['1','2','3'])
 
 @test("Two sets can use types of the same name, they won't clash")
@@ -317,7 +317,7 @@ def _():
     C2 = type ('Element', (object,), {})
     R1 = record ('R1', elems=set_of(C1))
     R2 = record ('R2', elems=set_of(C2))
-    with expected_error(TypeError):
+    with expected_error(FieldTypeError):
         R1 (elems=[C2()])
 
 @test("pair fields get serialized for JSON as tuples")
@@ -349,13 +349,13 @@ def _():
 @test("keys of the dict must be of the correct type")
 def _():
     R = record ('R', elems=dict_of(int,str))
-    with expected_error(TypeError):
+    with expected_error(FieldTypeError):
         R(elems={'1':'uno'})
 
 @test("values of the dict must be of the correct type")
 def _():
     R = record ('R', elems=dict_of(int,str))
-    with expected_error(TypeError):
+    with expected_error(FieldTypeError):
         R(elems={1:1})
 
 @test("dict_of fields are ImmutableDict instances, and therefore immutable")
@@ -382,7 +382,7 @@ def _():
     C2 = type ('Element', (object,), {})
     R1 = record ('R1', elems=dict_of(int,C1))
     R2 = record ('R2', elems=dict_of(int,C2))
-    with expected_error(TypeError):
+    with expected_error(FieldTypeError):
         R1 (elems={9:C2()})
 
 @test("dict_of params can be field defs themselves")
@@ -394,9 +394,9 @@ def _():
             pair_of (int),
         ),
     )
-    with expected_error (FieldCheckFailed):
+    with expected_error (FieldValueError):
         R ({'ABCD': (1,2)})
-    with expected_error (FieldCheckFailed):
+    with expected_error (FieldValueError):
         R ({'ABC': (1,2,3)})
     assert_eq (
         R({'ABC':(1,2)}).elems,
@@ -584,7 +584,7 @@ def _():
         type = str,
         coerce = lambda v: 10,
     ))
-    with expected_error(TypeError):
+    with expected_error(FieldTypeError):
         R(id='not ten')
 
 @test("is the field is not nullable, the coercion function may not return None")
@@ -610,16 +610,16 @@ def _():
 #----------------------------------------------------------------------------------------------------------------------------------
 # 'check' function
 
-@test("if the 'check' function returns False, a FieldCheckFailed exception is raised")
+@test("if the 'check' function returns False, a FieldValueError exception is raised")
 def _():
     R = record ('R', id=Field (
         type = str,
         check = lambda s: s == 'valid',
     ))
-    with expected_error(FieldCheckFailed):
+    with expected_error(FieldValueError):
         r = R('invalid')
 
-@test("if the 'check' function returns True, no FieldCheckFailed exception is raised")
+@test("if the 'check' function returns True, no FieldValueError exception is raised")
 def _():
     R = record ('R', id=Field (
         type = str,
@@ -703,7 +703,7 @@ def _():
         coerce = lambda s: s.lower(),
         check = lambda s: s == s.upper(),
     ))
-    with expected_error(FieldCheckFailed):
+    with expected_error(FieldValueError):
         r2 = R('OK')
 
 #----------------------------------------------------------------------------------------------------------------------------------
@@ -725,7 +725,7 @@ for protocol in (0,1,2,-1):
 @test("nonnegative numbers cannot be smaller than zero")
 def _():
     R = record ('R', id=nonnegative(int))
-    with expected_error(FieldCheckFailed):
+    with expected_error(FieldValueError):
         R(id=-1)
 
 @test("nonnegative numbers can be zero")
@@ -741,13 +741,13 @@ def _():
 @test("strictly_positive numbers cannot be smaller than zero")
 def _():
     R = record ('R', id=strictly_positive(int))
-    with expected_error(FieldCheckFailed):
+    with expected_error(FieldValueError):
         R(id=-1)
 
 @test("strictly_positive numbers cannot be zero")
 def _():
     R = record ('R', id=strictly_positive(int))
-    with expected_error(FieldCheckFailed):
+    with expected_error(FieldValueError):
         R(id=0)
 
 @test("strictly_positive numbers can be greater than zero")
@@ -766,19 +766,19 @@ def _():
 @test("uppercase_letters(3) doesn't accept less than 3 letters")
 def _():
     R = record ('R', s=uppercase_letters(3))
-    with expected_error(FieldCheckFailed):
+    with expected_error(FieldValueError):
         R(s='AB')
 
 @test("uppercase_letters(3) doesn't accept more than 3 letters")
 def _():
     R = record ('R', s=uppercase_letters(3))
-    with expected_error(FieldCheckFailed):
+    with expected_error(FieldValueError):
         R(s='ABCD')
 
 @test("uppercase_letters doesn't accept lowercase letters")
 def _():
     R = record ('R', s=uppercase_letters(3))
-    with expected_error(FieldCheckFailed):
+    with expected_error(FieldValueError):
         R(s='abc')
 
 @test("uppercase_letters() accepts any number of uppercase letters")
@@ -794,7 +794,7 @@ def _():
 @test("uppercase_letters() still only accepts uppercase letters")
 def _():
     R = record ('R', s=uppercase_letters())
-    with expected_error(FieldCheckFailed):
+    with expected_error(FieldValueError):
         R(s='a')
 
 #----------------------------------------------------------------------------------------------------------------------------------
@@ -808,7 +808,7 @@ def _():
 @test("one_of doesn't accept values outside the given list")
 def _():
     R = record ('R', v=one_of('a','b','c'))
-    with expected_error(FieldCheckFailed):
+    with expected_error(FieldValueError):
         R(v='d')
 
 @test("one_of does not accept an empty argument list")

@@ -30,7 +30,7 @@ import re
 
 cls_def_template = '''\
 class {cls_name} (object):
-    __slots__ = {field_names!r}
+    __slots__ = {slots}
 
     def __init__ (self, {init_params}):
         {init_body}
@@ -52,6 +52,46 @@ class {cls_name} (object):
         return (RecordUnpickler("{cls_name}"), {values_as_tuple})
 '''
 
+def record (cls_name, **field_defs):
+    __verbose = field_defs.pop ('__verbose', False)
+    field_defs = dict (
+        (fname,compile_field_def(fdef))
+        for fname,fdef in field_defs.items()
+    )
+    sorted_field_names = sorted (field_defs, key=lambda f: (field_defs[f].nullable, f))
+    ns = ClassDefEvaluationNamespace()
+    cls_def_str = cls_def_template.format (
+        cls_name = cls_name,
+        slots = repr (tuple (sorted_field_names)),
+        init_params = ', '.join (
+            '{}{}'.format (f, '=None' if field_defs[f].nullable else '')
+            for f in sorted_field_names
+        ),
+        init_body = '\n'.join (
+            compose_constructor_stmts (ns, f, field_defs[f], expr_descr='{}.{}'.format(cls_name,f))
+            for f in sorted_field_names
+        ).lstrip(),
+        repr_str = ', '.join (
+            '{}=%r'.format(f)
+            for f in sorted_field_names
+        ),
+        values_as_tuple = '({})'.format (
+            # NB trailing comma to ensure single val still a tuple
+            ''.join (map ('self.{},'.format, sorted_field_names))
+        ),
+        cmp_stmt = ' or '.join (
+            'cmp(self.{0},other.{0})'.format(f)
+            for f in sorted_field_names
+        ),
+        json_struct = ', '.join (
+            compose_json_key_value_pair(f,field_defs[f])
+            for f in sorted_field_names
+        ),
+    )
+    cls = exec_cls_def (cls_name, field_defs, ns, cls_def_str, verbose=__verbose)
+    register_record_calls_for_unpickler (cls_name, cls)
+    return cls
+
 #----------------------------------------------------------------------------------------------------------------------------------
 
 class Field (object):
@@ -70,8 +110,6 @@ class Field (object):
             coerce = self.coerce if coerce is None else coerce,
             check = self.check if check is None else check,
         )
-    def is_none_expr (self, value_expr):
-        return '{0} is None'.format (value_expr)
     def __repr__ (self):
         return 'Field (%r%s%s%s%s)' % (
             self.type,
@@ -151,7 +189,7 @@ def seq_of (elem_type):
             super(seq_type,self).__init__ (values)
             for e in self:
                 if not isinstance (e, elem_type):
-                    raise TypeError ('Element should be of type {}, not {}'.format (elem_type.__name__, e.__class__.__name__))
+                    raise FieldTypeError ('Element should be of type {}, not {}'.format (elem_type.__name__, e.__class__.__name__))
     seq_type.__name__ = '{}Sequence'.format (ucfirst(elem_type.__name__))
     return seq_type
 
@@ -164,7 +202,7 @@ def pair_of (elem_type):
                 raise ValueError ('pairs must hold exactly 2 elements')
             for e in self:
                 if not isinstance (e, elem_type):
-                    raise TypeError ('Element should be of type {}, not {}'.format (elem_type.__name__, e.__class__.__name__))
+                    raise FieldTypeError ('Element should be of type {}, not {}'.format (elem_type.__name__, e.__class__.__name__))
     pair_type.__name__ = '{}Pair'.format (ucfirst(elem_type.__name__))
     return pair_type
 
@@ -175,7 +213,7 @@ def set_of (elem_type):
             super(set_type,self).__init__ (values)
             for e in self:
                 if not isinstance (e, elem_type):
-                    raise TypeError ('Element should be of type {}, not {}'.format (elem_type.__name__, e.__class__.__name__))
+                    raise FieldTypeError ('Element should be of type {}, not {}'.format (elem_type.__name__, e.__class__.__name__))
         def json_struct (self):
             return tuple(self)
     set_type.__name__ = '{}Set'.format (ucfirst(elem_type.__name__))
@@ -188,9 +226,9 @@ def dict_of (key_type, val_type, **kwargs):
             super(dict_type,self).__init__ (*args, **kwargs)
             for k,v in self.iteritems():
                 if not isinstance (k, key_type):
-                    raise TypeError ('Key should be of type {}, not {}'.format (key_type.__name__, k.__class__.__name__))
+                    raise FieldTypeError ('Key should be of type {}, not {}'.format (key_type.__name__, k.__class__.__name__))
                 if not isinstance (v, val_type):
-                    raise TypeError ('Value should be of type {}, not {}'.format (val_type.__name__, v.__class__.__name__))
+                    raise FieldTypeError ('Value should be of type {}, not {}'.format (val_type.__name__, v.__class__.__name__))
     dict_type.__name__ = '{}{}Dictionary'.format (ucfirst(key_type.__name__), ucfirst(val_type.__name__))
     return dict_type
 
@@ -200,10 +238,13 @@ def dict_of (key_type, val_type, **kwargs):
 class RecordsAreImmutable (TypeError):
     pass
 
-class FieldCheckFailed (ValueError):
+class FieldValueError (ValueError):
     pass
 
-class FieldIsNotNullable (ValueError):
+class FieldTypeError (ValueError):
+    pass
+
+class FieldIsNotNullable (FieldValueError):
     pass
 
 #----------------------------------------------------------------------------------------------------------------------------------
@@ -271,10 +312,7 @@ def nullable (fdef):
     return compile_field_def(fdef).derive (nullable=True)
 
 #----------------------------------------------------------------------------------------------------------------------------------
-
-def compile_field_defs (field_defs):
-    for fname,fdef in field_defs.items():
-        field_defs[fname] = compile_field_def(fdef)
+# code-generation utils (private)
 
 def compile_field_def (fdef):
     if isinstance(fdef,Field):
@@ -295,49 +333,48 @@ def compose_external_code_invocation_expr (ns, code_ref, param_expr):
     else:
         raise TypeError (repr(code_ref))
 
-def compose_coercion_stmts (ns, fname, fdef):
-    yield '{fname} = {invoke}'.format (
-        fname = fname,
-        invoke = compose_external_code_invocation_expr (ns, fdef.coerce, fname)
+def compose_coercion_stmts (ns, value_expr, fdef):
+    yield '{value_expr} = {invoke}'.format (
+        value_expr = value_expr,
+        invoke = compose_external_code_invocation_expr (ns, fdef.coerce, value_expr)
     )
 
-def compose_check_stmts (ns, cls_name, fname, fdef):
+def compose_check_stmts (ns, value_expr, fdef, expr_descr):
     yield 'if not {check}:'.format (
-        check = compose_external_code_invocation_expr (ns, fdef.check, fname),
+        check = compose_external_code_invocation_expr (ns, fdef.check, value_expr),
     )
-    yield '    raise FieldCheckFailed("%r is not a valid value for {cls_name}.{fname}" % ({fname},))'.format (
-        fname = fname,
-        cls_name = cls_name,
+    yield '    raise FieldValueError("%r is not a valid value for {expr_descr}" % ({value_expr},))'.format (
+        value_expr = value_expr,
+        expr_descr = expr_descr,
     )
 
-def compose_constructor_stmts (ns, cls_name, fname, fdef):
+def compose_constructor_stmts (ns, value_expr, fdef, expr_descr):
     lines = []
     if fdef.nullable:
         lines.extend ((
-            'if {is_none}:',
-            '    {fname} = {fdef.default!r}',
+            'if {value_expr} is None:',
+            '    {value_expr} = {fdef.default!r}',
         ))
     if fdef.coerce is not None:
-        lines.extend (compose_coercion_stmts (ns, fname, fdef))
+        lines.extend (compose_coercion_stmts (ns, value_expr, fdef))
     if not fdef.nullable:
         lines.extend ((
-            'if {is_none}:',
-            '    raise FieldIsNotNullable ("{cls_name}.{fname} cannot be %r" % {fname})',
+            'if {value_expr} is None:',
+            '    raise FieldIsNotNullable ("{expr_descr} cannot be %r" % {value_expr})',
         ))
     if fdef.check is not None:
-        lines.extend (compose_check_stmts (ns, cls_name, fname, fdef))
+        lines.extend (compose_check_stmts (ns, value_expr, fdef, expr_descr))
     lines.extend ((
-        'if {not_null_and_}not isinstance ({fname}, {fdef.type.__name__}):',
-        '    raise TypeError ("{cls_name}.{fname} should be of type {fdef.type.__name__}, not %s" % {fname}.__class__.__name__)',
+        'if {not_null_and_}not isinstance ({value_expr}, {fdef.type.__name__}):',
+        '    raise FieldTypeError ("{expr_descr} should be of type {fdef.type.__name__}, not %s" % {value_expr}.__class__.__name__)',
     ))
     # you can cheat past our fake immutability by using object.__setattr__
-    lines.append ('object.__setattr__ (self, "{fname}", {fname})')
+    lines.append ('object.__setattr__ (self, "{value_expr}", {value_expr})')
     return '\n'.join ('        ' + l for l in lines).format (
-        is_none = fdef.is_none_expr (fname),
-        not_null_and_ = '{fname} is not None and '.format(fname=fname) if fdef.nullable else '',
-        fname = fname,
+        not_null_and_ = '{value_expr} is not None and '.format(value_expr=value_expr) if fdef.nullable else '',
+        value_expr = value_expr,
         fdef = fdef,
-        cls_name = cls_name,
+        expr_descr = expr_descr,
     )
 
 def compose_json_key_value_pair (fname, fdef):
@@ -356,38 +393,11 @@ def exec_cls_def (cls_name, field_defs, ns, cls_def_str, verbose=False):
     for fdef in field_defs.itervalues():
         ns.set (fdef.type.__name__, fdef.type)
         ns.update (fdef.ns)
-    for cls in (RecordsAreImmutable,FieldCheckFailed,FieldIsNotNullable,RecordUnpickler):
+    for cls in (RecordsAreImmutable,FieldValueError,FieldTypeError,FieldIsNotNullable,RecordUnpickler):
         ns.set (cls.__name__, cls)
     ns_dict = ns.asdict()
     exec cls_def_str in ns_dict
     return ns_dict[cls_name]
-
-#----------------------------------------------------------------------------------------------------------------------------------
-
-def record (cls_name, **field_defs):
-    __verbose = field_defs.pop ('__verbose', False)
-    compile_field_defs (field_defs)
-    sorted_field_names = tuple (sorted (field_defs, key = lambda f: (
-        0 if not field_defs[f].nullable else 1,
-        f
-    )))
-    ns = ClassDefEvaluationNamespace()
-    cls_def_str = cls_def_template.format (
-        cls_name = cls_name,
-        field_names = sorted_field_names,
-        init_params = ', '.join ('{}{}'.format (f, '=None' if field_defs[f].nullable else '') for f in sorted_field_names),
-        init_body = '\n'.join (compose_constructor_stmts(ns,cls_name,f,field_defs[f]) for f in sorted_field_names).lstrip(),
-        repr_str = ', '.join ('{}=%r'.format(f) for f in sorted_field_names),
-        values_as_tuple = '({})'.format (
-            # NB trailing comma to ensure single val still a tuple
-            ''.join (map ('self.{},'.format, sorted_field_names))
-        ),
-        cmp_stmt = ' or '.join ('cmp(self.{0},other.{0})'.format(f) for f in sorted_field_names),
-        json_struct = ', '.join (compose_json_key_value_pair(f,field_defs[f]) for f in sorted_field_names),
-    )
-    cls = exec_cls_def (cls_name, field_defs, ns, cls_def_str, verbose=__verbose)
-    register_record_calls_for_unpickler (cls_name, cls)
-    return cls
 
 #----------------------------------------------------------------------------------------------------------------------------------
 
