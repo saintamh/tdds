@@ -118,6 +118,19 @@ def seq_of (elem_type):
     return seq_type
 
 @collection_builder
+def pair_of (elem_type):
+    class pair_type (tuple):
+        def __init__ (self, values):
+            super(pair_type,self).__init__ (values)
+            if len(self) != 2:
+                raise ValueError ('pairs must hold exactly 2 elements')
+            for e in self:
+                if not isinstance (e, elem_type):
+                    raise TypeError ('Element should be of type {}, not {}'.format (elem_type.__name__, e.__class__.__name__))
+    pair_type.__name__ = '{}Pair'.format (ucfirst(elem_type.__name__))
+    return pair_type
+
+@collection_builder
 def set_of (elem_type):
     class set_type (frozenset):
         def __init__ (self, values):

@@ -19,7 +19,18 @@ from .record import \
     Field, ImmutableDict, \
     FieldCheckFailed, FieldIsNotNullable, RecordsAreImmutable, \
     record, \
-    dict_of, nullable, seq_of, set_of
+    dict_of, nullable, pair_of, seq_of, set_of
+
+#----------------------------------------------------------------------------------------------------------------------------------
+# TODO
+
+# non-nullable collections cannot be empty
+
+# nonnegative etc
+
+# types ref'ed by name (e.g. for a LinkedList's "next")
+
+# datetime, timedelta objects
 
 #----------------------------------------------------------------------------------------------------------------------------------
 # plumbing
@@ -183,6 +194,67 @@ def _():
         R1 (elems=[C2()])
 
 #----------------------------------------------------------------------------------------------------------------------------------
+# pair_of
+
+@test("pair_of fields can be defined using any iterable")
+def _():
+    class MyIterable (object):
+        def __iter__ (self):
+            yield 1
+            yield 2
+    R = record ('R', elems=pair_of(int))
+    r = R(elems=MyIterable())
+    assert_eq (r.elems, (1,2))
+
+@test("pair_of fields are tuples, and therefore immutable")
+def _():
+    R = record ('R', elems=pair_of(int))
+    r = R(elems=[1,2])
+    with expected_error(TypeError):
+        r.elems[1] = 4
+    assert_eq (r.elems, (1,2))
+
+@test("elements of the pair must be of the correct type")
+def _():
+    R = record ('R', elems=pair_of(int))
+    with expected_error(TypeError):
+        R(elems=['1','2'])
+
+@test("pairs cannot have 1 element")
+def _():
+    R = record ('R', elems=pair_of(int))
+    with expected_error(ValueError):
+        R(elems=[1])
+
+@test("pairs cannot have more than 2")
+def _():
+    R = record ('R', elems=pair_of(int))
+    with expected_error(ValueError):
+        R(elems=[1,2,3
+        ])
+
+@test("Two pairs can use types of the same name, they won't clash")
+def _():
+    C1 = type ('Element', (object,), {})
+    C2 = type ('Element', (object,), {})
+    R1 = record ('R1', elems=pair_of(C1))
+    R2 = record ('R2', elems=pair_of(C2))
+    r1 = R1(elems=[C1(),C1()])
+    r2 = R2(elems=[C2(),C2()])
+    assert_eq (r1.elems.__class__.__name__, 'ElementPair')
+    assert_eq (r2.elems.__class__.__name__, 'ElementPair')
+    assert r1.elems.__class__ is not r2.elems.__class__
+
+@test("If two pairs use types of the same name, you still can't put one's elems in the other")
+def _():
+    C1 = type ('Element', (object,), {})
+    C2 = type ('Element', (object,), {})
+    R1 = record ('R1', elems=pair_of(C1))
+    R2 = record ('R2', elems=pair_of(C2))
+    with expected_error(TypeError):
+        R1 (elems=[C2(),C2()])
+
+#----------------------------------------------------------------------------------------------------------------------------------
 # set_of
 
 @test("set_of fields can be defined using any iterable")
@@ -333,16 +405,6 @@ def _():
     with expected_error(TypeError):
         elems.update({3:'trois'})
     assert_eq (elems, {1:'uno',2:'zwei'})
-
-#----------------------------------------------------------------------------------------------------------------------------------
-
-# pair_of
-
-# nonnegative etc
-
-# types ref'ed by name (e.g. for a LinkedList's "next")
-
-# datetime, timedelta objects
 
 #----------------------------------------------------------------------------------------------------------------------------------
 # JSON serialization
