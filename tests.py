@@ -97,10 +97,57 @@ for val_type in (int,long,float,str,unicode):
 
 #----------------------------------------------------------------------------------------------------------------------------------
 
-# TODO: fields that are other Records
-#       void pointer fields
+# seq_of, dict_of, pair_of
 
-# TODO: json serialization
+# nonnegative etc
+
+# types ref'ed by name (e.g. for a LinkedList's "next")
+
+#----------------------------------------------------------------------------------------------------------------------------------
+# JSON serialization
+
+@test("scalar fields are directly rendered to JSON")
+def _():
+    R = record ('R', id=str, label=unicode)
+    r = R (id='robert', label=u"Robert Smith")
+    j = r.json_struct()
+    assert j == {
+        "id": "robert",
+        "label": "Robert Smith",
+    }, repr(j)
+
+@test("nested records are rendered to JSON as nested objects")
+def _():
+    Name = record ('Name', first=unicode, last=unicode)
+    Person = record ('Person', name=Name, age=int)
+    p = Person (name=Name(first=u"Robert",last=u"Smith"), age=100)
+    j = p.json_struct()
+    assert j == {
+        "name": {
+            "first": "Robert",
+            "last": "Smith",
+        },
+        "age": 100,
+    }
+
+@test("the nested object can be anything with a json_struct() method")
+def _():
+    class Name (object):
+        def __init__ (self, first, last):
+            self.first = first
+            self.last = last
+        def json_struct (self):
+            return {'first':self.first, 'last':self.last}
+    Person = record ('Person', name=Name, age=int)
+    p = Person (name=Name(first=u"Robert",last=u"Smith"), age=100)
+    j = p.json_struct()
+    assert j == {
+        "name": {
+            "first": "Robert",
+            "last": "Smith",
+        },
+        "age": 100,
+    }
 
 #----------------------------------------------------------------------------------------------------------------------------------
 # "coerce" functions
