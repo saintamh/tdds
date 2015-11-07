@@ -47,6 +47,8 @@ class {cls_name} (object):
         return "{cls_name} ({repr_str})" % {values_as_tuple}
     def __cmp__ (self, other):
         return {cmp_stmt}
+    def __hash__ (self):
+        return {hash_expr}
 
     def __reduce__ (self):
         return (RecordUnpickler("{cls_name}"), {values_as_tuple})
@@ -82,6 +84,13 @@ def record (cls_name, **field_defs):
         cmp_stmt = ' or '.join (
             'cmp(self.{0},other.{0})'.format(f)
             for f in sorted_field_names
+        ),
+        hash_expr = ' + '.join (
+            'hash({fname})*{mul}'.format (
+                fname = fname,
+                mul = 7**i,
+            )
+            for i,fname in enumerate(sorted_field_names)
         ),
         json_struct = ', '.join (
             compose_json_key_value_pair(f,field_defs[f])
@@ -314,6 +323,10 @@ def nullable (fdef):
 #----------------------------------------------------------------------------------------------------------------------------------
 # code-generation utils (private)
 
+KNOWN_COERCE_FUNCTIONS_THAT_NEVER_RETURN_NONE = frozenset ((
+    int, long, float, str, unicode,
+))
+
 def compile_field_def (fdef):
     if isinstance(fdef,Field):
         return fdef
@@ -350,24 +363,25 @@ def compose_check_stmts (ns, value_expr, fdef, expr_descr):
 
 def compose_constructor_stmts (ns, value_expr, fdef, expr_descr):
     lines = []
-    if fdef.nullable:
+    if fdef.nullable and fdef.default is not None:
         lines.extend ((
             'if {value_expr} is None:',
             '    {value_expr} = {fdef.default!r}',
         ))
     if fdef.coerce is not None:
         lines.extend (compose_coercion_stmts (ns, value_expr, fdef))
-    if not fdef.nullable:
+    if not fdef.nullable and fdef.coerce not in KNOWN_COERCE_FUNCTIONS_THAT_NEVER_RETURN_NONE:
         lines.extend ((
             'if {value_expr} is None:',
             '    raise FieldIsNotNullable ("{expr_descr} cannot be %r" % {value_expr})',
         ))
     if fdef.check is not None:
         lines.extend (compose_check_stmts (ns, value_expr, fdef, expr_descr))
-    lines.extend ((
-        'if {not_null_and_}not isinstance ({value_expr}, {fdef.type.__name__}):',
-        '    raise FieldTypeError ("{expr_descr} should be of type {fdef.type.__name__}, not %s" % {value_expr}.__class__.__name__)',
-    ))
+    if fdef.coerce != fdef.type:
+        lines.extend ((
+            'if {not_null_and_}not isinstance ({value_expr}, {fdef.type.__name__}):',
+            '    raise FieldTypeError ("{expr_descr} should be of type {fdef.type.__name__}, not %s" % {value_expr}.__class__.__name__)',
+        ))
     # you can cheat past our fake immutability by using object.__setattr__
     lines.append ('object.__setattr__ (self, "{value_expr}", {value_expr})')
     return '\n'.join ('        ' + l for l in lines).format (
