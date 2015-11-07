@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 """
-$Id: $
+$Id$
 NCR Corporation
 Edinburgh
 """
