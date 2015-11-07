@@ -95,7 +95,7 @@ def collection_builder (build_type):
         if 'coerce' in kwargs:
             # 2015-11-07 - This simplifies things greatly, but is it going to come and bite us in the butt some day?
             raise TypeError ("Can't specify a coercion function for sequences")
-        coll_key = ('seq_of',args)
+        coll_key = (build_type.__name__,args)
         coll_type = COLLECTION_TYPES.get(coll_key)
         if coll_type is None:
             COLLECTION_TYPES[coll_key] = coll_type = build_type (*args)
@@ -116,6 +116,17 @@ def seq_of (elem_type):
                     raise TypeError ('Element should be of type {}, not {}'.format (elem_type.__name__, e.__class__.__name__))
     seq_type.__name__ = '{}Sequence'.format (ucfirst(elem_type.__name__))
     return seq_type
+
+@collection_builder
+def set_of (elem_type):
+    class set_type (frozenset):
+        def __init__ (self, values):
+            super(set_type,self).__init__ (values)
+            for e in self:
+                if not isinstance (e, elem_type):
+                    raise TypeError ('Element should be of type {}, not {}'.format (elem_type.__name__, e.__class__.__name__))
+    set_type.__name__ = '{}Set'.format (ucfirst(elem_type.__name__))
+    return set_type
 
 @collection_builder
 def dict_of (key_type, val_type, **kwargs):

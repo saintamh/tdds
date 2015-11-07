@@ -19,7 +19,7 @@ from .record import \
     Field, ImmutableDict, \
     FieldCheckFailed, FieldIsNotNullable, RecordsAreImmutable, \
     record, \
-    dict_of, nullable, seq_of
+    dict_of, nullable, seq_of, set_of
 
 #----------------------------------------------------------------------------------------------------------------------------------
 # plumbing
@@ -183,6 +183,52 @@ def _():
         R1 (elems=[C2()])
 
 #----------------------------------------------------------------------------------------------------------------------------------
+# set_of
+
+@test("set_of fields can be defined using any iterable")
+def _():
+    class MyIterable (object):
+        def __iter__ (self):
+            for i in (1,2,3):
+                yield i
+    R = record ('R', elems=set_of(int))
+    r = R(elems=MyIterable())
+    assert_eq (r.elems, frozenset([1,2,3]))
+
+@test("set_of fields are frozenset instances, and therefore immutable")
+def _():
+    R = record ('R', elems=set_of(int))
+    r = R(elems=[1,2,3])
+    isinstance (r.elems, frozenset)
+
+@test("elements of the set must be of the correct type")
+def _():
+    R = record ('R', elems=set_of(int))
+    with expected_error(TypeError):
+        R(elems=['1','2','3'])
+
+@test("Two sets can use types of the same name, they won't clash")
+def _():
+    C1 = type ('Element', (object,), {})
+    C2 = type ('Element', (object,), {})
+    R1 = record ('R1', elems=set_of(C1))
+    R2 = record ('R2', elems=set_of(C2))
+    r1 = R1(elems=[C1()])
+    r2 = R2(elems=[C2()])
+    assert_eq (r1.elems.__class__.__name__, 'ElementSet')
+    assert_eq (r2.elems.__class__.__name__, 'ElementSet')
+    assert r1.elems.__class__ is not r2.elems.__class__
+
+@test("If two sets use types of the same name, you still can't put one's elems in the other")
+def _():
+    C1 = type ('Element', (object,), {})
+    C2 = type ('Element', (object,), {})
+    R1 = record ('R1', elems=set_of(C1))
+    R2 = record ('R2', elems=set_of(C2))
+    with expected_error(TypeError):
+        R1 (elems=[C2()])
+
+#----------------------------------------------------------------------------------------------------------------------------------
 # dict_of
 
 @test("dict_of fields can be defined using a dict")
@@ -215,7 +261,7 @@ def _():
     r = R(elems={1:'uno',2:'zwei'})
     assert isinstance (r.elems, ImmutableDict)
 
-@test("Two sequences can use types of the same name, they won't clash")
+@test("Two dicts can use types of the same name, they won't clash")
 def _():
     C1 = type ('Element', (object,), {})
     C2 = type ('Element', (object,), {})
@@ -227,7 +273,7 @@ def _():
     assert_eq (r2.elems.__class__.__name__, 'IntElementDictionary')
     assert r1.elems.__class__ is not r2.elems.__class__
 
-@test("If two sequences use types of the same name, you still can't put one's elems in the other")
+@test("If two sets use types of the same name, you still can't put one's elems in the other")
 def _():
     C1 = type ('Element', (object,), {})
     C2 = type ('Element', (object,), {})
@@ -290,7 +336,7 @@ def _():
 
 #----------------------------------------------------------------------------------------------------------------------------------
 
-# pair_of, set_of
+# pair_of
 
 # nonnegative etc
 
