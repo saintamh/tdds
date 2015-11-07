@@ -73,6 +73,33 @@ class Field (object):
     def is_none_expr (self, value_expr):
         return '{0} is None'.format (value_expr)
 
+class ClassDefEvaluationNamespace (object):
+    def __init__ (self):
+        self.ns = {}
+    def add (self, value):
+        for symbol in (
+                getattr (value, '__name__', None),
+                '_cls_def_symbol_{:d}'.format (len(self.ns)),
+                ):
+            if symbol is None or not re.search (r'^(?!\d)\w+$', symbol):
+                continue
+            elif self.ns.get(symbol) is value:
+                return symbol
+            elif symbol not in self.ns:
+                self.ns[symbol] = value
+                return symbol
+            # else continue
+        raise Exception ("Should never get here")
+    def set (self, symbol, value):
+        assert symbol not in self.ns or self.ns[symbol] is value, \
+            (symbol, self.ns[symbol], value)
+        self.ns[symbol] = value
+    def update (self, other):
+        for key,val in other.ns.iteritems():
+            self.set (key,val)
+    def asdict (self):
+        return dict(self.ns)
+
 #----------------------------------------------------------------------------------------------------------------------------------
 # collection fields (seq_of, dict_of, pair_of, set_of)
 
@@ -158,7 +185,7 @@ def dict_of (key_type, val_type, **kwargs):
     return dict_type
 
 #----------------------------------------------------------------------------------------------------------------------------------
-# other public classes & utils
+# public exception classes
 
 class RecordsAreImmutable (TypeError):
     pass
@@ -169,8 +196,8 @@ class FieldCheckFailed (ValueError):
 class FieldIsNotNullable (ValueError):
     pass
 
-def nullable (fdef):
-    return compile_field_def(fdef).derive (nullable=True)
+#----------------------------------------------------------------------------------------------------------------------------------
+# utilities for common scalar fields
 
 def value_check (name, check):
     def func (fdef):
@@ -212,33 +239,28 @@ absolute_http_url = Field (
 )
 
 #----------------------------------------------------------------------------------------------------------------------------------
+# other field def utils
 
-class ClassDefEvaluationNamespace (object):
-    def __init__ (self):
-        self.ns = {}
-    def add (self, value):
-        for symbol in (
-                getattr (value, '__name__', None),
-                '_cls_def_symbol_{:d}'.format (len(self.ns)),
-                ):
-            if symbol is None or not re.search (r'^(?!\d)\w+$', symbol):
-                continue
-            elif self.ns.get(symbol) is value:
-                return symbol
-            elif symbol not in self.ns:
-                self.ns[symbol] = value
-                return symbol
-            # else continue
-        raise Exception ("Should never get here")
-    def set (self, symbol, value):
-        assert symbol not in self.ns or self.ns[symbol] is value, \
-            (symbol, self.ns[symbol], value)
-        self.ns[symbol] = value
-    def update (self, other):
-        for key,val in other.ns.iteritems():
-            self.set (key,val)
-    def asdict (self):
-        return dict(self.ns)
+def one_of (*values):
+    if len(values) == 0:
+        raise ValueError ('one_of requires arguments')
+    type = values[0].__class__
+    for v in values[1:]:
+        if v.__class__ is not type:
+            raise ValueError ("All arguments to one_of should be of the same type (%s is not %s)" % (
+                type.__name__,
+                v.__class__.__name__,
+            ))
+    values = frozenset (values)
+    return Field (
+        type = type,
+        check = values.__contains__,
+    )
+
+def nullable (fdef):
+    return compile_field_def(fdef).derive (nullable=True)
+
+#----------------------------------------------------------------------------------------------------------------------------------
 
 def compile_field_defs (field_defs):
     for fname,fdef in field_defs.items():

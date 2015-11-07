@@ -20,8 +20,10 @@ from .record import \
     FieldCheckFailed, FieldIsNotNullable, RecordsAreImmutable, \
     record, \
     dict_of, pair_of, seq_of, set_of, \
+    one_of, \
     nonnegative, nullable, strictly_positive, \
-    uppercase_letters
+    uppercase_letters, uppercase_wchars, uppercase_hex, lowercase_letters, lowercase_wchars, lowercase_hex, digits_str, \
+    absolute_http_url
 
 #----------------------------------------------------------------------------------------------------------------------------------
 # TODO
@@ -32,7 +34,7 @@ from .record import \
 
 # datetime, timedelta objects
 
-# one_of, const
+# const
 
 #----------------------------------------------------------------------------------------------------------------------------------
 # plumbing
@@ -741,6 +743,44 @@ def _():
     R = record ('R', s=uppercase_letters())
     with expected_error(FieldCheckFailed):
         R(s='a')
+
+#----------------------------------------------------------------------------------------------------------------------------------
+# one_of
+
+@test("one_of accepts a fixed list of values")
+def _():
+    R = record ('R', v=one_of('a','b','c'))
+    assert_eq (R(v='a').v, 'a')
+
+@test("one_of doesn't accept values outside the given list")
+def _():
+    R = record ('R', v=one_of('a','b','c'))
+    with expected_error(FieldCheckFailed):
+        R(v='d')
+
+@test("one_of does not accept an empty argument list")
+def _():
+    with expected_error(ValueError):
+        one_of()
+
+@test("all arguments to one_of must have the same type")
+def _():
+    with expected_error(ValueError):
+        one_of ('a',object())
+    
+@test("one_of compares values based on == rather than `is'")
+def _():
+    class C (object):
+        def __init__ (self, value):
+            self.value = value
+        def __cmp__ (self, other):
+            return cmp (self.value[0], other.value[0])
+        def __hash__ (self):
+            return hash(self.value[0])
+    c1 = C (['a','bcde'])
+    c2 = C (['a','bracadabra'])
+    R = record ('R', c=one_of(c1))
+    assert_eq (R(c=c2).c, c2)
 
 #----------------------------------------------------------------------------------------------------------------------------------
 
