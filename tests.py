@@ -15,7 +15,11 @@ from collections import Counter
 from functools import wraps
 
 # this module
-from .record import FieldCheckFailed, FieldIsNotNullable, Field, RecordsAreImmutable, nullable, record
+from .record import \
+    Field, \
+    FieldCheckFailed, FieldIsNotNullable, RecordsAreImmutable, \
+    record, \
+    nullable, seq_of
 
 #----------------------------------------------------------------------------------------------------------------------------------
 # plumbing
@@ -32,6 +36,7 @@ def test (test_id):
     return register_test_func
 
 def should_raise (exc_type):
+    # TODO make this a context manager instead, so that it better targets the exact line where the exception should be raised
     def make_func (func):
         @wraps(func)
         def wrapped_func (*args, **kwargs):
@@ -96,8 +101,88 @@ for val_type in (int,long,float,str,unicode):
     val_type_tests (val_type)
 
 #----------------------------------------------------------------------------------------------------------------------------------
+# more type checks
 
-# seq_of, dict_of, pair_of
+@test("objects can be of a subclass of the declared type")
+def _():
+    class Parent (object):
+        pass
+    class Child (Parent):
+        pass
+    R = record ('R', child=Child)
+    c = Child()
+    r = R(c)
+    assert r.child is c
+
+#----------------------------------------------------------------------------------------------------------------------------------
+# seq_of
+
+@test("seq_of fields can be defined using a tuple")
+def _():
+    R = record ('R', elems=seq_of(int))
+    r = R(elems=(1,2,3))
+    assert r.elems == (1,2,3)
+
+@test("seq_of fields can be defined using a list")
+def _():
+    R = record ('R', elems=seq_of(int))
+    r = R(elems=[1,2,3])
+    assert r.elems == (1,2,3)
+
+@test("seq_of fields can be defined using an iterator")
+def _():
+    R = record ('R', elems=seq_of(int))
+    r = R(elems=(i for i in [1,2,3]))
+    assert r.elems == (1,2,3)
+
+@test("seq_of fields can be defined using any iterable")
+def _():
+    class MyIterable (object):
+        def __iter__ (self):
+            for i in (1,2,3):
+                yield i
+    R = record ('R', elems=seq_of(int))
+    r = R(elems=MyIterable())
+    assert r.elems == (1,2,3)
+
+@test("seq_of fields are tuples, and therefore immutable")
+@should_raise(TypeError)
+def _():
+    R = record ('R', elems=seq_of(int))
+    r = R(elems=[1,2,3])
+    r.elems[2] = 4
+
+@test("elements of the sequence must be of the correct type")
+@should_raise(TypeError)
+def _():
+    R = record ('R', elems=seq_of(int))
+    R(elems=['1','2','3'])
+
+@test("Two sequences can use types of the same name, they won't clash")
+def _():
+    C1 = type ('Element', (object,), {})
+    C2 = type ('Element', (object,), {})
+    R1 = record ('R1', elems=seq_of(C1))
+    R2 = record ('R2', elems=seq_of(C2))
+    r1 = R1(elems=[C1()])
+    r2 = R2(elems=[C2()])
+    assert r1.elems.__class__.__name__ == 'ElementSequence', r1.elems.__class__.__name__
+    assert r2.elems.__class__.__name__ == 'ElementSequence', r2.elems.__class__.__name__
+    assert r1.elems.__class__ is not r2.elems.__class__
+
+@test("If two sequences use types of the same name, you still can't put one's elems in the other")
+@should_raise (TypeError)
+def _():
+    C1 = type ('Element', (object,), {})
+    C2 = type ('Element', (object,), {})
+    R1 = record ('R1', elems=seq_of(C1))
+    R2 = record ('R2', elems=seq_of(C2))
+    R1 (elems=[C2()])
+
+#----------------------------------------------------------------------------------------------------------------------------------
+# 
+
+# dict_of, pair_of
 
 # nonnegative etc
 

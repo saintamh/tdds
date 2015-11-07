@@ -12,6 +12,7 @@ Edinburgh
 from record import \
     Field, \
     RecordsAreImmutable, FieldCheckFailed, FieldIsNotNullable, \
-    record, nullable
+    record, \
+    nullable, seq_of
 
 #----------------------------------------------------------------------------------------------------------------------------------

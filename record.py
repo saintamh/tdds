@@ -70,6 +70,31 @@ class Field (object):
         return '{0} is None'.format (value_expr)
 
 #----------------------------------------------------------------------------------------------------------------------------------
+
+COLLECTION_TYPES = {}
+
+def seq_of (type, **kwargs):
+    coll_key = ('seq_of',type)
+    coll_type = COLLECTION_TYPES.get(coll_key)
+    if coll_type is None:
+        class coll_type (tuple):
+            def __init__ (self, values):
+                super(coll_type,self).__init__ (values)
+                for e in self:
+                    if not isinstance (e, type):
+                        raise TypeError ('Element should be of type {}, not {}'.format (type.__name__, e.__class__.__name__))
+        coll_type.__name__ = '{}Sequence'.format (ucfirst(type.__name__))
+        COLLECTION_TYPES[coll_key] = coll_type
+    if 'coerce' in kwargs:
+        # 2015-11-07 - This simplifies things greatly, but is it going to come and bite us in the butt some day?
+        raise TypeError ("Can't specify a coercion function for sequences")
+    return Field (
+        coll_type,
+        coerce = coll_type,
+        **kwargs
+    )
+
+#----------------------------------------------------------------------------------------------------------------------------------
 # other public classes & utils
 
 class RecordsAreImmutable (TypeError):
@@ -121,7 +146,9 @@ def compile_field_def (fdef):
         return Field(fdef)
 
 def compose_external_code_invocation_expr (ns, code_ref, param_expr):
-    if isinstance (code_ref, basestring):
+    if code_ref is None:
+        return param_expr
+    elif isinstance (code_ref, basestring):
         return '({})'.format (code_ref.format(param_expr))
     elif hasattr (code_ref, '__call__'):
         return '{coerce_sym}({param_expr})'.format (
@@ -245,5 +272,15 @@ class RecordUnpickler (object):
         self.cls_name = cls_name
     def __call__ (self, *values):
         return ALL_RECORDS[self.cls_name](*values)
+
+#----------------------------------------------------------------------------------------------------------------------------------
+# misc utils
+
+def ucfirst (s):
+    # like s.capitalize(), but only affects the 1st letter, leaves the rest untouched
+    if s[0] == s[0].upper():
+        return s
+    else:
+        return s[:1].upper() + s[1:]
 
 #----------------------------------------------------------------------------------------------------------------------------------
