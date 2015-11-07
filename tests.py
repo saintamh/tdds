@@ -19,18 +19,20 @@ from .record import \
     Field, ImmutableDict, \
     FieldCheckFailed, FieldIsNotNullable, RecordsAreImmutable, \
     record, \
-    dict_of, nullable, pair_of, seq_of, set_of
+    dict_of, pair_of, seq_of, set_of, \
+    nonnegative, nullable, strictly_positive, \
+    uppercase_letters
 
 #----------------------------------------------------------------------------------------------------------------------------------
 # TODO
 
 # non-nullable collections cannot be empty
 
-# nonnegative etc
-
 # types ref'ed by name (e.g. for a LinkedList's "next")
 
 # datetime, timedelta objects
+
+# one_of, const
 
 #----------------------------------------------------------------------------------------------------------------------------------
 # plumbing
@@ -661,6 +663,84 @@ for protocol in (0,1,2,-1):
         r1 = R (id=1, label=u"uno")
         r2 = pickle.loads (pickle.dumps (r1, protocol=protocol))
         assert_eq (r2, r1)
+
+#----------------------------------------------------------------------------------------------------------------------------------
+# number utils
+
+@test("nonnegative numbers cannot be smaller than zero")
+def _():
+    R = record ('R', id=nonnegative(int))
+    with expected_error(FieldCheckFailed):
+        R(id=-1)
+
+@test("nonnegative numbers can be zero")
+def _():
+    R = record ('R', id=nonnegative(int))
+    assert_eq (R(id=0).id, 0)
+
+@test("nonnegative numbers can be greater than zero")
+def _():
+    R = record ('R', id=nonnegative(int))
+    assert_eq (R(id=10).id, 10)
+
+@test("strictly_positive numbers cannot be smaller than zero")
+def _():
+    R = record ('R', id=strictly_positive(int))
+    with expected_error(FieldCheckFailed):
+        R(id=-1)
+
+@test("strictly_positive numbers cannot be zero")
+def _():
+    R = record ('R', id=strictly_positive(int))
+    with expected_error(FieldCheckFailed):
+        R(id=0)
+
+@test("strictly_positive numbers can be greater than zero")
+def _():
+    R = record ('R', id=strictly_positive(int))
+    assert_eq (R(id=10).id, 10)
+
+#----------------------------------------------------------------------------------------------------------------------------------
+# string utils
+
+@test("uppercase_letters(3) accepts 3 uppercase letters")
+def _():
+    R = record ('R', s=uppercase_letters(3))
+    assert_eq (R(s='ABC').s, 'ABC')
+
+@test("uppercase_letters(3) doesn't accept less than 3 letters")
+def _():
+    R = record ('R', s=uppercase_letters(3))
+    with expected_error(FieldCheckFailed):
+        R(s='AB')
+
+@test("uppercase_letters(3) doesn't accept more than 3 letters")
+def _():
+    R = record ('R', s=uppercase_letters(3))
+    with expected_error(FieldCheckFailed):
+        R(s='ABCD')
+
+@test("uppercase_letters doesn't accept lowercase letters")
+def _():
+    R = record ('R', s=uppercase_letters(3))
+    with expected_error(FieldCheckFailed):
+        R(s='abc')
+
+@test("uppercase_letters() accepts any number of uppercase letters")
+def _():
+    R = record ('R', s=uppercase_letters())
+    assert_eq (R(s='ABCDEFGH').s, 'ABCDEFGH')
+
+@test("uppercase_letters() accepts empty strings")
+def _():
+    R = record ('R', s=uppercase_letters())
+    assert_eq (R(s='').s, '')
+
+@test("uppercase_letters() still only accepts uppercase letters")
+def _():
+    R = record ('R', s=uppercase_letters())
+    with expected_error(FieldCheckFailed):
+        R(s='a')
 
 #----------------------------------------------------------------------------------------------------------------------------------
 

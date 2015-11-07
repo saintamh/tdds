@@ -61,11 +61,14 @@ class Field (object):
         self.default = default
         self.coerce = coerce
         self.check = check
-    def derive (self, nullable=None, default=None):
+        self.ns = ClassDefEvaluationNamespace()
+    def derive (self, nullable=None, default=None, coerce=None, check=None):
         return self.__class__ (
             type = self.type,
             nullable = self.nullable if nullable is None else nullable,
             default = self.default if default is None else default,
+            coerce = self.coerce if coerce is None else coerce,
+            check = self.check if check is None else check,
         )
     def is_none_expr (self, value_expr):
         return '{0} is None'.format (value_expr)
@@ -169,6 +172,45 @@ class FieldIsNotNullable (ValueError):
 def nullable (fdef):
     return compile_field_def(fdef).derive (nullable=True)
 
+def value_check (name, check):
+    def func (fdef):
+        fdef = compile_field_def(fdef)
+        if fdef.check is not None:
+            raise Exception ("I haven't figured out how to chain value checks yet")
+        return fdef.derive (check=check)
+    func.__name__ = name
+    return func
+
+nonnegative = value_check ('nonnegative', '{} >= 0')
+strictly_positive = value_check ('strictly_positive', '{} > 0')
+
+def regex_check (name, char_def):
+    def func (n=None):
+        multiplier = ('{{{{%d}}}}' % n) if n is not None else '*'
+        fdef = Field (
+            type = str,
+            check = "re.search(r'^[%s]%s$',{})" % (char_def, multiplier),
+        )
+        fdef.ns.add (re)
+        return fdef
+    func.__name__ = name
+    return func
+
+uppercase_letters = regex_check ('uppercase_letters', 'A-Z')
+uppercase_wchars  = regex_check ('uppercase_wchars', '[A-Z0-9_]')
+uppercase_hex     = regex_check ('uppercase_hex', '0-9A-F')
+
+lowercase_letters = regex_check ('lowercase_letters', 'a-z')
+lowercase_wchars  = regex_check ('lowercase_wchars', '[a-z0-9_]')
+lowercase_hex     = regex_check ('lowercase_hex', '0-9a-f')
+
+digits_str        = regex_check ('digits_str', '0-9')
+
+absolute_http_url = Field (
+    type = str,
+    check = "re.search(r'^https?://.{1,2000}$',{})"
+)
+
 #----------------------------------------------------------------------------------------------------------------------------------
 
 class ClassDefEvaluationNamespace (object):
@@ -192,6 +234,9 @@ class ClassDefEvaluationNamespace (object):
         assert symbol not in self.ns or self.ns[symbol] is value, \
             (symbol, self.ns[symbol], value)
         self.ns[symbol] = value
+    def update (self, other):
+        for key,val in other.ns.iteritems():
+            self.set (key,val)
     def asdict (self):
         return dict(self.ns)
 
@@ -255,15 +300,12 @@ def compose_constructor_stmts (ns, cls_name, fname, fdef):
     ))
     # you can cheat past our fake immutability by using object.__setattr__
     lines.append ('object.__setattr__ (self, "{fname}", {fname})')
-    return '\n'.join (
-        '        ' + l.format (
-            is_none = fdef.is_none_expr (fname),
-            not_null_and_ = '{fname} is not None and '.format(fname=fname) if fdef.nullable else '',
-            fname = fname,
-            fdef = fdef,
-            cls_name = cls_name,
-        )
-        for l in lines
+    return '\n'.join ('        ' + l for l in lines).format (
+        is_none = fdef.is_none_expr (fname),
+        not_null_and_ = '{fname} is not None and '.format(fname=fname) if fdef.nullable else '',
+        fname = fname,
+        fdef = fdef,
+        cls_name = cls_name,
     )
 
 def compose_json_key_value_pair (fname, fdef):
@@ -281,6 +323,7 @@ def exec_cls_def (cls_name, field_defs, ns, cls_def_str, verbose=False):
         print cls_def_str
     for fdef in field_defs.itervalues():
         ns.set (fdef.type.__name__, fdef.type)
+        ns.update (fdef.ns)
     for cls in (RecordsAreImmutable,FieldCheckFailed,FieldIsNotNullable,RecordUnpickler):
         ns.set (cls.__name__, cls)
     ns_dict = ns.asdict()

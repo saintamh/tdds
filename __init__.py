@@ -10,9 +10,11 @@ Edinburgh
 #----------------------------------------------------------------------------------------------------------------------------------
 
 from record import \
-    Field, \
-    RecordsAreImmutable, FieldCheckFailed, FieldIsNotNullable, \
+    Field, ImmutableDict, \
+    FieldCheckFailed, FieldIsNotNullable, RecordsAreImmutable, \
     record, \
-    nullable, seq_of
+    dict_of, pair_of, seq_of, set_of, \
+    nonnegative, nullable, strictly_positive, \
+    uppercase_letters
 
 #----------------------------------------------------------------------------------------------------------------------------------
