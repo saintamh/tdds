@@ -19,7 +19,7 @@ from .record import \
     Field, \
     FieldCheckFailed, FieldIsNotNullable, RecordsAreImmutable, \
     record, \
-    nullable, seq_of
+    dict_of, nullable, seq_of
 
 #----------------------------------------------------------------------------------------------------------------------------------
 # plumbing
@@ -47,6 +47,10 @@ class expected_error (object):
             raise TestFailure ("Expected %s, no exception raised" % self.exc_type.__name__)
         else:
             raise TestFailure ("Raised %s instead of %s" % (exc_type.__name__, self.exc_type.__name__))
+
+def assert_eq (v1, v2):
+    if v1 != v2:
+        raise AssertionError ("%r != %r" % (v1,v2))
 
 #----------------------------------------------------------------------------------------------------------------------------------
 
@@ -76,13 +80,13 @@ def val_type_tests (val_type):
         R = record ('R', id=val_type)
         v = val_type(0)
         r = R(id=v)
-        assert r.id == v
+        assert_eq (r.id, v)
 
     @test("nullable {} fields can be None".format(val_type_name))
     def _():
         R = record ('R', id=nullable(val_type))
         r = R(id=None)
-        assert r.id is None
+        assert r.id is None, repr(r.id)
 
     @test("{} fields can be defined with just the type".format(val_type_name))
     def _():
@@ -120,19 +124,19 @@ def _():
 def _():
     R = record ('R', elems=seq_of(int))
     r = R(elems=(1,2,3))
-    assert r.elems == (1,2,3)
+    assert_eq (r.elems, (1,2,3))
 
 @test("seq_of fields can be defined using a list")
 def _():
     R = record ('R', elems=seq_of(int))
     r = R(elems=[1,2,3])
-    assert r.elems == (1,2,3)
+    assert_eq (r.elems, (1,2,3))
 
 @test("seq_of fields can be defined using an iterator")
 def _():
     R = record ('R', elems=seq_of(int))
     r = R(elems=(i for i in [1,2,3]))
-    assert r.elems == (1,2,3)
+    assert_eq (r.elems, (1,2,3))
 
 @test("seq_of fields can be defined using any iterable")
 def _():
@@ -142,7 +146,7 @@ def _():
                 yield i
     R = record ('R', elems=seq_of(int))
     r = R(elems=MyIterable())
-    assert r.elems == (1,2,3)
+    assert_eq (r.elems, (1,2,3))
 
 @test("seq_of fields are tuples, and therefore immutable")
 def _():
@@ -165,8 +169,8 @@ def _():
     R2 = record ('R2', elems=seq_of(C2))
     r1 = R1(elems=[C1()])
     r2 = R2(elems=[C2()])
-    assert r1.elems.__class__.__name__ == 'ElementSequence', r1.elems.__class__.__name__
-    assert r2.elems.__class__.__name__ == 'ElementSequence', r2.elems.__class__.__name__
+    assert_eq (r1.elems.__class__.__name__, 'ElementSequence')
+    assert_eq (r2.elems.__class__.__name__, 'ElementSequence')
     assert r1.elems.__class__ is not r2.elems.__class__
 
 @test("If two sequences use types of the same name, you still can't put one's elems in the other")
@@ -179,12 +183,118 @@ def _():
         R1 (elems=[C2()])
 
 #----------------------------------------------------------------------------------------------------------------------------------
+# dict_of
 
-# dict_of, pair_of
+@test("dict_of fields can be defined using a dict")
+def _():
+    R = record ('R', elems=dict_of(int,str))
+    r = R(elems={1:'uno',2:'zwei'})
+    assert_eq (r.elems, {1:'uno',2:'zwei'})
+
+@test("dict_of fields can be defined using an iterator")
+def _():
+    R = record ('R', elems=dict_of(int,str))
+    r = R(elems=((k,v) for k,v in [[1,'uno'],[2,'zwei']]))
+    assert_eq (r.elems, {1:'uno',2:'zwei'})
+
+@test("keys of the dict must be of the correct type")
+def _():
+    R = record ('R', elems=dict_of(int,str))
+    with expected_error(TypeError):
+        R(elems={'1':'uno'})
+
+@test("values of the dict must be of the correct type")
+def _():
+    R = record ('R', elems=dict_of(int,str))
+    with expected_error(TypeError):
+        R(elems={1:1})
+
+@test("dict_of fields are ImmutableDict instances, and therefore you can't assign to their keys")
+def _():
+    R = record ('R', elems=dict_of(int,str))
+    r = R(elems={1:'uno',2:'zwei'})
+    with expected_error(TypeError):
+        r.elems[2] = 'two'
+    assert_eq (r.elems[2], 'zwei')
+
+@test("dict_of fields are ImmutableDict instances, and therefore you can't delete their keys")
+def _():
+    R = record ('R', elems=dict_of(int,str))
+    r = R(elems={1:'uno',2:'zwei'})
+    with expected_error(TypeError):
+        del r.elems[2]
+    assert_eq (r.elems[2], 'zwei')
+
+@test("dict_of fields are ImmutableDict instances, and therefore you can't call .clear() on them")
+def _():
+    R = record ('R', elems=dict_of(int,str))
+    r = R(elems={1:'uno',2:'zwei'})
+    with expected_error(TypeError):
+        r.elems.clear()
+    assert_eq (r.elems, {1:'uno',2:'zwei'})
+
+@test("dict_of fields are ImmutableDict instances, and therefore you can't call .pop() on them")
+def _():
+    R = record ('R', elems=dict_of(int,str))
+    r = R(elems={1:'uno',2:'zwei'})
+    with expected_error(TypeError):
+        r.elems.pop(1)
+    assert_eq (r.elems, {1:'uno',2:'zwei'})
+
+@test("dict_of fields are ImmutableDict instances, and therefore you can't call .popitem() on them")
+def _():
+    R = record ('R', elems=dict_of(int,str))
+    r = R(elems={1:'uno',2:'zwei'})
+    with expected_error(TypeError):
+        r.elems.popitem()
+    assert_eq (r.elems, {1:'uno',2:'zwei'})
+
+@test("dict_of fields are ImmutableDict instances, and therefore you can't call .setdefault() on them")
+def _():
+    R = record ('R', elems=dict_of(int,str))
+    r = R(elems={1:'uno',2:'zwei'})
+    with expected_error(TypeError):
+        r.elems.setdefault(3,'trois')
+    assert_eq (r.elems, {1:'uno',2:'zwei'})
+
+@test("dict_of fields are ImmutableDict instances, and therefore you can't call .update() on them")
+def _():
+    R = record ('R', elems=dict_of(int,str))
+    r = R(elems={1:'uno',2:'zwei'})
+    with expected_error(TypeError):
+        r.elems.update({3:'trois'})
+    assert_eq (r.elems, {1:'uno',2:'zwei'})
+
+@test("Two sequences can use types of the same name, they won't clash")
+def _():
+    C1 = type ('Element', (object,), {})
+    C2 = type ('Element', (object,), {})
+    R1 = record ('R1', elems=dict_of(int,C1))
+    R2 = record ('R2', elems=dict_of(int,C2))
+    r1 = R1(elems={9:C1()})
+    r2 = R2(elems={9:C2()})
+    assert_eq (r1.elems.__class__.__name__, 'IntElementDictionary')
+    assert_eq (r2.elems.__class__.__name__, 'IntElementDictionary')
+    assert r1.elems.__class__ is not r2.elems.__class__
+
+@test("If two sequences use types of the same name, you still can't put one's elems in the other")
+def _():
+    C1 = type ('Element', (object,), {})
+    C2 = type ('Element', (object,), {})
+    R1 = record ('R1', elems=dict_of(int,C1))
+    R2 = record ('R2', elems=dict_of(int,C2))
+    with expected_error(TypeError):
+        R1 (elems={9:C2()})
+
+#----------------------------------------------------------------------------------------------------------------------------------
+
+# pair_of, set_of
 
 # nonnegative etc
 
 # types ref'ed by name (e.g. for a LinkedList's "next")
+
+# datetime, timedelta objects
 
 #----------------------------------------------------------------------------------------------------------------------------------
 # JSON serialization
@@ -194,10 +304,10 @@ def _():
     R = record ('R', id=str, label=unicode)
     r = R (id='robert', label=u"Robert Smith")
     j = r.json_struct()
-    assert j == {
+    assert_eq (j, {
         "id": "robert",
         "label": "Robert Smith",
-    }, repr(j)
+    })
 
 @test("nested records are rendered to JSON as nested objects")
 def _():
@@ -205,13 +315,13 @@ def _():
     Person = record ('Person', name=Name, age=int)
     p = Person (name=Name(first=u"Robert",last=u"Smith"), age=100)
     j = p.json_struct()
-    assert j == {
+    assert_eq (j, {
         "name": {
             "first": "Robert",
             "last": "Smith",
         },
         "age": 100,
-    }
+    })
 
 @test("the nested object can be anything with a json_struct() method")
 def _():
@@ -224,13 +334,13 @@ def _():
     Person = record ('Person', name=Name, age=int)
     p = Person (name=Name(first=u"Robert",last=u"Smith"), age=100)
     j = p.json_struct()
-    assert j == {
+    assert_eq (j, {
         "name": {
             "first": "Robert",
             "last": "Smith",
         },
         "age": 100,
-    }
+    })
 
 #----------------------------------------------------------------------------------------------------------------------------------
 # "coerce" functions
@@ -242,7 +352,7 @@ def _():
         coerce = lambda s: s.upper(),
     ))
     r = R('a')
-    assert r.id == 'A'
+    assert_eq (r.id, 'A')
 
 @test("a 'coerce' function specified as any callable can modify the value")
 def _():
@@ -254,7 +364,7 @@ def _():
         coerce = Upper(),
     ))
     r = R('a')
-    assert r.id == 'A'
+    assert_eq (r.id, 'A')
 
 @test("a 'coerce' function specified as a string can modify the value")
 def _():
@@ -263,7 +373,7 @@ def _():
         coerce = '{}.upper()',
     ))
     r = R('a')
-    assert r.id == 'A'
+    assert_eq (r.id, 'A')
 
 @test("the 'coerce' function is invoked before the null check and therefore may get a None value")
 def _():
@@ -272,7 +382,7 @@ def _():
         coerce = str,
     ))
     r = R(None)
-    assert r.id == 'None'
+    assert_eq (r.id, 'None')
 
 @test("the 'coerce' function may not return None if the field is not nullable")
 def _():
@@ -291,7 +401,7 @@ def _():
         nullable = True,
     ))
     r = R('a')
-    assert r.id is None
+    assert r.id is None, repr(r.id)
 
 @test("specifying something other than a string or a callable as 'coerce' raises a TypeError")
 def _():
@@ -328,7 +438,7 @@ def _():
         coerce = lambda v: v.upper(),
     ))
     r = R(id=None)
-    assert r.id == 'LOWER'
+    assert_eq (r.id, 'LOWER')
 
 #----------------------------------------------------------------------------------------------------------------------------------
 # 'check' function
@@ -417,7 +527,7 @@ def _():
         check = lambda s: s == s.upper(),
     ))
     r2 = R('ok')
-    assert r2.id == 'OK'
+    assert_eq (r2.id, 'OK')
 
 @test("the output of the coercion function is passed to the check function, which may reject it")
 def _():
@@ -440,7 +550,7 @@ for protocol in (0,1,2,-1):
         R = record ('R', id=int, label=unicode)
         r1 = R (id=1, label=u"uno")
         r2 = pickle.loads (pickle.dumps (r1, protocol=protocol))
-        assert r2 == r1
+        assert_eq (r2, r1)
 
 #----------------------------------------------------------------------------------------------------------------------------------
 

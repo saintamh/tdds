@@ -12,6 +12,7 @@ Edinburgh
 
 # standards
 from collections import namedtuple
+from functools import wraps
 import re
 
 #----------------------------------------------------------------------------------------------------------------------------------
@@ -70,29 +71,64 @@ class Field (object):
         return '{0} is None'.format (value_expr)
 
 #----------------------------------------------------------------------------------------------------------------------------------
+# collection fields (seq_of, dict_of, pair_of, set_of)
 
 COLLECTION_TYPES = {}
 
-def seq_of (type, **kwargs):
-    coll_key = ('seq_of',type)
-    coll_type = COLLECTION_TYPES.get(coll_key)
-    if coll_type is None:
-        class coll_type (tuple):
-            def __init__ (self, values):
-                super(coll_type,self).__init__ (values)
-                for e in self:
-                    if not isinstance (e, type):
-                        raise TypeError ('Element should be of type {}, not {}'.format (type.__name__, e.__class__.__name__))
-        coll_type.__name__ = '{}Sequence'.format (ucfirst(type.__name__))
-        COLLECTION_TYPES[coll_key] = coll_type
-    if 'coerce' in kwargs:
-        # 2015-11-07 - This simplifies things greatly, but is it going to come and bite us in the butt some day?
-        raise TypeError ("Can't specify a coercion function for sequences")
-    return Field (
-        coll_type,
-        coerce = coll_type,
-        **kwargs
-    )
+class ImmutableDict (dict):
+    def forbidden_operation (self, *args, **kwargs):
+        raise TypeError ("ImmutableDict instances are read-only")
+    __setitem__ = __delitem__ = clear = pop = popitem = setdefault = update = forbidden_operation
+    def __hash__ (self, _cache=[]):
+        if not _cache:
+            h = 0
+            for key,val in sorted(self.iteritems()):
+                h = h*2209 + hash(key)*47 + hash(val)
+            _cache.append (h)
+        return _cache[0]
+    # We just defer to the built-in __cmp__ for dicts
+
+def collection_builder (build_type):
+    # A util to take some of the commonality out of seq_of, set_of and dict_of
+    @wraps(build_type)
+    def builder (*args, **kwargs):
+        if 'coerce' in kwargs:
+            # 2015-11-07 - This simplifies things greatly, but is it going to come and bite us in the butt some day?
+            raise TypeError ("Can't specify a coercion function for sequences")
+        coll_key = ('seq_of',args)
+        coll_type = COLLECTION_TYPES.get(coll_key)
+        if coll_type is None:
+            COLLECTION_TYPES[coll_key] = coll_type = build_type (*args)
+        return Field (
+            coll_type,
+            coerce = coll_type,
+            **kwargs
+        )
+    return builder
+
+@collection_builder
+def seq_of (elem_type):
+    class seq_type (tuple):
+        def __init__ (self, values):
+            super(seq_type,self).__init__ (values)
+            for e in self:
+                if not isinstance (e, elem_type):
+                    raise TypeError ('Element should be of type {}, not {}'.format (elem_type.__name__, e.__class__.__name__))
+    seq_type.__name__ = '{}Sequence'.format (ucfirst(elem_type.__name__))
+    return seq_type
+
+@collection_builder
+def dict_of (key_type, val_type, **kwargs):
+    class dict_type (ImmutableDict):
+        def __init__ (self, *args, **kwargs):
+            super(dict_type,self).__init__ (*args, **kwargs)
+            for k,v in self.iteritems():
+                if not isinstance (k, key_type):
+                    raise TypeError ('Key should be of type {}, not {}'.format (key_type.__name__, k.__class__.__name__))
+                if not isinstance (v, val_type):
+                    raise TypeError ('Value should be of type {}, not {}'.format (val_type.__name__, v.__class__.__name__))
+    dict_type.__name__ = '{}{}Dictionary'.format (ucfirst(key_type.__name__), ucfirst(val_type.__name__))
+    return dict_type
 
 #----------------------------------------------------------------------------------------------------------------------------------
 # other public classes & utils
