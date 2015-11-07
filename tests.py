@@ -35,30 +35,27 @@ def test (test_id):
         return func
     return register_test_func
 
-def should_raise (exc_type):
-    # TODO make this a context manager instead, so that it better targets the exact line where the exception should be raised
-    def make_func (func):
-        @wraps(func)
-        def wrapped_func (*args, **kwargs):
-            try:
-                func (*args, **kwargs)
-            except exc_type:
-                return None
-            except Exception, ex:
-                raise TestFailure ("Raised %s instead of %s" % (ex.__class__.__name__, exc_type.__name__))
-            else:
-                raise TestFailure ("Expected %s, no exception raised" % exc_type.__name__)
-        return wrapped_func
-    return make_func
+class expected_error (object):
+    def __init__ (self, exc_type):
+        self.exc_type = exc_type
+    def __enter__ (self):
+        pass
+    def __exit__ (self, exc_type, exc_value, exc_tb):
+        if exc_type is self.exc_type:
+            return True # swallow the exception, test passes
+        elif exc_type is None:
+            raise TestFailure ("Expected %s, no exception raised" % self.exc_type.__name__)
+        else:
+            raise TestFailure ("Raised %s instead of %s" % (exc_type.__name__, self.exc_type.__name__))
 
 #----------------------------------------------------------------------------------------------------------------------------------
 
 @test('records are immutable')
-@should_raise(RecordsAreImmutable)
 def _():
     R = record ('R', id = int)
     r = R(10)
-    r.id = 11
+    with expected_error(RecordsAreImmutable):
+        r.id = 11
 
 #----------------------------------------------------------------------------------------------------------------------------------
 # numeric fields
@@ -67,10 +64,10 @@ def val_type_tests (val_type):
     val_type_name = val_type.__name__
 
     @test("non-nullable {} fields can't be None".format(val_type_name))
-    @should_raise(FieldIsNotNullable)
     def _():
         R = record ('R', id=val_type)
-        R(id=None)
+        with expected_error(FieldIsNotNullable):
+            R(id=None)
 
     @test("non-nullable {} fields can be zero".format(val_type_name))
     def _():
@@ -91,10 +88,10 @@ def val_type_tests (val_type):
         r = R(id=val_type(1))
 
     @test("{} fields defined with just the type are not nullable".format(val_type_name))
-    @should_raise(FieldIsNotNullable)
     def _():
         R = record ('R', id=val_type)
-        R(id=None)
+        with expected_error(FieldIsNotNullable):
+            R(id=None)
 
 for val_type in (int,long,float,str,unicode):
     # they need to be within their own scope for the `val_type' to be properly set
@@ -146,17 +143,17 @@ def _():
     assert r.elems == (1,2,3)
 
 @test("seq_of fields are tuples, and therefore immutable")
-@should_raise(TypeError)
 def _():
     R = record ('R', elems=seq_of(int))
     r = R(elems=[1,2,3])
-    r.elems[2] = 4
+    with expected_error(TypeError):
+        r.elems[2] = 4
 
 @test("elements of the sequence must be of the correct type")
-@should_raise(TypeError)
 def _():
     R = record ('R', elems=seq_of(int))
-    R(elems=['1','2','3'])
+    with expected_error(TypeError):
+        R(elems=['1','2','3'])
 
 @test("Two sequences can use types of the same name, they won't clash")
 def _():
@@ -171,16 +168,15 @@ def _():
     assert r1.elems.__class__ is not r2.elems.__class__
 
 @test("If two sequences use types of the same name, you still can't put one's elems in the other")
-@should_raise (TypeError)
 def _():
     C1 = type ('Element', (object,), {})
     C2 = type ('Element', (object,), {})
     R1 = record ('R1', elems=seq_of(C1))
     R2 = record ('R2', elems=seq_of(C2))
-    R1 (elems=[C2()])
+    with expected_error(TypeError):
+        R1 (elems=[C2()])
 
 #----------------------------------------------------------------------------------------------------------------------------------
-# 
 
 # dict_of, pair_of
 
@@ -277,13 +273,13 @@ def _():
     assert r.id == 'None'
 
 @test("the 'coerce' function may not return None if the field is not nullable")
-@should_raise(FieldIsNotNullable)
 def _():
     R = record ('R', id=Field (
         type = str,
         coerce = lambda s: None,
     ))
-    r = R('a')
+    with expected_error(FieldIsNotNullable):
+        r = R('a')
 
 @test("the 'coerce' function may return None if the field is nullable")
 def _():
@@ -296,30 +292,30 @@ def _():
     assert r.id is None
 
 @test("specifying something other than a string or a callable as 'coerce' raises a TypeError")
-@should_raise(TypeError)
 def _():
-    R = record ('R', id=Field (
-        type = str,
-        coerce = 0,
-    ))
+    with expected_error(TypeError):
+        R = record ('R', id=Field (
+            type = str,
+            coerce = 0,
+        ))
 
 @test("the coercion function must return a value of the correct type")
-@should_raise(TypeError)
 def _():
     R = record ('R', id=Field (
         type = str,
         coerce = lambda v: 10,
     ))
-    R(id='not ten')
+    with expected_error(TypeError):
+        R(id='not ten')
 
 @test("is the field is not nullable, the coercion function may not return None")
-@should_raise(FieldIsNotNullable)
 def _():
     R = record ('R', id=Field (
         type = str,
         coerce = lambda v: None,
     ))
-    R(id='not None')
+    with expected_error(FieldIsNotNullable):
+        R(id='not None')
 
 @test("is the field is nullable, the coercion function is run on the default value")
 def _():
@@ -336,13 +332,13 @@ def _():
 # 'check' function
 
 @test("if the 'check' function returns False, a FieldCheckFailed exception is raised")
-@should_raise(FieldCheckFailed)
 def _():
     R = record ('R', id=Field (
         type = str,
         check = lambda s: s == 'valid',
     ))
-    r = R('invalid')
+    with expected_error(FieldCheckFailed):
+        r = R('invalid')
 
 @test("if the 'check' function returns True, no FieldCheckFailed exception is raised")
 def _():
@@ -372,7 +368,6 @@ def _():
     r = R('valid')
 
 @test("the 'check' function is invoked after the null check and will not receive a None value if the field is not nullable")
-@should_raise(BufferError)
 def _():
     def not_none (value):
         if value is None:
@@ -381,10 +376,10 @@ def _():
         type = str,
         coerce = not_none,
     ))
-    r = R(None)
+    with expected_error(BufferError):
+        r = R(None)
 
 @test("the 'check' function may raise exceptions, these are not caught and bubble up")
-@should_raise(BufferError)
 def _():
     def boom (value):
         raise BufferError ('boom')
@@ -392,15 +387,16 @@ def _():
         type = str,
         check = boom,
     ))
-    r = R('a')
+    with expected_error(BufferError):
+        r = R('a')
 
 @test("specifying something other than a string or a callable as 'check' raises a TypeError")
-@should_raise(TypeError)
 def _():
-    R = record ('R', id=Field (
-        type = str,
-        check = 0,
-    ))
+    with expected_error(TypeError):
+        R = record ('R', id=Field (
+            type = str,
+            check = 0,
+        ))
 
 @test("if both a default value and a check are provided, the check is invoked on the default value, too")
 def _():
@@ -422,14 +418,14 @@ def _():
     assert r2.id == 'OK'
 
 @test("the output of the coercion function is passed to the check function, which may reject it")
-@should_raise(FieldCheckFailed)
 def _():
     R = record ('R', id=Field (
         type = str,
         coerce = lambda s: s.lower(),
         check = lambda s: s == s.upper(),
     ))
-    r2 = R('OK')
+    with expected_error(FieldCheckFailed):
+        r2 = R('OK')
 
 #----------------------------------------------------------------------------------------------------------------------------------
 # pickleablity
