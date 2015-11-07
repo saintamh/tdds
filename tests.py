@@ -16,7 +16,7 @@ from functools import wraps
 
 # this module
 from .record import \
-    Field, \
+    Field, ImmutableDict, \
     FieldCheckFailed, FieldIsNotNullable, RecordsAreImmutable, \
     record, \
     dict_of, nullable, seq_of
@@ -209,61 +209,11 @@ def _():
     with expected_error(TypeError):
         R(elems={1:1})
 
-@test("dict_of fields are ImmutableDict instances, and therefore you can't assign to their keys")
+@test("dict_of fields are ImmutableDict instances, and therefore immutable")
 def _():
     R = record ('R', elems=dict_of(int,str))
     r = R(elems={1:'uno',2:'zwei'})
-    with expected_error(TypeError):
-        r.elems[2] = 'two'
-    assert_eq (r.elems[2], 'zwei')
-
-@test("dict_of fields are ImmutableDict instances, and therefore you can't delete their keys")
-def _():
-    R = record ('R', elems=dict_of(int,str))
-    r = R(elems={1:'uno',2:'zwei'})
-    with expected_error(TypeError):
-        del r.elems[2]
-    assert_eq (r.elems[2], 'zwei')
-
-@test("dict_of fields are ImmutableDict instances, and therefore you can't call .clear() on them")
-def _():
-    R = record ('R', elems=dict_of(int,str))
-    r = R(elems={1:'uno',2:'zwei'})
-    with expected_error(TypeError):
-        r.elems.clear()
-    assert_eq (r.elems, {1:'uno',2:'zwei'})
-
-@test("dict_of fields are ImmutableDict instances, and therefore you can't call .pop() on them")
-def _():
-    R = record ('R', elems=dict_of(int,str))
-    r = R(elems={1:'uno',2:'zwei'})
-    with expected_error(TypeError):
-        r.elems.pop(1)
-    assert_eq (r.elems, {1:'uno',2:'zwei'})
-
-@test("dict_of fields are ImmutableDict instances, and therefore you can't call .popitem() on them")
-def _():
-    R = record ('R', elems=dict_of(int,str))
-    r = R(elems={1:'uno',2:'zwei'})
-    with expected_error(TypeError):
-        r.elems.popitem()
-    assert_eq (r.elems, {1:'uno',2:'zwei'})
-
-@test("dict_of fields are ImmutableDict instances, and therefore you can't call .setdefault() on them")
-def _():
-    R = record ('R', elems=dict_of(int,str))
-    r = R(elems={1:'uno',2:'zwei'})
-    with expected_error(TypeError):
-        r.elems.setdefault(3,'trois')
-    assert_eq (r.elems, {1:'uno',2:'zwei'})
-
-@test("dict_of fields are ImmutableDict instances, and therefore you can't call .update() on them")
-def _():
-    R = record ('R', elems=dict_of(int,str))
-    r = R(elems={1:'uno',2:'zwei'})
-    with expected_error(TypeError):
-        r.elems.update({3:'trois'})
-    assert_eq (r.elems, {1:'uno',2:'zwei'})
+    assert isinstance (r.elems, ImmutableDict)
 
 @test("Two sequences can use types of the same name, they won't clash")
 def _():
@@ -285,6 +235,58 @@ def _():
     R2 = record ('R2', elems=dict_of(int,C2))
     with expected_error(TypeError):
         R1 (elems={9:C2()})
+
+#----------------------------------------------------------------------------------------------------------------------------------
+# ImmutableDict
+
+@test("ImmutableDict objects are immutable, and therefore you can't assign to their keys")
+def _():
+    elems = ImmutableDict ({1:'uno',2:'zwei'})
+    with expected_error(TypeError):
+        elems[2] = 'two'
+    assert_eq (elems, {1:'uno',2:'zwei'})
+
+@test("ImmutableDict objects are immutable, and therefore you can't delete their keys")
+def _():
+    elems = ImmutableDict ({1:'uno',2:'zwei'})
+    with expected_error(TypeError):
+        del elems[2]
+    assert_eq (elems, {1:'uno',2:'zwei'})
+
+@test("ImmutableDict objects are immutable, and therefore you can't call .clear() on them")
+def _():
+    elems = ImmutableDict ({1:'uno',2:'zwei'})
+    with expected_error(TypeError):
+        elems.clear()
+    assert_eq (elems, {1:'uno',2:'zwei'})
+
+@test("ImmutableDict objects are immutable, and therefore you can't call .pop() on them")
+def _():
+    elems = ImmutableDict ({1:'uno',2:'zwei'})
+    with expected_error(TypeError):
+        elems.pop(1)
+    assert_eq (elems, {1:'uno',2:'zwei'})
+
+@test("ImmutableDict objects are immutable, and therefore you can't call .popitem() on them")
+def _():
+    elems = ImmutableDict ({1:'uno',2:'zwei'})
+    with expected_error(TypeError):
+        elems.popitem()
+    assert_eq (elems, {1:'uno',2:'zwei'})
+
+@test("ImmutableDict objects are immutable, and therefore you can't call .setdefault() on them")
+def _():
+    elems = ImmutableDict ({1:'uno',2:'zwei'})
+    with expected_error(TypeError):
+        elems.setdefault(3,'trois')
+    assert_eq (elems, {1:'uno',2:'zwei'})
+
+@test("ImmutableDict objects are immutable, and therefore you can't call .update() on them")
+def _():
+    elems = ImmutableDict ({1:'uno',2:'zwei'})
+    with expected_error(TypeError):
+        elems.update({3:'trois'})
+    assert_eq (elems, {1:'uno',2:'zwei'})
 
 #----------------------------------------------------------------------------------------------------------------------------------
 
