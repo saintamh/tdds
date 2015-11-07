@@ -72,6 +72,14 @@ class Field (object):
         )
     def is_none_expr (self, value_expr):
         return '{0} is None'.format (value_expr)
+    def __repr__ (self):
+        return 'Field (%r%s%s%s%s)' % (
+            self.type,
+            ', nullable=True' if self.nullable else '',
+            ', default=%r' % self.default if self.default else '',
+            ', coerce=%r' % self.coerce if self.coerce else '',
+            ', check=%r' % self.check if self.check else '',
+        )
 
 class ClassDefEvaluationNamespace (object):
     def __init__ (self):
@@ -168,6 +176,8 @@ def set_of (elem_type):
             for e in self:
                 if not isinstance (e, elem_type):
                     raise TypeError ('Element should be of type {}, not {}'.format (elem_type.__name__, e.__class__.__name__))
+        def json_struct (self):
+            return tuple(self)
     set_type.__name__ = '{}Set'.format (ucfirst(elem_type.__name__))
     return set_type
 

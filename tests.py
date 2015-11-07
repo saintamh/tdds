@@ -197,6 +197,14 @@ def _():
     with expected_error(TypeError):
         R1 (elems=[C2()])
 
+@test("sequence fields get serialized for JSON as tuples")
+def _():
+    R = record ('R', elems=seq_of(int))
+    r = R(elems=[1,2,3])
+    assert_eq (r.json_struct(), {
+        "elems": (1,2,3),
+    })
+
 #----------------------------------------------------------------------------------------------------------------------------------
 # pair_of
 
@@ -258,6 +266,14 @@ def _():
     with expected_error(TypeError):
         R1 (elems=[C2(),C2()])
 
+@test("pair fields get serialized for JSON as tuples")
+def _():
+    R = record ('R', elems=pair_of(int))
+    r = R(elems=[1,2])
+    assert_eq (r.json_struct(), {
+        "elems": (1,2),
+    })
+
 #----------------------------------------------------------------------------------------------------------------------------------
 # set_of
 
@@ -303,6 +319,17 @@ def _():
     R2 = record ('R2', elems=set_of(C2))
     with expected_error(TypeError):
         R1 (elems=[C2()])
+
+@test("pair fields get serialized for JSON as tuples")
+def _():
+    R = record ('R', elems=set_of(int))
+    r = R(elems=[1,2,2,3])
+    json_elems = r.json_struct()['elems']
+    assert isinstance (json_elems, tuple), repr(json_elems)
+    assert_eq (
+        sorted(json_elems),
+        [1,2,3],
+    )
 
 #----------------------------------------------------------------------------------------------------------------------------------
 # dict_of
@@ -357,6 +384,32 @@ def _():
     R2 = record ('R2', elems=dict_of(int,C2))
     with expected_error(TypeError):
         R1 (elems={9:C2()})
+
+@test("dict_of params can be field defs themselves")
+def _():
+    R = record (
+        'R',
+        elems = dict_of (
+            str,
+            pair_of (int),
+        ),
+    )
+    with expected_error (FieldCheckFailed):
+        R ({'ABCD': (1,2)})
+    with expected_error (FieldCheckFailed):
+        R ({'ABC': (1,2,3)})
+    assert_eq (
+        R({'ABC':(1,2)}).elems,
+        {'ABC': (1,2)},
+    )
+
+@test("dict_of fields get serialized for JSON as dicts")
+def _():
+    R = record ('R', elems=dict_of(int,str))
+    r = R(elems={1:'uno',2:'zwei'})
+    assert_eq (r.json_struct(), {
+        "elems": {1:'uno',2:'zwei'},
+    })
 
 #----------------------------------------------------------------------------------------------------------------------------------
 # ImmutableDict
