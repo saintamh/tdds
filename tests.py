@@ -58,7 +58,9 @@ def _():
         r.id = 11
 
 #----------------------------------------------------------------------------------------------------------------------------------
-# numeric fields
+# scalar fields
+
+SCALAR_TYPES = (int,long,float,str,unicode)
 
 def val_type_tests (val_type):
     val_type_name = val_type.__name__
@@ -93,7 +95,7 @@ def val_type_tests (val_type):
         with expected_error(FieldIsNotNullable):
             R(id=None)
 
-for val_type in (int,long,float,str,unicode):
+for val_type in SCALAR_TYPES:
     # they need to be within their own scope for the `val_type' to be properly set
     val_type_tests (val_type)
 
@@ -106,10 +108,10 @@ def _():
         pass
     class Child (Parent):
         pass
-    R = record ('R', child=Child)
+    R = record ('R', obj=Parent)
     c = Child()
     r = R(c)
-    assert r.child is c
+    assert r.obj is c
 
 #----------------------------------------------------------------------------------------------------------------------------------
 # seq_of
