@@ -205,6 +205,19 @@ def _():
         "elems": (1,2,3),
     })
 
+@test("seq_of params can be field defs themselves")
+def _():
+    R = record (
+        'R',
+        elems = seq_of(pair_of(int)),
+    )
+    with expected_error (FieldValueError):
+        R ([(1,2,3)])
+    assert_eq (
+        R([(1,2),(3,4)]).elems,
+        ((1,2),(3,4)),
+    )
+
 #----------------------------------------------------------------------------------------------------------------------------------
 # pair_of
 
@@ -716,6 +729,14 @@ for protocol in (0,1,2,-1):
         import pickle
         R = record ('R', id=int, label=unicode)
         r1 = R (id=1, label=u"uno")
+        r2 = pickle.loads (pickle.dumps (r1, protocol=protocol))
+        assert_eq (r2, r1)
+
+    @test("records with sequence fields can also be pickle with protocol {:d}".format(protocol))
+    def _():
+        import pickle
+        R = record ('R', elems=seq_of(pair_of(int)))
+        r1 = R (elems=((1,2),(3,4)))
         r2 = pickle.loads (pickle.dumps (r1, protocol=protocol))
         assert_eq (r2, r1)
 
