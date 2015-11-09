@@ -17,7 +17,7 @@ from functools import wraps
 # this module
 from .record import \
     Field, ImmutableDict, \
-    FieldValueError, FieldTypeError, FieldIsNotNullable, RecordsAreImmutable, \
+    FieldValueError, FieldTypeError, FieldNotNullable, RecordsAreImmutable, \
     record, \
     dict_of, pair_of, seq_of, set_of, \
     one_of, \
@@ -35,6 +35,8 @@ from .record import \
 # datetime, timedelta objects
 
 # const
+
+# cannot have non-hashable as fields
 
 #----------------------------------------------------------------------------------------------------------------------------------
 # plumbing
@@ -87,7 +89,7 @@ def val_type_tests (val_type):
     @test("non-nullable {} fields can't be None".format(val_type_name))
     def _():
         R = record ('R', id=val_type)
-        with expected_error(FieldIsNotNullable):
+        with expected_error(FieldNotNullable):
             R(id=None)
 
     @test("non-nullable {} fields can be zero".format(val_type_name))
@@ -111,7 +113,7 @@ def val_type_tests (val_type):
     @test("{} fields defined with just the type are not nullable".format(val_type_name))
     def _():
         R = record ('R', id=val_type)
-        with expected_error(FieldIsNotNullable):
+        with expected_error(FieldNotNullable):
             R(id=None)
 
 for val_type in SCALAR_TYPES:
@@ -570,7 +572,7 @@ def _():
         type = str,
         coerce = lambda s: None,
     ))
-    with expected_error(FieldIsNotNullable):
+    with expected_error(FieldNotNullable):
         r = R('a')
 
 @test("the 'coerce' function may return None if the field is nullable")
@@ -606,7 +608,7 @@ def _():
         type = str,
         coerce = lambda v: None,
     ))
-    with expected_error(FieldIsNotNullable):
+    with expected_error(FieldNotNullable):
         R(id='not None')
 
 @test("is the field is nullable, the coercion function is run on the default value")
@@ -698,6 +700,20 @@ def _():
         default = 'abra',
         check = lambda s: value == 'cadabra',
     ))
+
+@test("the default value doesn't need a __repr__ that compiles as valid Python code")
+def _():
+    class C (object):
+        def __init__ (self, value):
+            self.value = value
+        def __repr__ (self):
+            return '<{}>'.format(self.value)
+    R = record ('R', id = Field (
+        type = C,
+        nullable = True,
+        default = C(10),
+    ))
+    assert_eq (R().id.value == 10)
 
 @test("the coercion function runs before the check, and may change a bad value to a good one")
 def _():

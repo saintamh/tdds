@@ -11,7 +11,7 @@ Edinburgh
 
 from record import \
     Field, ImmutableDict, \
-    FieldValueError, FieldTypeError, FieldIsNotNullable, RecordsAreImmutable, \
+    FieldValueError, FieldTypeError, FieldNotNullable, RecordsAreImmutable, \
     record, \
     dict_of, pair_of, seq_of, set_of, \
     one_of, \

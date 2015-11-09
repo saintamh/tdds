@@ -15,95 +15,21 @@ from collections import namedtuple
 from functools import wraps
 import re
 
+# saintamh
+from ..util.codegen import ClassDefEvaluationNamespace, SourceCodeGenerator, joiner
+
 #----------------------------------------------------------------------------------------------------------------------------------
-
-# So this module uses `exec' on a string of Python code in order to generate the new classes.
-#
-# This is ugly, and makes this module rather hard to read, and hard to modify, though I've tried to keep things as tidy and
-# readable as possible. The reason for this is simply performance. The previous incarnation of this module (called "struct.py")
-# used Python's great meta-programming facilities, and it ran quite slow. Using strings allows us to unroll loops, use Python's
-# native parameter system instead of having globs everywhere, evaluate conditionals ("is this field nullable?") at class creation
-# time rather than at every constructor invocation, etc etc.
-#
-# The bottom line is that this class has a huge ratio of how often it is used over how often it is modified, so I find it
-# acceptable to make it harder to maintain for the sake of performance.
-
-cls_def_template = '''\
-class {cls_name} (object):
-    __slots__ = {slots}
-
-    def __init__ (self, {init_params}):
-        {init_body}
-
-    def __setattr__ (self, attr, value):
-        raise RecordsAreImmutable ("{cls_name} objects are immutable")
-    def __delattr__ (self, attr):
-        raise RecordsAreImmutable ("{cls_name} objects are immutable")
-
-    def json_struct (self):
-        return {{{json_struct}}}
-
-    def __repr__ (self):
-        return "{cls_name} ({repr_str})" % {values_as_tuple}
-    def __cmp__ (self, other):
-        return {cmp_stmt}
-    def __hash__ (self):
-        return {hash_expr}
-
-    def __reduce__ (self):
-        return (RecordUnpickler("{cls_name}"), {values_as_tuple})
-'''
+# the `record' function and the `Field' data structure are the two main exports of this module
 
 def record (cls_name, **field_defs):
-    __verbose = field_defs.pop ('__verbose', False)
-    field_defs = dict (
-        (fname,compile_field_def(fdef))
-        for fname,fdef in field_defs.items()
-    )
-    sorted_field_names = sorted (field_defs, key=lambda f: (field_defs[f].nullable, f))
-    ns = ClassDefEvaluationNamespace()
-    cls_def_str = cls_def_template.format (
-        cls_name = cls_name,
-        slots = repr (tuple (sorted_field_names)),
-        init_params = ', '.join (
-            '{}{}'.format (f, '=None' if field_defs[f].nullable else '')
-            for f in sorted_field_names
-        ),
-        init_body = '\n'.join (
-            compose_constructor_stmts (ns, f, field_defs[f], expr_descr='{}.{}'.format(cls_name,f))
-            for f in sorted_field_names
-        ).lstrip(),
-        repr_str = ', '.join (
-            '{}=%r'.format(f)
-            for f in sorted_field_names
-        ),
-        values_as_tuple = '({})'.format (
-            # NB trailing comma to ensure single val still a tuple
-            ''.join (map ('self.{},'.format, sorted_field_names))
-        ),
-        cmp_stmt = ' or '.join (
-            'cmp(self.{0},other.{0})'.format(f)
-            for f in sorted_field_names
-        ),
-        hash_expr = ' + '.join (
-            'hash({fname})*{mul}'.format (
-                fname = fname,
-                mul = 7**i,
-            )
-            for i,fname in enumerate(sorted_field_names)
-        ),
-        json_struct = ', '.join (
-            compose_json_key_value_pair(f,field_defs[f])
-            for f in sorted_field_names
-        ),
-    )
-    cls = exec_cls_def (cls_name, field_defs, ns, cls_def_str, verbose=__verbose)
+    verbose = field_defs.pop ('__verbose', False)
+    src_code_gen = RecordClassGenerator (cls_name, **field_defs)
+    cls = exec_cls_def (cls_name, src_code_gen, verbose=verbose)
     register_record_calls_for_unpickler (cls_name, cls)
     return cls
 
-#----------------------------------------------------------------------------------------------------------------------------------
-
 class Field (object):
+
     def __init__ (self, type, nullable=False, default=None, coerce=None, check=None):
         self.type = type
         self.nullable = nullable
@@ -111,6 +37,7 @@ class Field (object):
         self.coerce = coerce
         self.check = check
         self.ns = ClassDefEvaluationNamespace()
+
     def derive (self, nullable=None, default=None, coerce=None, check=None):
         return self.__class__ (
             type = self.type,
@@ -119,6 +46,7 @@ class Field (object):
             coerce = self.coerce if coerce is None else coerce,
             check = self.check if check is None else check,
         )
+
     def __repr__ (self):
         return 'Field (%r%s%s%s%s)' % (
             self.type,
@@ -128,32 +56,235 @@ class Field (object):
             ', check=%r' % self.check if self.check else '',
         )
 
-class ClassDefEvaluationNamespace (object):
-    def __init__ (self):
-        self.ns = {}
-    def add (self, value):
-        for symbol in (
-                getattr (value, '__name__', None),
-                '_cls_def_symbol_{:d}'.format (len(self.ns)),
-                ):
-            if symbol is None or not re.search (r'^(?!\d)\w+$', symbol):
-                continue
-            elif self.ns.get(symbol) is value:
-                return symbol
-            elif symbol not in self.ns:
-                self.ns[symbol] = value
-                return symbol
-            # else continue
-        raise Exception ("Should never get here")
-    def set (self, symbol, value):
-        assert symbol not in self.ns or self.ns[symbol] is value, \
-            (symbol, self.ns[symbol], value)
-        self.ns[symbol] = value
-    def update (self, other):
-        for key,val in other.ns.iteritems():
-            self.set (key,val)
-    def asdict (self):
-        return dict(self.ns)
+#----------------------------------------------------------------------------------------------------------------------------------
+# public exception classes
+
+class RecordsAreImmutable (TypeError):
+    pass
+
+class FieldValueError (ValueError):
+    pass
+
+class FieldTypeError (ValueError):
+    pass
+
+class FieldNotNullable (FieldValueError):
+    pass
+
+#----------------------------------------------------------------------------------------------------------------------------------
+
+# So this module uses `exec' on a string of Python code in order to generate the new classes.
+#
+# This is ugly, and makes this module rather hard to read, and hard to modify, though I've tried to keep things as tidy and
+# readable as possible. The reason for this is simply performance. The previous incarnation of this module (called "struct.py")
+# used Python's great meta-programming facilities, and it ran quite slow. Using strings allows us to unroll loops, use Python's
+# native parameter system instead of having globs everywhere, evaluate conditionals ("is this field nullable?") at class creation
+# time rather than at every constructor invocation, etc etc. Some quick benchmarks show that this runs about 6x faster than
+# struct.py.
+#
+# The bottom line is that this class has a huge ratio of how often it is used over how often it is modified, so I find it
+# acceptable to make it harder to maintain for the sake of performance.
+
+class RecordClassGenerator (SourceCodeGenerator):
+
+    template = '''
+        class $cls_name (object):
+            __slots__ = $slots
+
+            def __init__ (self, $init_params):
+                $field_checks
+                $set_fields
+
+            def __setattr__ (self, attr, value):
+                raise RecordsAreImmutable ("$cls_name objects are immutable")
+            def __delattr__ (self, attr):
+                raise RecordsAreImmutable ("$cls_name objects are immutable")
+
+            def json_struct (self):
+                return {
+                    $json_struct
+                }
+
+            def __repr__ (self):
+                return "$cls_name ($repr_str)" % $values_as_tuple
+            def __cmp__ (self, other):
+                return $cmp_stmt
+            def __hash__ (self):
+                return $hash_expr
+
+            def __reduce__ (self):
+                return (RecordUnpickler("$cls_name"), $values_as_tuple)
+    '''
+
+    def __init__ (self, cls_name, **field_defs):
+        super(RecordClassGenerator,self).__init__()
+        field_defs = dict (
+            (fname,compile_field_def(fdef))
+            for fname,fdef in field_defs.items()
+        )
+        for fdef in field_defs.itervalues():
+            self.ns.set (fdef.type.__name__, fdef.type)
+            self.ns.update (fdef.ns)
+        self.cls_name = cls_name
+        self.field_defs = field_defs
+        self.sorted_field_names = sorted (field_defs, key=lambda f: (field_defs[f].nullable, f))
+
+    def field_joiner_property (sep, prefix='', suffix=''):
+        # This little beauty transforms the raw method it decorates into one that returns a string obtained by mapping the raw
+        # method to the sorted list of fields, and then joining the results together using the given separator.
+        #
+        # TODO: refactor this into something perhaps a little bit less dense?
+        # 
+        return lambda raw_meth: property (
+            joiner(sep,prefix,suffix) (
+                lambda self: (
+                    str (raw_meth (self, i, f, self.field_defs[f]))
+                    for i,f in enumerate(self.sorted_field_names)
+                )
+            )
+        )
+
+    @field_joiner_property ('', prefix='(', suffix=')')
+    def slots (self, findex, fname, fdef):
+        # NB trailing comma to ensure single val still a tuple
+        return "{!r},".format(fname)
+
+    @field_joiner_property ('', prefix='(', suffix=')')
+    def values_as_tuple (self, findex, fname, fdef):
+        # NB trailing comma here too, for the same reason
+        return 'self.{},'.format (fname)
+
+    @field_joiner_property (', ')
+    def init_params (self, findex, fname, fdef):
+        return '{}{}'.format (fname, '=None' if fdef.nullable else '')
+
+    @field_joiner_property ('\n')
+    def field_checks (self, findex, fname, fdef):
+        return str (
+            FieldCodeGenerator (fdef, fname, expr_descr='{}.{}'.format(self.cls_name,fname))
+        ).rstrip()
+
+    @field_joiner_property ('\n')
+    def set_fields (self, findex, fname, fdef):
+        # you can cheat past our fake immutability by using object.__setattr__, but don't tell anyone
+        return 'object.__setattr__ (self, "{0}", {0})'.format (fname)
+
+    @field_joiner_property (', ')
+    def repr_str (self, findex, fname, fdef):
+        return '{}=%r'.format(fname)
+
+    @field_joiner_property (' or ')
+    def cmp_stmt (self, findex, fname, fdef):
+        return 'cmp(self.{0},other.{0})'.format(fname)
+
+    @field_joiner_property (' + ')
+    def hash_expr (self, findex, fname, fdef):
+        return 'hash(self.{fname})*{mul}'.format (
+            fname = fname,
+            mul = 7**findex,
+        )
+
+    @field_joiner_property (',\n')
+    def json_struct (self, findex, fname, fdef):
+        if hasattr (fdef.type, 'json_struct'):
+            json_value_expr = 'self.{fname}.json_struct() if self.{fname} is not None else None'.format (fname=fname)
+        else:
+            json_value_expr = 'self.{fname}'.format (fname=fname)
+        return '{fname!r}: {json_value_expr}'.format (
+            fname = fname,
+            json_value_expr = json_value_expr
+        )
+
+#----------------------------------------------------------------------------------------------------------------------------------
+
+class FieldCodeGenerator (SourceCodeGenerator):
+    """
+    Given one field, this generates the statements to check its value and type. This is inserted into the constructor of any Record
+    class, as well as in the constructor of the various collection types (seq_of etc), which also must check the value and type of
+    their elements.
+    """
+
+    KNOWN_COERCE_FUNCTIONS_THAT_NEVER_RETURN_NONE = frozenset ((
+        int, long, float,
+        str, unicode,
+        bool,
+    ))
+
+    template = '''
+        $default_value
+        $coerce
+        $null_check
+        $value_check
+        $type_check
+    '''
+
+    def __init__ (self, fdef, value_expr, expr_descr):
+        super(FieldCodeGenerator,self).__init__()
+        self.fdef = fdef
+        self.value_expr = value_expr
+        self.expr_descr = expr_descr
+
+    @property
+    def default_value (self):
+        if self.fdef.nullable and self.fdef.default is not None:
+            return '''
+                if $value_expr is None:,
+                    $value_expr = $default_expr
+            '''
+
+    @property
+    def default_expr (self):
+        return SimpleExprCodeGenerator(fdef.default)
+
+    @property
+    def coerce (self):
+        if self.fdef.coerce is not None:
+            return '$value_expr = $coerce_invocation'
+
+    @property
+    def coerce_invocation (self):
+        return compose_external_code_invocation_expr (self.ns, self.fdef.coerce, self.value_expr)
+
+    @property
+    def null_check (self):
+        if not self.fdef.nullable and self.fdef.coerce not in self.KNOWN_COERCE_FUNCTIONS_THAT_NEVER_RETURN_NONE:
+            return '''
+                if $value_expr is None:
+                    raise FieldNotNullable ("$expr_descr cannot be %r" % $value_expr)
+            '''
+
+    @property
+    def value_check (self):
+        if self.fdef.check is not None:
+            return '''
+                if not $check_invocation:
+                    raise FieldValueError("%r is not a valid value for $expr_descr" % ($value_expr,))
+            '''
+
+    @property
+    def check_invocation (self):
+        return compose_external_code_invocation_expr (self.ns, self.fdef.check, self.value_expr)
+
+    @property
+    def type_check (self):
+        if self.fdef.coerce is not self.fdef.type:
+            return '''
+                if $not_null_and not isinstance ($value_expr, $fdef_type_name):
+                    raise FieldTypeError ("$expr_descr should be of type $fdef_type_name, not %s" % $value_expr_type_name)
+            '''
+
+    @property
+    def fdef_type_name (self):
+        return self.fdef.type.__name__
+
+    @property
+    def value_expr_type_name (self):
+        return self.fdef.type.__name__
+
+    @property
+    def not_null_and (self):
+        if self.fdef.nullable:
+            return '$value_expr is not None and '
 
 #----------------------------------------------------------------------------------------------------------------------------------
 # collection fields (seq_of, dict_of, pair_of, set_of)
@@ -242,21 +373,6 @@ def dict_of (key_type, val_type, **kwargs):
     return dict_type
 
 #----------------------------------------------------------------------------------------------------------------------------------
-# public exception classes
-
-class RecordsAreImmutable (TypeError):
-    pass
-
-class FieldValueError (ValueError):
-    pass
-
-class FieldTypeError (ValueError):
-    pass
-
-class FieldIsNotNullable (FieldValueError):
-    pass
-
-#----------------------------------------------------------------------------------------------------------------------------------
 # utilities for common scalar fields
 
 def value_check (name, check):
@@ -318,14 +434,12 @@ def one_of (*values):
     )
 
 def nullable (fdef):
-    return compile_field_def(fdef).derive (nullable=True)
+    return compile_field_def(fdef).derive (
+        nullable = True,
+    )
 
 #----------------------------------------------------------------------------------------------------------------------------------
 # code-generation utils (private)
-
-KNOWN_COERCE_FUNCTIONS_THAT_NEVER_RETURN_NONE = frozenset ((
-    int, long, float, str, unicode,
-))
 
 def compile_field_def (fdef):
     if isinstance(fdef,Field):
@@ -345,81 +459,25 @@ def compose_external_code_invocation_expr (ns, code_ref, param_expr):
         )
     else:
         raise TypeError (repr(code_ref))
-
-def compose_coercion_stmts (ns, value_expr, fdef):
-    yield '{value_expr} = {invoke}'.format (
-        value_expr = value_expr,
-        invoke = compose_external_code_invocation_expr (ns, fdef.coerce, value_expr)
-    )
-
-def compose_check_stmts (ns, value_expr, fdef, expr_descr):
-    yield 'if not {check}:'.format (
-        check = compose_external_code_invocation_expr (ns, fdef.check, value_expr),
-    )
-    yield '    raise FieldValueError("%r is not a valid value for {expr_descr}" % ({value_expr},))'.format (
-        value_expr = value_expr,
-        expr_descr = expr_descr,
-    )
-
-def compose_constructor_stmts (ns, value_expr, fdef, expr_descr):
-    lines = []
-    if fdef.nullable and fdef.default is not None:
-        lines.extend ((
-            'if {value_expr} is None:',
-            '    {value_expr} = {fdef.default!r}',
-        ))
-    if fdef.coerce is not None:
-        lines.extend (compose_coercion_stmts (ns, value_expr, fdef))
-    if not fdef.nullable and fdef.coerce not in KNOWN_COERCE_FUNCTIONS_THAT_NEVER_RETURN_NONE:
-        lines.extend ((
-            'if {value_expr} is None:',
-            '    raise FieldIsNotNullable ("{expr_descr} cannot be %r" % {value_expr})',
-        ))
-    if fdef.check is not None:
-        lines.extend (compose_check_stmts (ns, value_expr, fdef, expr_descr))
-    if fdef.coerce != fdef.type:
-        lines.extend ((
-            'if {not_null_and_}not isinstance ({value_expr}, {fdef.type.__name__}):',
-            '    raise FieldTypeError ("{expr_descr} should be of type {fdef.type.__name__}, not %s" % {value_expr}.__class__.__name__)',
-        ))
-    # you can cheat past our fake immutability by using object.__setattr__
-    lines.append ('object.__setattr__ (self, "{value_expr}", {value_expr})')
-    return '\n'.join ('        ' + l for l in lines).format (
-        not_null_and_ = '{value_expr} is not None and '.format(value_expr=value_expr) if fdef.nullable else '',
-        value_expr = value_expr,
-        fdef = fdef,
-        expr_descr = expr_descr,
-    )
-
-def compose_json_key_value_pair (fname, fdef):
-    if hasattr (fdef.type, 'json_struct'):
-        json_value_expr = 'self.{fname}.json_struct() if self.{fname} is not None else None'.format (fname=fname)
-    else:
-        json_value_expr = 'self.{fname}'.format (fname=fname)
-    return '{fname!r}: {json_value_expr}'.format (
-        fname = fname,
-        json_value_expr = json_value_expr
-    )
             
-def exec_cls_def (cls_name, field_defs, ns, cls_def_str, verbose=False):
+def exec_cls_def (cls_name, src_code_gen, verbose=False):
+    src_code_str = str(src_code_gen)
     if verbose:
-        print cls_def_str
-    for fdef in field_defs.itervalues():
-        ns.set (fdef.type.__name__, fdef.type)
-        ns.update (fdef.ns)
-    for cls in (RecordsAreImmutable,FieldValueError,FieldTypeError,FieldIsNotNullable,RecordUnpickler):
-        ns.set (cls.__name__, cls)
-    ns_dict = ns.asdict()
-    exec cls_def_str in ns_dict
+        print src_code_str + '\n'
+    for cls in (RecordsAreImmutable,FieldValueError,FieldTypeError,FieldNotNullable,RecordUnpickler):
+        src_code_gen.ns.set (cls.__name__, cls)
+    ns_dict = src_code_gen.ns.asdict()
+    exec src_code_str in ns_dict
     return ns_dict[cls_name]
 
 #----------------------------------------------------------------------------------------------------------------------------------
 
 # Because Records are dynamically created classes that are compiled within a function, 'pickle' cannot find the class definition by
-# name alone. For this reason we need to keep a register here of all Record classes that have been created, indexed by name. This
-# is rather hacky, and has a few implications: you shouldn't create millions of record classes, as they'll all be referenced here,
-# and you can't create two record classes with the same name. The latter could come back to bite me some day. I'm not sure what
-# I'll do then.
+# name alone. For this reason we need to keep a register here of all Record classes that have been created, indexed by name.
+#
+# This is rather hacky, and has a few implications: you shouldn't create millions of record classes, as they'll all be referenced
+# here, and you can't create two record classes with the same name. The latter could come back to bite me some day. I'm not sure
+# what I'll do then.
 
 ALL_RECORDS = {}
 
@@ -441,5 +499,11 @@ def ucfirst (s):
         return s
     else:
         return s[:1].upper() + s[1:]
+
+#----------------------------------------------------------------------------------------------------------------------------------
+
+if __name__ == '__main__':
+    g = RecordClassGenerator('Test', x=int, y=Field(type=int, check='{} >= x'), label=nullable(unicode))
+    print g
 
 #----------------------------------------------------------------------------------------------------------------------------------
