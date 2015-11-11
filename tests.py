@@ -15,11 +15,12 @@ from collections import Counter
 from functools import wraps
 
 # this module
+from .coll import \
+    dict_of, pair_of, seq_of, set_of
 from .record import \
     Field, ImmutableDict, \
     FieldValueError, FieldTypeError, FieldNotNullable, RecordsAreImmutable, \
     record, \
-    dict_of, pair_of, seq_of, set_of, \
     one_of, \
     nonnegative, nullable, strictly_positive, \
     uppercase_letters, uppercase_wchars, uppercase_hex, lowercase_letters, lowercase_wchars, lowercase_hex, digits_str, \
@@ -602,6 +603,19 @@ def _():
     with expected_error(FieldTypeError):
         R(id='not ten')
 
+@test("unlike in struct.py, the coerce function is always called, even if the value is of the correct type")
+def _():
+    all_vals = []
+    def coercion (val):
+        all_vals.append (val)
+        return val
+    R = record ('R', id=Field (
+        type = int,
+        coerce = coercion,
+    ))
+    R(10)
+    assert_eq (all_vals, [10])
+
 @test("is the field is not nullable, the coercion function may not return None")
 def _():
     R = record ('R', id=Field (
@@ -714,6 +728,13 @@ def _():
         default = C(10),
     ))
     assert_eq (R().id.value == 10)
+
+@test("despite being compiled to source a string of code, the default value is used by reference")
+def _():
+    obj = object()
+    R = record ('R', val=nullable(object,default=obj))
+    r = R()
+    assert r.val is obj, (obj, r.val)
 
 @test("the coercion function runs before the check, and may change a bad value to a good one")
 def _():
