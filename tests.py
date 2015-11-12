@@ -14,15 +14,19 @@ Edinburgh
 from collections import Counter
 from functools import wraps
 
+# saintamh
+from ..util.coll import ImmutableDict
+
 # this module
 from .coll import \
     dict_of, pair_of, seq_of, set_of
 from .record import \
-    Field, ImmutableDict, \
+    Field, \
     FieldValueError, FieldTypeError, FieldNotNullable, RecordsAreImmutable, \
     record, \
-    one_of, \
-    nonnegative, nullable, strictly_positive, \
+    nullable, one_of
+from .shortcuts import \
+    nonnegative, strictly_positive, \
     uppercase_letters, uppercase_wchars, uppercase_hex, lowercase_letters, lowercase_wchars, lowercase_hex, digits_str, \
     absolute_http_url
 
@@ -64,7 +68,7 @@ class expected_error (object):
         elif exc_type is None:
             raise TestFailure ("Expected %s, no exception raised" % self.exc_type.__name__)
         else:
-            raise TestFailure ("Raised %s instead of %s" % (exc_type.__name__, self.exc_type.__name__))
+            raise TestFailure ("Expected %s, got %s: %s" % (self.exc_type.__name__, exc_type.__name__, exc_value))
 
 def assert_eq (v1, v2):
     if v1 != v2:

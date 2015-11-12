@@ -11,27 +11,29 @@ Edinburgh
 # includes
 
 # saintamh
-from ..util.codegen import ClassDefEvaluationNamespace, SourceCodeTemplate, compile_expr
+from ..util.codegen import ClassDefEvaluationNamespace, ExternalValue, SourceCodeTemplate, compile_expr
+from ..util.coll import ImmutableDict
+from ..util.strings import ucfirst
 
 # this module
-from .record import FieldHandlingStmtsTemplate, compile_field_def
+from .record import Field, FieldHandlingStmtsTemplate, Joiner, compile_field_def
 
 #----------------------------------------------------------------------------------------------------------------------------------
-# collection fields (seq_of, dict_of, pair_of, set_of)
+# Collection fields are instances of an appropriate subclass of tuple, frozenset, or ImmutableDict. This is the template used to
+# generate these subclasses
 
 class CollectionTypeCodeTemplate (SourceCodeTemplate):
 
     template = '''
         class $cls_name ($superclass):
 
-            def __init__ (self, iter_elems):
-                super(self.__class__,self).__init__ (self.check_elems(iter_elems))
-                $post_init_check
+            def __new__ (cls, iter_elems):
+                return $superclass.__new__ (cls, $cls_name.check_elems(iter_elems))
 
-            @classmethod
-            def check_elems (cls, iter_elems):
+            @staticmethod
+            def check_elems (iter_elems):
                 for $elem_ids_loop in $iter_elems:
-                    $pre_check
+                    $pre_elem_check
                     $elem_check_impl
                     yield $elem_ids_yield
 
@@ -39,87 +41,91 @@ class CollectionTypeCodeTemplate (SourceCodeTemplate):
                 return $json_struct
     '''
 
+    cls_name = NotImplemented
+    superclass = NotImplemented
+    elem_ids_loop = 'elem'
     iter_elems = 'iter_elems'
-    post_init_check = None
+    elem_ids_yield = 'elem'
     json_struct = 'self'
-    pre_check = None
+    pre_elem_check = None
     elem_check_impl = NotImplemented
 
-    def __init__ (self, cls_name, superclass):
-        super(CollectionTypeCodeTemplate,self).__init__()
-        self.cls_name = cls_name
-        self.superclass = superclass
-
 #----------------------------------------------------------------------------------------------------------------------------------
-# seq_of
+# Subclasses of the above template, one per type
 
 class SequenceCollCodeTemplate (CollectionTypeCodeTemplate):
-    elem_ids_loop = 'elem'
-    elem_ids_yield = 'elem'
+    superclass = 'tuple'
     def __init__ (self, elem_fdef):
-        super(SequenceCollCodeTemplate,self).__init__ (ucfirst(elem_fdef.type.__name__)+'Seq', 'tuple')
-        self.elem_fdef = elem_fdef
-    @property
-    def elem_check_impl (self):
-        return FieldHandlingStmtsTemplate (self.elem_fdef, 'elem', expr_descr='<elem>')
-
-def seq_of (fdef, verbose=False):
-    templ = SequenceCollCodeTemplate (compile_field_def(fdef))
-    return compile_expr (templ, templ.cls_name, verbose=verbose)
-
-#----------------------------------------------------------------------------------------------------------------------------------
-# pair_or
+        self.cls_name = ucfirst(elem_fdef.type.__name__) + 'Seq'
+        self.elem_check_impl = FieldHandlingStmtsTemplate (
+            elem_fdef,
+            'elem',
+            expr_descr='[elem]',
+        )
 
 class PairCollCodeTemplate (CollectionTypeCodeTemplate):
-
+    superclass = 'tuple'
     iter_elems = 'enumerate(iter_elems)'
     elem_ids_loop = 'i,elem'
-    elem_ids_yield = 'elem'
-    pre_check = '''
+    pre_elem_check = '''
         if i > 1:
             raise ValueError ("A pair can only have two elements")
     '''
-
     def __init__ (self, elem_fdef):
-        super(PairCollCodeTemplate,self).__init__ ('Pair', 'tuple')
-        self.elem_fdef = elem_fdef
+        self.cls_name = ucfirst(elem_fdef.type.__name__) + 'Pair'
+        self.elem_check_impl = FieldHandlingStmtsTemplate (
+            elem_fdef,
+            'elem',
+            expr_descr='[elem]',
+        )
 
-    @property
-    def elem_check_impl (self):
-        return FieldHandlingStmtsTemplate (self.elem_fdef, 'elem', expr_descr='<elem>')
+class SetCollCodeTemplate (CollectionTypeCodeTemplate):
+    superclass = 'frozenset'
+    def __init__ (self, elem_fdef):
+        self.cls_name = ucfirst(elem_fdef.type.__name__) + 'Set'
+        self.elem_check_impl = FieldHandlingStmtsTemplate (
+            elem_fdef,
+            'elem',
+            expr_descr='[elem]',
+        )
 
-def pair_of (fdef):
-    coll_gen = PairCollCodeTemplate (compile_field_def(fdef))
-    print coll_gen.expand (ClassDefEvaluationNamespace())
-
-#----------------------------------------------------------------------------------------------------------------------------------
-
-def set_of (elem_type):
-    "TODO"
-
-#----------------------------------------------------------------------------------------------------------------------------------
-
-class ImmutableDict (dict):
-    def forbidden_operation (self, *args, **kwargs):
-        raise TypeError ("ImmutableDict instances are read-only")
-    __setitem__ = __delitem__ = clear = pop = popitem = setdefault = update = forbidden_operation
-    def __hash__ (self, _cache=[]):
-        if not _cache:
-            h = 0
-            for key,val in sorted(self.iteritems()):
-                h = (h*2209 + hash(key)*47 + hash(val)) % 15485863
-            _cache.append (h)
-        return _cache[0]
-    # We just defer to the built-in __cmp__ for dicts
-
-def dict_of (key_type, val_type, **kwargs):
-    "TODO"
+class DictCollCodeTemplate (CollectionTypeCodeTemplate):
+    superclass = ExternalValue(ImmutableDict)
+    elem_ids_loop = 'key,val'
+    iter_elems = 'getattr (iter_elems, "iteritems", iter_elems.__iter__)()'
+    elem_ids_yield = 'key,val'
+    def __init__ (self, key_fdef, val_fdef):
+        self.cls_name = '{}To{}Dict'.format (
+            ucfirst (key_fdef.type.__name__),
+            ucfirst (val_fdef.type.__name__),
+        )
+        self.elem_check_impl = Joiner ('', values=(
+            FieldHandlingStmtsTemplate (key_fdef, 'key', expr_descr='<key>'),
+            FieldHandlingStmtsTemplate (val_fdef, 'val', expr_descr='<val>'),
+        ))
 
 #----------------------------------------------------------------------------------------------------------------------------------
-# misc utils
 
-def ucfirst (s):
-    # like s.capitalize(), but only affects the 1st letter, leaves the rest untouched
-    return s[:1].upper() + s[1:]
+def make_coll (templ, verbose=False):
+    coll_cls = compile_expr (templ, templ.cls_name, verbose=verbose)
+    return Field (
+        coll_cls,
+        coerce = coll_cls,
+    )
+
+# NB there's no reason for the dunder in "__verbose", except that it makes it the same as in the call to `record', where it *is*
+# needed.
+
+def seq_of (elem_fdef, __verbose=False):
+    return make_coll (SequenceCollCodeTemplate(compile_field_def(elem_fdef)), verbose=__verbose)
+
+def pair_of (elem_fdef, __verbose=False):
+    return make_coll (PairCollCodeTemplate(compile_field_def(elem_fdef)), verbose=__verbose)
+
+def set_of (elem_fdef, __verbose=False):
+    return make_coll (SetCollCodeTemplate(compile_field_def(elem_fdef)), verbose=__verbose)
+
+def dict_of (key_fdef, val_fdef, __verbose=False):
+    return make_coll (DictCollCodeTemplate(compile_field_def(key_fdef), compile_field_def(val_fdef)), verbose=__verbose)
 
 #----------------------------------------------------------------------------------------------------------------------------------

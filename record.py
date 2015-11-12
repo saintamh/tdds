@@ -16,7 +16,9 @@ from functools import wraps
 import re
 
 # saintamh
-from ..util.codegen import ClassDefEvaluationNamespace, ExternalValue, SourceCodeGenerator, SourceCodeTemplate, compile_expr
+from ..util.codegen import \
+    ClassDefEvaluationNamespace, ExternalValue, SourceCodeGenerator, SourceCodeTemplate, \
+    compile_expr
 
 # this module
 from .unpickler import RecordUnpickler, register_record_class_for_unpickler
@@ -64,10 +66,13 @@ class Field (object):
 class RecordsAreImmutable (TypeError):
     pass
 
-class FieldValueError (ValueError):
+class FieldError (ValueError):
     pass
 
-class FieldTypeError (ValueError):
+class FieldValueError (FieldError):
+    pass
+
+class FieldTypeError (FieldError):
     pass
 
 class FieldNotNullable (FieldValueError):
@@ -98,9 +103,9 @@ class RecordClassTemplate (SourceCodeTemplate):
                 $set_fields
 
             def __setattr__ (self, attr, value):
-                raise RecordsAreImmutable ("$cls_name objects are immutable")
+                raise $RecordsAreImmutable ("$cls_name objects are immutable")
             def __delattr__ (self, attr):
-                raise RecordsAreImmutable ("$cls_name objects are immutable")
+                raise $RecordsAreImmutable ("$cls_name objects are immutable")
 
             def json_struct (self):
                 return {
@@ -115,7 +120,7 @@ class RecordClassTemplate (SourceCodeTemplate):
                 return $hash_expr
 
             def __reduce__ (self):
-                return (RecordUnpickler("$cls_name"), $values_as_tuple)
+                return ($RecordUnpickler("$cls_name"), $values_as_tuple)
     '''
 
     def __init__ (self, cls_name, **field_defs):
@@ -128,6 +133,8 @@ class RecordClassTemplate (SourceCodeTemplate):
             field_defs,
             key = lambda f: (self.field_defs[f].nullable, f),
         )
+        for sym in (RecordsAreImmutable, RecordUnpickler):
+            setattr (self, sym.__name__, ExternalValue(sym))
 
     def field_joiner_property (sep, prefix='', suffix=''):
         return lambda raw_meth: property (
@@ -206,11 +213,16 @@ class FieldHandlingStmtsTemplate (SourceCodeTemplate):
     ))
 
     template = '''
-        $default_value
-        $coerce
-        $null_check
-        $value_check
-        $type_check
+        try:
+            $default_value
+            $coerce
+            $null_check
+            $value_check
+            $type_check
+        except $FieldError, err:
+            from sys import exc_info
+            exc_type, exc_mesg, exc_tb = exc_info()
+            raise exc_type, "$expr_descr%s" % exc_mesg, exc_tb
     '''
 
     def __init__ (self, fdef, var_name, expr_descr):
@@ -219,7 +231,7 @@ class FieldHandlingStmtsTemplate (SourceCodeTemplate):
         self.expr_descr = expr_descr
         self.fdef_type = ExternalValue(fdef.type)
         self.fdef_type_name = fdef.type.__name__
-        for sym in (FieldTypeError, FieldValueError, FieldNotNullable):
+        for sym in (FieldError, FieldTypeError, FieldValueError, FieldNotNullable):
             setattr (self, sym.__name__, ExternalValue(sym))
 
     @property
@@ -232,7 +244,7 @@ class FieldHandlingStmtsTemplate (SourceCodeTemplate):
 
     @property
     def default_expr (self):
-        return ExternalValue(fdef.default)
+        return ExternalValue(self.fdef.default)
 
     @property
     def coerce (self):
@@ -248,7 +260,7 @@ class FieldHandlingStmtsTemplate (SourceCodeTemplate):
         if not self.fdef.nullable and self.fdef.coerce not in self.KNOWN_COERCE_FUNCTIONS_THAT_NEVER_RETURN_NONE:
             return '''
                 if $var_name is None:
-                    raise $FieldNotNullable ("$expr_descr cannot be None")
+                    raise $FieldNotNullable (" cannot be None")
             '''
 
     @property
@@ -256,7 +268,7 @@ class FieldHandlingStmtsTemplate (SourceCodeTemplate):
         if self.fdef.check is not None:
             return '''
                 if not $check_invocation:
-                    raise $FieldValueError("%r is not a valid value for $expr_descr" % ($var_name,))
+                    raise $FieldValueError(" %r is not a valid value" % ($var_name,))
             '''
 
     @property
@@ -268,7 +280,7 @@ class FieldHandlingStmtsTemplate (SourceCodeTemplate):
         if self.fdef.coerce is not self.fdef.type:
             return '''
                 if $not_null_and not isinstance ($var_name, $fdef_type):
-                    raise $FieldTypeError ("$expr_descr should be of type $fdef_type_name, not %s" % $var_name.__class__.__name__)
+                    raise $FieldTypeError (" should be of type $fdef_type_name, not %s" % $var_name.__class__.__name__)
             '''
 
     @property
