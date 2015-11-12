@@ -9,6 +9,8 @@ Edinburgh
 
 #----------------------------------------------------------------------------------------------------------------------------------
 
+# DONT_CHECK_IMPORTS
+
 from record import \
     Field, \
     FieldValueError, FieldTypeError, FieldNotNullable, RecordsAreImmutable, \
@@ -25,6 +27,6 @@ from coll import \
     dict_of, pair_of, seq_of, set_of
 
 from unpickler import \
-    RecordUnpickler, register_record_class_for_unpickler
+    RecordUnpickler, register_class_for_unpickler
 
 #----------------------------------------------------------------------------------------------------------------------------------

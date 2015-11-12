@@ -16,7 +16,8 @@ from ..util.coll import ImmutableDict
 from ..util.strings import ucfirst
 
 # this module
-from .record import Field, FieldHandlingStmtsTemplate, Joiner, compile_field_def
+from .record import Field, FieldHandlingStmtsTemplate, FieldValueError, Joiner, compile_field_def
+from .unpickler import RecordUnpickler, register_class_for_unpickler
 
 #----------------------------------------------------------------------------------------------------------------------------------
 # Collection fields are instances of an appropriate subclass of tuple, frozenset, or ImmutableDict. This is the template used to
@@ -27,28 +28,39 @@ class CollectionTypeCodeTemplate (SourceCodeTemplate):
     template = '''
         class $cls_name ($superclass):
 
-            def __new__ (cls, iter_elems):
-                return $superclass.__new__ (cls, $cls_name.check_elems(iter_elems))
+            def $constructor (cls_or_self, iter_elems):
+                return $superclass.$constructor (cls_or_self, $cls_name.check_elems(iter_elems))
 
             @staticmethod
             def check_elems (iter_elems):
+                $pre_loop
                 for $elem_ids_loop in $iter_elems:
                     $pre_elem_check
                     $elem_check_impl
                     yield $elem_ids_yield
+                $post_loop_check
 
             def json_struct (self):
                 return $json_struct
+
+            # __repr__, __cmp__ and __hash__ are left to the superclass to implement
+
+            def __reduce__ (self):
+                return ($RecordUnpickler("$cls_name"), ($superclass(self),))
     '''
 
     cls_name = NotImplemented
     superclass = NotImplemented
+    constructor = '__new__'
     elem_ids_loop = 'elem'
     iter_elems = 'iter_elems'
     elem_ids_yield = 'elem'
     json_struct = 'self'
     pre_elem_check = None
+    pre_loop = None
+    post_loop_check = None
     elem_check_impl = NotImplemented
+    RecordUnpickler = ExternalValue(RecordUnpickler)
 
 #----------------------------------------------------------------------------------------------------------------------------------
 # Subclasses of the above template, one per type
@@ -67,10 +79,17 @@ class PairCollCodeTemplate (CollectionTypeCodeTemplate):
     superclass = 'tuple'
     iter_elems = 'enumerate(iter_elems)'
     elem_ids_loop = 'i,elem'
+    pre_loop = 'num_elems = 0'
     pre_elem_check = '''
         if i > 1:
-            raise ValueError ("A pair can only have two elements")
+            raise $FieldValueError ("A pair cannot have more than two elements")
+        num_elems = i+1
     '''
+    post_loop_check = '''
+        if num_elems != 2:
+            raise $FieldValueError ("A pair must have two elements, not %d" % num_elems)
+    '''
+    FieldValueError = ExternalValue(FieldValueError)
     def __init__ (self, elem_fdef):
         self.cls_name = ucfirst(elem_fdef.type.__name__) + 'Pair'
         self.elem_check_impl = FieldHandlingStmtsTemplate (
@@ -81,6 +100,7 @@ class PairCollCodeTemplate (CollectionTypeCodeTemplate):
 
 class SetCollCodeTemplate (CollectionTypeCodeTemplate):
     superclass = 'frozenset'
+    json_struct = 'tuple(self)'
     def __init__ (self, elem_fdef):
         self.cls_name = ucfirst(elem_fdef.type.__name__) + 'Set'
         self.elem_check_impl = FieldHandlingStmtsTemplate (
@@ -91,6 +111,7 @@ class SetCollCodeTemplate (CollectionTypeCodeTemplate):
 
 class DictCollCodeTemplate (CollectionTypeCodeTemplate):
     superclass = ExternalValue(ImmutableDict)
+    constructor = '__init__'
     elem_ids_loop = 'key,val'
     iter_elems = 'getattr (iter_elems, "iteritems", iter_elems.__iter__)()'
     elem_ids_yield = 'key,val'
@@ -108,6 +129,7 @@ class DictCollCodeTemplate (CollectionTypeCodeTemplate):
 
 def make_coll (templ, verbose=False):
     coll_cls = compile_expr (templ, templ.cls_name, verbose=verbose)
+    register_class_for_unpickler (templ.cls_name, coll_cls)
     return Field (
         coll_cls,
         coerce = coll_cls,

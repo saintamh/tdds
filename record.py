@@ -11,8 +11,6 @@ Edinburgh
 # includes
 
 # standards
-from collections import namedtuple
-from functools import wraps
 import re
 
 # saintamh
@@ -21,7 +19,7 @@ from ..util.codegen import \
     compile_expr
 
 # this module
-from .unpickler import RecordUnpickler, register_record_class_for_unpickler
+from .unpickler import RecordUnpickler, register_class_for_unpickler
 
 #----------------------------------------------------------------------------------------------------------------------------------
 # the `record' function and the `Field' data structure are the two main exports of this module
@@ -30,7 +28,7 @@ def record (cls_name, **field_defs):
     verbose = field_defs.pop ('__verbose', False)
     src_code_gen = RecordClassTemplate (cls_name, **field_defs)
     cls = compile_expr (src_code_gen, cls_name, verbose=verbose)
-    register_record_class_for_unpickler (cls_name, cls)
+    register_class_for_unpickler (cls_name, cls)
     return cls
 
 class Field (object):
@@ -213,16 +211,11 @@ class FieldHandlingStmtsTemplate (SourceCodeTemplate):
     ))
 
     template = '''
-        try:
-            $default_value
-            $coerce
-            $null_check
-            $value_check
-            $type_check
-        except $FieldError, err:
-            from sys import exc_info
-            exc_type, exc_mesg, exc_tb = exc_info()
-            raise exc_type, "$expr_descr%s" % exc_mesg, exc_tb
+        $default_value
+        $coerce
+        $null_check
+        $value_check
+        $type_check
     '''
 
     def __init__ (self, fdef, var_name, expr_descr):
@@ -231,14 +224,14 @@ class FieldHandlingStmtsTemplate (SourceCodeTemplate):
         self.expr_descr = expr_descr
         self.fdef_type = ExternalValue(fdef.type)
         self.fdef_type_name = fdef.type.__name__
-        for sym in (FieldError, FieldTypeError, FieldValueError, FieldNotNullable):
+        for sym in (FieldError, FieldTypeError, FieldValueError, FieldNotNullable, re):
             setattr (self, sym.__name__, ExternalValue(sym))
 
     @property
     def default_value (self):
         if self.fdef.nullable and self.fdef.default is not None:
             return '''
-                if $var_name is None:,
+                if $var_name is None:
                     $var_name = $default_expr
             '''
 
@@ -260,7 +253,7 @@ class FieldHandlingStmtsTemplate (SourceCodeTemplate):
         if not self.fdef.nullable and self.fdef.coerce not in self.KNOWN_COERCE_FUNCTIONS_THAT_NEVER_RETURN_NONE:
             return '''
                 if $var_name is None:
-                    raise $FieldNotNullable (" cannot be None")
+                    raise $FieldNotNullable ("$expr_descr cannot be None")
             '''
 
     @property
@@ -268,7 +261,7 @@ class FieldHandlingStmtsTemplate (SourceCodeTemplate):
         if self.fdef.check is not None:
             return '''
                 if not $check_invocation:
-                    raise $FieldValueError(" %r is not a valid value" % ($var_name,))
+                    raise $FieldValueError("$expr_descr: %r is not a valid value" % ($var_name,))
             '''
 
     @property
@@ -280,7 +273,7 @@ class FieldHandlingStmtsTemplate (SourceCodeTemplate):
         if self.fdef.coerce is not self.fdef.type:
             return '''
                 if $not_null_and not isinstance ($var_name, $fdef_type):
-                    raise $FieldTypeError (" should be of type $fdef_type_name, not %s" % $var_name.__class__.__name__)
+                    raise $FieldTypeError ("$expr_descr should be of type $fdef_type_name, not %s" % $var_name.__class__.__name__)
             '''
 
     @property
@@ -307,9 +300,10 @@ def one_of (*values):
         check = values.__contains__,
     )
 
-def nullable (fdef):
+def nullable (fdef, default=None):
     return compile_field_def(fdef).derive (
         nullable = True,
+        default = default,
     )
 
 #----------------------------------------------------------------------------------------------------------------------------------
@@ -340,11 +334,11 @@ class ExternalCodeInvocation (SourceCodeGenerator):
                 param_name = self.param_name,
             )
         else:
-            raise ValueError (repr(self.code_ref))
+            raise TypeError (repr(self.code_ref))
 
 # not sure where this belongs
 class Joiner (SourceCodeGenerator):
-    def __init__ (self, sep, prefix, suffix, values):
+    def __init__ (self, sep, prefix='', suffix='', values=None):
         self.sep = sep
         self.prefix = prefix
         self.suffix = suffix

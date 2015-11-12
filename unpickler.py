@@ -18,7 +18,7 @@ Edinburgh
 
 ALL_RECORDS = {}
 
-def register_record_class_for_unpickler (cls_name, cls):
+def register_class_for_unpickler (cls_name, cls):
     ALL_RECORDS[cls_name] = cls
 
 class RecordUnpickler (object):

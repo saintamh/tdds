@@ -12,7 +12,6 @@ Edinburgh
 
 # standards
 from collections import Counter
-from functools import wraps
 
 # saintamh
 from ..util.coll import ImmutableDict
@@ -191,8 +190,8 @@ def _():
     R2 = record ('R2', elems=seq_of(C2))
     r1 = R1(elems=[C1()])
     r2 = R2(elems=[C2()])
-    assert_eq (r1.elems.__class__.__name__, 'ElementSequence')
-    assert_eq (r2.elems.__class__.__name__, 'ElementSequence')
+    assert_eq (r1.elems.__class__.__name__, 'ElementSeq')
+    assert_eq (r2.elems.__class__.__name__, 'ElementSeq')
     assert r1.elems.__class__ is not r2.elems.__class__
 
 @test("If two sequences use types of the same name, you still can't put one's elems in the other")
@@ -255,13 +254,13 @@ def _():
 @test("pairs cannot have 1 element")
 def _():
     R = record ('R', elems=pair_of(int))
-    with expected_error(ValueError):
+    with expected_error(FieldValueError):
         R(elems=[1])
 
 @test("pairs cannot have more than 2")
 def _():
     R = record ('R', elems=pair_of(int))
-    with expected_error(ValueError):
+    with expected_error(FieldValueError):
         R(elems=[1,2,3
         ])
 
@@ -343,7 +342,7 @@ def _():
 @test("pair fields get serialized for JSON as tuples")
 def _():
     R = record ('R', elems=set_of(int))
-    r = R(elems=[1,2,2,3])
+    r = R(elems=[1,2,3])
     json_elems = r.json_struct()['elems']
     assert isinstance (json_elems, tuple), repr(json_elems)
     assert_eq (
@@ -392,8 +391,8 @@ def _():
     R2 = record ('R2', elems=dict_of(int,C2))
     r1 = R1(elems={9:C1()})
     r2 = R2(elems={9:C2()})
-    assert_eq (r1.elems.__class__.__name__, 'IntElementDictionary')
-    assert_eq (r2.elems.__class__.__name__, 'IntElementDictionary')
+    assert_eq (r1.elems.__class__.__name__, 'IntToElementDict')
+    assert_eq (r2.elems.__class__.__name__, 'IntToElementDict')
     assert r1.elems.__class__ is not r2.elems.__class__
 
 @test("If two sets use types of the same name, you still can't put one's elems in the other")
@@ -414,8 +413,8 @@ def _():
             pair_of (int),
         ),
     )
-    with expected_error (FieldValueError):
-        R ({'ABCD': (1,2)})
+    with expected_error (FieldTypeError):
+        R ({object(): (1,2)})
     with expected_error (FieldValueError):
         R ({'ABC': (1,2,3)})
     assert_eq (
@@ -731,7 +730,7 @@ def _():
         nullable = True,
         default = C(10),
     ))
-    assert_eq (R().id.value == 10)
+    assert_eq (R().id.value, 10)
 
 @test("despite being compiled to source a string of code, the default value is used by reference")
 def _():
@@ -909,6 +908,7 @@ def main ():
         try:
             test_func()
         except Exception, ex:
+            raise
             print result_fmt.format ('FAIL', '{}: {}'.format(ex.__class__.__name__, ex))
             tally['failed'] += 1
         else:
