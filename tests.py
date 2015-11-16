@@ -25,7 +25,7 @@ from .record import \
     record, \
     nullable, one_of
 from .shortcuts import \
-    nonnegative, strictly_positive, \
+    nonempty, nonnegative, strictly_positive, \
     uppercase_letters, uppercase_wchars, uppercase_hex, lowercase_letters, lowercase_wchars, lowercase_hex, digits_str, \
     absolute_http_url
 
@@ -359,10 +359,10 @@ def _():
     r = R(elems={1:'uno',2:'zwei'})
     assert_eq (r.elems, {1:'uno',2:'zwei'})
 
-@test("dict_of fields can be defined using an iterator")
+@test("dict_of fields can be defined using an iterator of key/value pairs")
 def _():
     R = record ('R', elems=dict_of(int,str))
-    r = R(elems=((k,v) for k,v in [[1,'uno'],[2,'zwei']]))
+    r = R(elems=(iter([[1,'uno'],[2,'zwei']])))
     assert_eq (r.elems, {1:'uno',2:'zwei'})
 
 @test("keys of the dict must be of the correct type")
@@ -772,11 +772,20 @@ for protocol in (0,1,2,-1):
         r2 = pickle.loads (pickle.dumps (r1, protocol=protocol))
         assert_eq (r2, r1)
 
-    @test("records with sequence fields can also be pickle with protocol {:d}".format(protocol))
+    @test("records with sequence fields can be pickled with protocol {:d}".format(protocol))
     def _():
         import pickle
         R = record ('R', elems=seq_of(pair_of(int)))
         r1 = R (elems=((1,2),(3,4)))
+        r2 = pickle.loads (pickle.dumps (r1, protocol=protocol))
+        assert_eq (r2, r1)
+
+    @test("nested records can be pickled with protocol {:d}".format(protocol))
+    def _():
+        import pickle
+        RA = record ('RA', v=int)
+        RB = record ('RB', v=RA)
+        r1 = RB (RA (11))
         r2 = pickle.loads (pickle.dumps (r1, protocol=protocol))
         assert_eq (r2, r1)
 
@@ -895,6 +904,31 @@ def _():
     c2 = C (['a','bracadabra'])
     R = record ('R', c=one_of(c1))
     assert_eq (R(c=c2).c, c2)
+
+#----------------------------------------------------------------------------------------------------------------------------------
+# nonempty
+
+def define_nonempty_tests (ftype, ftype_name, empty_val):
+
+    @test("in general {} fields can be empty".format(ftype_name))
+    def _():
+        R = record ('R', v=ftype)
+        assert_eq (len(R(empty_val).v), 0)
+
+    @test("nonempty {} can't be empty".format(ftype_name))
+    def _():
+        R = record ('R', v=nonempty(ftype))
+        with expected_error (FieldValueError):
+            R(empty_val)
+
+for ftype,ftype_name,empty_val in (
+        (str, "str's", ''),
+        (unicode, 'unicode strings', u''),
+        (seq_of(int), 'seqeuence fields', ()),
+        (set_of(int), 'set fields', ()),
+        (dict_of(int,int), 'dict fields', {}),
+        ):
+    define_nonempty_tests (ftype, ftype_name, empty_val)
 
 #----------------------------------------------------------------------------------------------------------------------------------
 

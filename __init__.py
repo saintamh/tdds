@@ -18,7 +18,7 @@ from record import \
     one_of, nullable
 
 from shortcuts import \
-    nonnegative, strictly_positive, \
+    nonempty, nonnegative, strictly_positive, \
     uppercase_letters, uppercase_wchars, uppercase_hex, lowercase_letters, lowercase_wchars, lowercase_hex, digits_str, \
     absolute_http_url
 

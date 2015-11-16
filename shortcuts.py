@@ -24,6 +24,8 @@ def value_check (name, check):
     func.__name__ = name
     return func
 
+nonempty = value_check ('nonempty', 'len({}) > 0')
+
 nonnegative = value_check ('nonnegative', '{} >= 0')
 strictly_positive = value_check ('strictly_positive', '{} > 0')
 
