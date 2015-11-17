@@ -273,7 +273,10 @@ class FieldHandlingStmtsTemplate (SourceCodeTemplate):
         if self.fdef.coerce is not self.fdef.type:
             return '''
                 if $not_null_and not isinstance ($var_name, $fdef_type):
-                    raise $FieldTypeError ("$expr_descr should be of type $fdef_type_name, not %s" % $var_name.__class__.__name__)
+                    raise $FieldTypeError ("$expr_descr should be of type $fdef_type_name, not %s (%r)" % (
+                        $var_name.__class__.__name__,
+                        $var_name,
+                    ))
             '''
 
     @property
