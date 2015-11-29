@@ -15,11 +15,20 @@ import re
 
 # saintamh
 from ..util.codegen import \
-    ClassDefEvaluationNamespace, ExternalValue, SourceCodeGenerator, SourceCodeTemplate, \
+    ClassDefEvaluationNamespace, ExternalValue, SourceCodeTemplate, \
     compile_expr
 
 # this module
-from .unpickler import RecordUnpickler, register_class_for_unpickler
+from .basics import \
+    Field, \
+    FieldError, FieldValueError, FieldTypeError, FieldNotNullable, RecordsAreImmutable
+from .json_codec import \
+    JsonMethodsForRecordTemplate
+from .unpickler import \
+    RecordUnpickler, register_class_for_unpickler
+from .utils import \
+    ExternalCodeInvocation, Joiner, \
+    compile_field_def
 
 #----------------------------------------------------------------------------------------------------------------------------------
 # the `record' function and the `Field' data structure are the two main exports of this module
@@ -30,51 +39,6 @@ def record (cls_name, **field_defs):
     cls = compile_expr (src_code_gen, cls_name, verbose=verbose)
     register_class_for_unpickler (cls_name, cls)
     return cls
-
-class Field (object):
-
-    def __init__ (self, type, nullable=False, default=None, coerce=None, check=None):
-        self.type = type
-        self.nullable = nullable
-        self.default = default
-        self.coerce = coerce
-        self.check = check
-
-    def derive (self, nullable=None, default=None, coerce=None, check=None):
-        return self.__class__ (
-            type = self.type,
-            nullable = self.nullable if nullable is None else nullable,
-            default = self.default if default is None else default,
-            coerce = self.coerce if coerce is None else coerce,
-            check = self.check if check is None else check,
-        )
-
-    def __repr__ (self):
-        return 'Field (%r%s%s%s%s)' % (
-            self.type,
-            ', nullable=True' if self.nullable else '',
-            ', default=%r' % self.default if self.default else '',
-            ', coerce=%r' % self.coerce if self.coerce else '',
-            ', check=%r' % self.check if self.check else '',
-        )
-
-#----------------------------------------------------------------------------------------------------------------------------------
-# public exception classes
-
-class RecordsAreImmutable (TypeError):
-    pass
-
-class FieldError (ValueError):
-    pass
-
-class FieldValueError (FieldError):
-    pass
-
-class FieldTypeError (FieldError):
-    pass
-
-class FieldNotNullable (FieldValueError):
-    pass
 
 #----------------------------------------------------------------------------------------------------------------------------------
 
@@ -105,10 +69,7 @@ class RecordClassTemplate (SourceCodeTemplate):
             def __delattr__ (self, attr):
                 raise $RecordsAreImmutable ("$cls_name objects are immutable")
 
-            def json_struct (self):
-                return {
-                    $json_struct
-                }
+            $json_methods
 
             def __repr__ (self):
                 return "$cls_name ($repr_str)" % $values_as_tuple
@@ -131,6 +92,7 @@ class RecordClassTemplate (SourceCodeTemplate):
             field_defs,
             key = lambda f: (self.field_defs[f].nullable, f),
         )
+        self.json_methods = JsonMethodsForRecordTemplate (self.cls_name, self.field_defs)
         for sym in (RecordsAreImmutable, RecordUnpickler):
             setattr (self, sym.__name__, ExternalValue(sym))
 
@@ -182,17 +144,6 @@ class RecordClassTemplate (SourceCodeTemplate):
         return 'hash(self.{fname})*{mul}'.format (
             fname = fname,
             mul = 7**findex,
-        )
-
-    @field_joiner_property (',\n')
-    def json_struct (self, findex, fname, fdef):
-        if hasattr (fdef.type, 'json_struct'):
-            json_value_expr = 'self.{fname}.json_struct() if self.{fname} is not None else None'.format (fname=fname)
-        else:
-            json_value_expr = 'self.{fname}'.format (fname=fname)
-        return '{fname!r}: {json_value_expr}'.format (
-            fname = fname,
-            json_value_expr = json_value_expr
         )
 
 #----------------------------------------------------------------------------------------------------------------------------------
@@ -283,79 +234,5 @@ class FieldHandlingStmtsTemplate (SourceCodeTemplate):
     def not_null_and (self):
         if self.fdef.nullable:
             return '$var_name is not None and '
-
-#----------------------------------------------------------------------------------------------------------------------------------
-# other field def utils
-
-def one_of (*values):
-    if len(values) == 0:
-        raise ValueError ('one_of requires arguments')
-    type = values[0].__class__
-    for v in values[1:]:
-        if v.__class__ is not type:
-            raise ValueError ("All arguments to one_of should be of the same type (%s is not %s)" % (
-                type.__name__,
-                v.__class__.__name__,
-            ))
-    values = frozenset (values)
-    return Field (
-        type = type,
-        check = values.__contains__,
-    )
-
-def nullable (fdef, default=None):
-    return compile_field_def(fdef).derive (
-        nullable = True,
-        default = default,
-    )
-
-#----------------------------------------------------------------------------------------------------------------------------------
-# code-generation utils (private)
-
-def compile_field_def (fdef):
-    if isinstance(fdef,Field):
-        return fdef
-    else:
-        return Field(fdef)
-
-class ExternalCodeInvocation (SourceCodeGenerator):
-    def __init__ (self, code_ref, param_name):
-        self.code_ref = code_ref
-        self.param_name = param_name
-    def expand (self, ns):
-        if isinstance (self.code_ref, basestring):
-            if not re.search (
-                    # Avert your eyes. This checks that there is one and only one '{}' in the string. Escaped {{ and }} are allowed
-                    r'^(?:[^\{\}]|\{\{|\}\})*\{\}(?:[^\{\}]|\{\{|\}\})*',
-                    self.code_ref,
-                    ):
-                raise ValueError (self.code_ref)
-            return '({})'.format (self.code_ref.format (self.param_name))
-        elif hasattr (self.code_ref, '__call__'):
-            return '{coerce_sym}({param_name})'.format (
-                coerce_sym = ns.intern (self.code_ref),
-                param_name = self.param_name,
-            )
-        else:
-            raise TypeError (repr(self.code_ref))
-
-# not sure where this belongs
-class Joiner (SourceCodeGenerator):
-    def __init__ (self, sep, prefix='', suffix='', values=None):
-        self.sep = sep
-        self.prefix = prefix
-        self.suffix = suffix
-        self.values = values
-    def expand (self, ns):
-        return '{prefix}{body}{suffix}'.format (
-            prefix = self.prefix,
-            suffix = self.suffix,
-            body = self.sep.join (
-                # There's a similar isinstance check in SourceCodeTemplate.lookup. Feels like I'm missing some elegant way of
-                # unifying these two.
-                v.expand(ns) if isinstance(v,SourceCodeGenerator) else str(v)
-                for v in self.values
-            ),
-        )
 
 #----------------------------------------------------------------------------------------------------------------------------------

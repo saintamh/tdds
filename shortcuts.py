@@ -58,3 +58,28 @@ absolute_http_url = Field (
 )
 
 #----------------------------------------------------------------------------------------------------------------------------------
+# other field def utils
+
+def one_of (*values):
+    if len(values) == 0:
+        raise ValueError ('one_of requires arguments')
+    type = values[0].__class__
+    for v in values[1:]:
+        if v.__class__ is not type:
+            raise ValueError ("All arguments to one_of should be of the same type (%s is not %s)" % (
+                type.__name__,
+                v.__class__.__name__,
+            ))
+    values = frozenset (values)
+    return Field (
+        type = type,
+        check = values.__contains__,
+    )
+
+def nullable (fdef, default=None):
+    return compile_field_def(fdef).derive (
+        nullable = True,
+        default = default,
+    )
+
+#----------------------------------------------------------------------------------------------------------------------------------

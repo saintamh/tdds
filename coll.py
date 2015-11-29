@@ -16,8 +16,16 @@ from ..util.coll import ImmutableDict
 from ..util.strings import ucfirst
 
 # this module
-from .record import Field, FieldHandlingStmtsTemplate, FieldValueError, Joiner, compile_field_def
-from .unpickler import RecordUnpickler, register_class_for_unpickler
+from .basics import \
+    Field, FieldValueError
+from .record import \
+    FieldHandlingStmtsTemplate
+from json_codec import \
+    JsonMethodsForDictTemplate, JsonMethodsForSeqTemplate
+from .unpickler import \
+    RecordUnpickler, register_class_for_unpickler
+from .utils import \
+    Joiner, compile_field_def
 
 #----------------------------------------------------------------------------------------------------------------------------------
 # Collection fields are instances of an appropriate subclass of tuple, frozenset, or ImmutableDict. This is the template used to
@@ -40,8 +48,7 @@ class CollectionTypeCodeTemplate (SourceCodeTemplate):
                     yield $elem_ids_yield
                 $post_loop_check
 
-            def json_struct (self):
-                return $json_struct
+            $json_methods
 
             # __repr__, __cmp__ and __hash__ are left to the superclass to implement
 
@@ -55,11 +62,11 @@ class CollectionTypeCodeTemplate (SourceCodeTemplate):
     elem_ids_loop = 'elem'
     iter_elems = 'iter_elems'
     elem_ids_yield = 'elem'
-    json_struct = 'self'
     pre_elem_check = None
     pre_loop = None
     post_loop_check = None
     elem_check_impl = NotImplemented
+    json_methods = NotImplemented
     RecordUnpickler = ExternalValue(RecordUnpickler)
 
 #----------------------------------------------------------------------------------------------------------------------------------
@@ -74,9 +81,9 @@ class SequenceCollCodeTemplate (CollectionTypeCodeTemplate):
             'elem',
             expr_descr='[elem]',
         )
+        self.json_methods = JsonMethodsForSeqTemplate (elem_fdef)
 
-class PairCollCodeTemplate (CollectionTypeCodeTemplate):
-    superclass = 'tuple'
+class PairCollCodeTemplate (SequenceCollCodeTemplate):
     iter_elems = 'enumerate(iter_elems)'
     elem_ids_loop = 'i,elem'
     pre_loop = 'num_elems = 0'
@@ -91,23 +98,14 @@ class PairCollCodeTemplate (CollectionTypeCodeTemplate):
     '''
     FieldValueError = ExternalValue(FieldValueError)
     def __init__ (self, elem_fdef):
+        super(PairCollCodeTemplate,self).__init__(elem_fdef)
         self.cls_name = ucfirst(elem_fdef.type.__name__) + 'Pair'
-        self.elem_check_impl = FieldHandlingStmtsTemplate (
-            elem_fdef,
-            'elem',
-            expr_descr='[elem]',
-        )
 
-class SetCollCodeTemplate (CollectionTypeCodeTemplate):
+class SetCollCodeTemplate (SequenceCollCodeTemplate):
     superclass = 'frozenset'
-    json_struct = 'tuple(self)'
     def __init__ (self, elem_fdef):
+        super(SetCollCodeTemplate,self).__init__(elem_fdef)
         self.cls_name = ucfirst(elem_fdef.type.__name__) + 'Set'
-        self.elem_check_impl = FieldHandlingStmtsTemplate (
-            elem_fdef,
-            'elem',
-            expr_descr='[elem]',
-        )
 
 class DictCollCodeTemplate (CollectionTypeCodeTemplate):
     superclass = ExternalValue(ImmutableDict)
@@ -124,6 +122,7 @@ class DictCollCodeTemplate (CollectionTypeCodeTemplate):
             FieldHandlingStmtsTemplate (key_fdef, 'key', expr_descr='<key>'),
             FieldHandlingStmtsTemplate (val_fdef, 'val', expr_descr='<val>'),
         ))
+        self.json_methods = JsonMethodsForDictTemplate (key_fdef, val_fdef)
 
 #----------------------------------------------------------------------------------------------------------------------------------
 

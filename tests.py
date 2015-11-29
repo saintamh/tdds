@@ -12,6 +12,7 @@ Edinburgh
 
 # standards
 from collections import Counter
+import json
 
 # saintamh
 from ..util.coll import ImmutableDict
@@ -19,28 +20,16 @@ from ..util.coll import ImmutableDict
 # this module
 from .coll import \
     dict_of, pair_of, seq_of, set_of
-from .record import \
+from .basics import \
     Field, \
-    FieldValueError, FieldTypeError, FieldNotNullable, RecordsAreImmutable, \
-    record, \
-    nullable, one_of
+    FieldValueError, FieldTypeError, FieldNotNullable, RecordsAreImmutable
+from .record import \
+    record
 from .shortcuts import \
+    nullable, one_of, \
     nonempty, nonnegative, strictly_positive, \
     uppercase_letters, uppercase_wchars, uppercase_hex, lowercase_letters, lowercase_wchars, lowercase_hex, digits_str, \
     absolute_http_url
-
-#----------------------------------------------------------------------------------------------------------------------------------
-# TODO
-
-# non-nullable collections cannot be empty
-
-# types ref'ed by name (e.g. for a LinkedList's "next")
-
-# datetime, timedelta objects
-
-# const
-
-# cannot have non-hashable as fields
 
 #----------------------------------------------------------------------------------------------------------------------------------
 # plumbing
@@ -72,6 +61,14 @@ class expected_error (object):
 def assert_eq (v1, v2):
     if v1 != v2:
         raise AssertionError ("%r != %r" % (v1,v2))
+
+def assert_is (v1, v2):
+    if v1 is not v2:
+        raise AssertionError ("%r is not %r" % (v1,v2))
+
+def assert_none (v):
+    if v is not None:
+        raise AssertionError ("Expected None, got %r" % (v,))
 
 #----------------------------------------------------------------------------------------------------------------------------------
 
@@ -107,7 +104,7 @@ def val_type_tests (val_type):
     def _():
         R = record ('R', id=nullable(val_type))
         r = R(id=None)
-        assert r.id is None, repr(r.id)
+        assert_none (r.id)
 
     @test("{} fields can be defined with just the type".format(val_type_name))
     def _():
@@ -136,7 +133,7 @@ def _():
     R = record ('R', obj=Parent)
     c = Child()
     r = R(c)
-    assert r.obj is c
+    assert_is (r.obj, c)
 
 #----------------------------------------------------------------------------------------------------------------------------------
 # seq_of
@@ -203,12 +200,12 @@ def _():
     with expected_error(FieldTypeError):
         R1 (elems=[C2()])
 
-@test("sequence fields get serialized for JSON as tuples")
+@test("sequence fields get serialized to JSON lists")
 def _():
     R = record ('R', elems=seq_of(int))
     r = R(elems=[1,2,3])
-    assert_eq (r.json_struct(), {
-        "elems": (1,2,3),
+    assert_eq (json.loads(r.json_dumps()), {
+        "elems": [1,2,3],
     })
 
 @test("seq_of params can be field defs themselves")
@@ -285,12 +282,12 @@ def _():
     with expected_error(FieldTypeError):
         R1 (elems=[C2(),C2()])
 
-@test("pair fields get serialized for JSON as tuples")
+@test("pair fields get serialized to JSON lists")
 def _():
     R = record ('R', elems=pair_of(int))
     r = R(elems=[1,2])
-    assert_eq (r.json_struct(), {
-        "elems": (1,2),
+    assert_eq (json.loads(r.json_dumps()), {
+        "elems": [1,2],
     })
 
 #----------------------------------------------------------------------------------------------------------------------------------
@@ -339,12 +336,12 @@ def _():
     with expected_error(FieldTypeError):
         R1 (elems=[C2()])
 
-@test("pair fields get serialized for JSON as tuples")
+@test("pair fields get serialized to JSON lists")
 def _():
     R = record ('R', elems=set_of(int))
     r = R(elems=[1,2,3])
-    json_elems = r.json_struct()['elems']
-    assert isinstance (json_elems, tuple), repr(json_elems)
+    json_elems = json.loads(r.json_dumps())['elems']
+    assert isinstance (json_elems, list), repr(json_elems)
     assert_eq (
         sorted(json_elems),
         [1,2,3],
@@ -422,12 +419,12 @@ def _():
         {'ABC': (1,2)},
     )
 
-@test("dict_of fields get serialized for JSON as dicts")
+@test("dict_of fields get serialized to JSON objects")
 def _():
-    R = record ('R', elems=dict_of(int,str))
-    r = R(elems={1:'uno',2:'zwei'})
-    assert_eq (r.json_struct(), {
-        "elems": {1:'uno',2:'zwei'},
+    R = record ('R', elems=dict_of(str,int))
+    r = R(elems={'uno':1,'zwei':2})
+    assert_eq (json.loads(r.json_dumps()), {
+        "elems": {'uno':1,'zwei':2},
     })
 
 #----------------------------------------------------------------------------------------------------------------------------------
@@ -489,7 +486,7 @@ def _():
 def _():
     R = record ('R', id=str, label=unicode)
     r = R (id='robert', label=u"Robert Smith")
-    j = r.json_struct()
+    j = json.loads(r.json_dumps())
     assert_eq (j, {
         "id": "robert",
         "label": "Robert Smith",
@@ -500,7 +497,7 @@ def _():
     Name = record ('Name', first=unicode, last=unicode)
     Person = record ('Person', name=Name, age=int)
     p = Person (name=Name(first=u"Robert",last=u"Smith"), age=100)
-    j = p.json_struct()
+    j = json.loads(p.json_dumps())
     assert_eq (j, {
         "name": {
             "first": "Robert",
@@ -509,17 +506,18 @@ def _():
         "age": 100,
     })
 
-@test("the nested object can be anything with a json_struct() method")
+@test("the nested object can be anything with a `json_dump' method")
 def _():
     class Name (object):
         def __init__ (self, first, last):
             self.first = first
             self.last = last
-        def json_struct (self):
-            return {'first':self.first, 'last':self.last}
+        def json_dump (self, fh):
+            # obviously very brittle, don't do this, but good enough for the test
+            fh.write ('{"first":"%s", "last":"%s"}' % (self.first, self.last))
     Person = record ('Person', name=Name, age=int)
     p = Person (name=Name(first=u"Robert",last=u"Smith"), age=100)
-    j = p.json_struct()
+    j = json.loads(p.json_dumps())
     assert_eq (j, {
         "name": {
             "first": "Robert",
@@ -527,6 +525,42 @@ def _():
         },
         "age": 100,
     })
+
+@test("an empty dict gets serialized to '{}'")
+def _():
+    R = record ('R', v=dict_of(str,str))
+    assert_eq (json.loads(R({}).json_dumps()), {
+        'v': {},
+    })
+
+@test("dicts with non-string keys cannot be serialized to JSON")
+def _():
+    R = record ('R', v=dict_of(int,str))
+    with expected_error(TypeError):
+        R({}).json_dumps()
+
+# These are commented out until json_load is implemented
+# 
+# def test_json_serialization (cls_name, cls, val):
+#     @test("Record with {} field -> JSON obj -> str -> JSON obj -> Record".format(cls_name))
+#     def _():
+#         R = record ('R', field=cls)
+#         r1 = R(val)
+#         j = r1.json_dumps()
+#         assert_is (j.__class__, str)
+#         r2 = R.json_load (j)
+#         assert_eq (r1.field, r2.field)
+# for cls_name,cls,name in (
+#         ('str', str, '\xE2\x9C\x93'),
+#         ('unicode', unicode, u'Herv\u00E9'),
+#         ('int', int, 42),
+#         ('long', long, 42L),
+#         ('float', float, 0.3),
+#         ('sequence', seq_of(int), (1,2,3)),
+#         ('set', set_of(int), (1,2,3)),
+#         ('dict', dict_of(str,int), {'one':1,'two':2}),
+#         ):
+#     test_json_serialization (cls_name, cls, name)
 
 #----------------------------------------------------------------------------------------------------------------------------------
 # "coerce" functions
@@ -561,6 +595,30 @@ def _():
     r = R('a')
     assert_eq (r.id, 'A')
 
+@test("a 'coerce' function specified as a string must contain a '{}'")
+def _():
+    with expected_error(ValueError):
+        record ('R', id=Field (
+            type = str,
+            coerce = '%s.upper()',
+        ))
+
+@test("a 'coerce' function specified as a string must contain a '{}' with nothing in it")
+def _():
+    with expected_error(ValueError):
+        record ('R', id=Field (
+            type = str,
+            coerce = '{0}.upper()',
+        ))
+
+@test("a 'coerce' function specified as a string may not contain more than one '{}'")
+def _():
+    with expected_error(ValueError):
+        record ('R', id=Field (
+            type = str,
+            coerce = '{}.upper({})',
+        ))
+
 @test("the 'coerce' function is invoked before the null check and therefore may get a None value")
 def _():
     R = record ('R', id=Field (
@@ -587,7 +645,7 @@ def _():
         nullable = True,
     ))
     r = R('a')
-    assert r.id is None, repr(r.id)
+    assert_none (r.id)
 
 @test("specifying something other than a string or a callable as 'coerce' raises a TypeError")
 def _():
@@ -737,7 +795,7 @@ def _():
     obj = object()
     R = record ('R', val=nullable(object,default=obj))
     r = R()
-    assert r.val is obj, (obj, r.val)
+    assert_is (r.val, obj)
 
 @test("the coercion function runs before the check, and may change a bad value to a good one")
 def _():
