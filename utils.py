@@ -30,23 +30,24 @@ def compile_field_def (fdef):
 
 class ExternalCodeInvocation (SourceCodeGenerator):
 
-    def __init__ (self, code_ref, param_expr):
+    def __init__ (self, code_ref, *param_exprs):
         self.code_ref = code_ref
-        self.param_expr = param_expr
+        self.param_exprs = param_exprs
 
     def expand (self, ns):
         if isinstance (self.code_ref, basestring):
+            assert len(self.param_exprs) == 1, self.param_exprs
             if not re.search (
                     # Avert your eyes. This checks that there is one and only one '{}' in the string. Escaped {{ and }} are allowed
                     r'^(?:[^\{\}]|\{\{|\}\})*\{\}(?:[^\{\}]|\{\{|\}\})*$',
                     self.code_ref,
                     ):
                 raise ValueError (self.code_ref)
-            return '({})'.format (self.code_ref.format (self.param_expr))
+            return '({})'.format (self.code_ref.format (self.param_exprs[0]))
         elif hasattr (self.code_ref, '__call__'):
-            return '{coerce_sym}({param_expr})'.format (
+            return '{coerce_sym}({params})'.format (
                 coerce_sym = ns.intern (self.code_ref),
-                param_expr = self.param_expr,
+                params = Joiner (', ', values=self.param_exprs).expand(ns),
             )
         else:
             raise TypeError (repr(self.code_ref))
@@ -63,12 +64,7 @@ class Joiner (SourceCodeGenerator):
         return '{prefix}{body}{suffix}'.format (
             prefix = self.prefix,
             suffix = self.suffix,
-            body = self.sep.join (
-                # There's a similar isinstance check in SourceCodeTemplate.lookup. Feels like I'm missing some elegant way of
-                # unifying these two.
-                v.expand(ns) if isinstance(v,SourceCodeGenerator) else str(v)
-                for v in self.values
-            ),
+            body = self.sep.join (self.code_string(ns,v) for v in self.values),
         )
 
 #----------------------------------------------------------------------------------------------------------------------------------

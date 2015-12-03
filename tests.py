@@ -23,6 +23,8 @@ from .coll import \
 from .basics import \
     Field, \
     FieldValueError, FieldTypeError, FieldNotNullable, RecordsAreImmutable
+from .json_encoder import \
+    CannotBeSerializedToJson
 from .record import \
     record
 from .shortcuts import \
@@ -45,6 +47,14 @@ def test (test_id):
         return func
     return register_test_func
 
+def foreach (args):
+    def register (func):
+        for a in args:
+            if not isinstance(a,tuple):
+                a = (a,)
+            func(*a)
+    return register
+
 class expected_error (object):
     def __init__ (self, exc_type):
         self.exc_type = exc_type
@@ -66,6 +76,10 @@ def assert_is (v1, v2):
     if v1 is not v2:
         raise AssertionError ("%r is not %r" % (v1,v2))
 
+def assert_isinstance (v, cls):
+    if not isinstance (v, cls):
+        raise AssertionError ("%r is not a %s instance" % (v,cls.__name__))
+
 def assert_none (v):
     if v is not None:
         raise AssertionError ("Expected None, got %r" % (v,))
@@ -84,6 +98,7 @@ def _():
 
 SCALAR_TYPES = (int,long,float,str,unicode)
 
+@foreach(SCALAR_TYPES)
 def val_type_tests (val_type):
     val_type_name = val_type.__name__
 
@@ -116,10 +131,6 @@ def val_type_tests (val_type):
         R = record ('R', id=val_type)
         with expected_error(FieldNotNullable):
             R(id=None)
-
-for val_type in SCALAR_TYPES:
-    # they need to be within their own scope for the `val_type' to be properly set
-    val_type_tests (val_type)
 
 #----------------------------------------------------------------------------------------------------------------------------------
 # more type checks
@@ -221,6 +232,12 @@ def _():
         ((1,2),(3,4)),
     )
 
+@test("a nullable seq can be null")
+def _():
+    R = record ('R', v=nullable(seq_of(int)))
+    s = R(None)
+    assert_is (s.v, None)
+
 #----------------------------------------------------------------------------------------------------------------------------------
 # pair_of
 
@@ -290,6 +307,12 @@ def _():
         "elems": [1,2],
     })
 
+@test("a nullable pair can be null")
+def _():
+    R = record ('R', v=nullable(pair_of(int)))
+    s = R(None)
+    assert_is (s.v, None)
+
 #----------------------------------------------------------------------------------------------------------------------------------
 # set_of
 
@@ -346,6 +369,12 @@ def _():
         sorted(json_elems),
         [1,2,3],
     )
+
+@test("a nullable set can be null")
+def _():
+    R = record ('R', v=nullable(set_of(int)))
+    s = R(None)
+    assert_is (s.v, None)
 
 #----------------------------------------------------------------------------------------------------------------------------------
 # dict_of
@@ -423,9 +452,19 @@ def _():
 def _():
     R = record ('R', elems=dict_of(str,int))
     r = R(elems={'uno':1,'zwei':2})
-    assert_eq (json.loads(r.json_dumps()), {
-        "elems": {'uno':1,'zwei':2},
-    })
+    try:
+        assert_eq (json.loads(r.json_dumps()), {
+            "elems": {'uno':1,'zwei':2},
+        })
+    except Exception:
+        print r.json_dumps()
+        raise
+
+@test("a nullable dict can be null")
+def _():
+    R = record ('R', v=nullable(dict_of(int,int)))
+    s = R(None)
+    assert_is (s.v, None)
 
 #----------------------------------------------------------------------------------------------------------------------------------
 # ImmutableDict
@@ -536,31 +575,44 @@ def _():
 @test("dicts with non-string keys cannot be serialized to JSON")
 def _():
     R = record ('R', v=dict_of(int,str))
-    with expected_error(TypeError):
+    with expected_error(CannotBeSerializedToJson):
         R({}).json_dumps()
 
-# These are commented out until json_load is implemented
-# 
-# def test_json_serialization (cls_name, cls, val):
-#     @test("Record with {} field -> JSON obj -> str -> JSON obj -> Record".format(cls_name))
-#     def _():
-#         R = record ('R', field=cls)
-#         r1 = R(val)
-#         j = r1.json_dumps()
-#         assert_is (j.__class__, str)
-#         r2 = R.json_load (j)
-#         assert_eq (r1.field, r2.field)
-# for cls_name,cls,name in (
-#         ('str', str, '\xE2\x9C\x93'),
-#         ('unicode', unicode, u'Herv\u00E9'),
-#         ('int', int, 42),
-#         ('long', long, 42L),
-#         ('float', float, 0.3),
-#         ('sequence', seq_of(int), (1,2,3)),
-#         ('set', set_of(int), (1,2,3)),
-#         ('dict', dict_of(str,int), {'one':1,'two':2}),
-#         ):
-#     test_json_serialization (cls_name, cls, name)
+@test("json_dump always creates str objects, never unicode")
+def _():
+    R = record ('R', v=unicode)
+    s = R(u"Herv\u00E9").json_dumps()
+    assert_isinstance (s, str)
+
+@foreach (
+    (cls_name, cls, val, nullable_or_not)
+    for cls_name,cls,non_null_val in (
+        ('str', str, '\xE2\x9C\x93'),
+        ('unicode', unicode, u'Herv\u00E9'),
+        ('int', int, 42),
+        ('long', long, 42L),
+        ('float', float, 0.3),
+        ('sequence', seq_of(int), (1,2,3)),
+        ('set', set_of(int), (1,2,3)),
+        ('dict', dict_of(str,int), {'one':1,'two':2}),
+        (lambda R2: ('other record', R2, R2(2)))(record ('R2', v=int)),
+    )
+    for nullable_or_not,vals in (
+        (lambda f: f, (non_null_val,)),
+        (nullable, (non_null_val,None)),
+    )
+    for val in vals
+)
+def test_json_serialization (cls_name, cls, val, nullable_or_not):
+
+    @test("Record with {} field -> JSON obj -> str -> JSON obj -> Record".format(cls_name))
+    def _():
+        R = record ('R', field=nullable_or_not(cls))
+        r1 = R(val)
+        j = r1.json_dumps()
+        assert_isinstance (j, str)
+        r2 = R.json_loads (j)
+        assert_eq (r1.field, r2.field)
 
 #----------------------------------------------------------------------------------------------------------------------------------
 # "coerce" functions

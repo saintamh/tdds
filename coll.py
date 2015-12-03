@@ -11,21 +11,17 @@ Edinburgh
 # includes
 
 # saintamh
-from ..util.codegen import ClassDefEvaluationNamespace, ExternalValue, SourceCodeTemplate, compile_expr
+from ..util.codegen import ClassDefEvaluationNamespace, SourceCodeTemplate, compile_expr
 from ..util.coll import ImmutableDict
 from ..util.strings import ucfirst
 
 # this module
-from .basics import \
-    Field, FieldValueError
-from .record import \
-    FieldHandlingStmtsTemplate
-from json_codec import \
-    JsonMethodsForDictTemplate, JsonMethodsForSeqTemplate
-from .unpickler import \
-    RecordUnpickler, register_class_for_unpickler
-from .utils import \
-    Joiner, compile_field_def
+from .basics import Field, FieldValueError
+from .record import FieldHandlingStmtsTemplate
+from json_decoder import JsonDecoderMethodsForDictTemplate, JsonDecoderMethodsForSeqTemplate
+from json_encoder import JsonEncoderMethodsForDictTemplate, JsonEncoderMethodsForSeqTemplate
+from .unpickler import RecordUnpickler, register_class_for_unpickler
+from .utils import compile_field_def
 
 #----------------------------------------------------------------------------------------------------------------------------------
 # Collection fields are instances of an appropriate subclass of tuple, frozenset, or ImmutableDict. This is the template used to
@@ -41,14 +37,11 @@ class CollectionTypeCodeTemplate (SourceCodeTemplate):
 
             @staticmethod
             def check_elems (iter_elems):
-                $pre_loop
-                for $elem_ids_loop in $iter_elems:
-                    $pre_elem_check
-                    $elem_check_impl
-                    yield $elem_ids_yield
-                $post_loop_check
+                $check_elems_body
 
-            $json_methods
+            $json_decoder_methods
+
+            $json_encoder_methods
 
             # __repr__, __cmp__ and __hash__ are left to the superclass to implement
 
@@ -56,73 +49,72 @@ class CollectionTypeCodeTemplate (SourceCodeTemplate):
                 return ($RecordUnpickler("$cls_name"), ($superclass(self),))
     '''
 
-    cls_name = NotImplemented
-    superclass = NotImplemented
-    constructor = '__new__'
-    elem_ids_loop = 'elem'
-    iter_elems = 'iter_elems'
-    elem_ids_yield = 'elem'
-    pre_elem_check = None
-    pre_loop = None
-    post_loop_check = None
-    elem_check_impl = NotImplemented
-    json_methods = NotImplemented
-    RecordUnpickler = ExternalValue(RecordUnpickler)
+    RecordUnpickler = RecordUnpickler
 
 #----------------------------------------------------------------------------------------------------------------------------------
 # Subclasses of the above template, one per type
 
 class SequenceCollCodeTemplate (CollectionTypeCodeTemplate):
-    superclass = 'tuple'
+
+    superclass = tuple
+    constructor = '__new__'
+    cls_name_suffix = 'Seq'
+
     def __init__ (self, elem_fdef):
-        self.cls_name = ucfirst(elem_fdef.type.__name__) + 'Seq'
+        self.cls_name = ucfirst(elem_fdef.type.__name__) + self.cls_name_suffix
+        self.json_decoder_methods = JsonDecoderMethodsForSeqTemplate (elem_fdef)
+        self.json_encoder_methods = JsonEncoderMethodsForSeqTemplate (elem_fdef)
         self.elem_check_impl = FieldHandlingStmtsTemplate (
             elem_fdef,
             'elem',
             expr_descr='[elem]',
         )
-        self.json_methods = JsonMethodsForSeqTemplate (elem_fdef)
+
+    check_elems_body = '''
+        for elem in iter_elems:
+            $elem_check_impl
+            yield elem
+    '''
 
 class PairCollCodeTemplate (SequenceCollCodeTemplate):
-    iter_elems = 'enumerate(iter_elems)'
-    elem_ids_loop = 'i,elem'
-    pre_loop = 'num_elems = 0'
-    pre_elem_check = '''
-        if i > 1:
-            raise $FieldValueError ("A pair cannot have more than two elements")
-        num_elems = i+1
-    '''
-    post_loop_check = '''
+    FieldValueError = FieldValueError
+    cls_name_suffix = 'Pair'
+    check_elems_body = '''
+        num_elems = 0
+        for i,elem in enumerate(iter_elems):
+            if i > 1:
+                raise $FieldValueError ("A pair cannot have more than two elements")
+            num_elems = i+1
+            $elem_check_impl
+            yield elem
         if num_elems != 2:
-            raise $FieldValueError ("A pair must have two elements, not %d" % num_elems)
+            raise $FieldValueError ("A pair must have two elements, not %d" % num_elems)        
     '''
-    FieldValueError = ExternalValue(FieldValueError)
-    def __init__ (self, elem_fdef):
-        super(PairCollCodeTemplate,self).__init__(elem_fdef)
-        self.cls_name = ucfirst(elem_fdef.type.__name__) + 'Pair'
 
 class SetCollCodeTemplate (SequenceCollCodeTemplate):
-    superclass = 'frozenset'
-    def __init__ (self, elem_fdef):
-        super(SetCollCodeTemplate,self).__init__(elem_fdef)
-        self.cls_name = ucfirst(elem_fdef.type.__name__) + 'Set'
+    superclass = frozenset
+    cls_name_suffix = 'Set'
 
 class DictCollCodeTemplate (CollectionTypeCodeTemplate):
-    superclass = ExternalValue(ImmutableDict)
+    superclass = ImmutableDict
     constructor = '__init__'
-    elem_ids_loop = 'key,val'
-    iter_elems = 'getattr (iter_elems, "iteritems", iter_elems.__iter__)()'
-    elem_ids_yield = 'key,val'
+
     def __init__ (self, key_fdef, val_fdef):
         self.cls_name = '{}To{}Dict'.format (
             ucfirst (key_fdef.type.__name__),
             ucfirst (val_fdef.type.__name__),
         )
-        self.elem_check_impl = Joiner ('', values=(
-            FieldHandlingStmtsTemplate (key_fdef, 'key', expr_descr='<key>'),
-            FieldHandlingStmtsTemplate (val_fdef, 'val', expr_descr='<val>'),
-        ))
-        self.json_methods = JsonMethodsForDictTemplate (key_fdef, val_fdef)
+        self.key_handling_stmts = FieldHandlingStmtsTemplate (key_fdef, 'key', expr_descr='<key>')
+        self.val_handling_stmts = FieldHandlingStmtsTemplate (val_fdef, 'val', expr_descr='<val>')
+        self.json_decoder_methods = JsonDecoderMethodsForDictTemplate (key_fdef, val_fdef)
+        self.json_encoder_methods = JsonEncoderMethodsForDictTemplate (key_fdef, val_fdef)
+
+    check_elems_body = '''
+        for key,val in getattr (iter_elems, "iteritems", iter_elems.__iter__)():
+            $key_handling_stmts
+            $val_handling_stmts
+            yield key,val
+    '''
 
 #----------------------------------------------------------------------------------------------------------------------------------
 
@@ -131,7 +123,7 @@ def make_coll (templ, verbose=False):
     register_class_for_unpickler (templ.cls_name, coll_cls)
     return Field (
         coll_cls,
-        coerce = coll_cls,
+        coerce = lambda elems: coll_cls(elems) if elems is not None else None,
     )
 
 # NB there's no reason for the dunder in "__verbose", except that it makes it the same as in the call to `record', where it *is*

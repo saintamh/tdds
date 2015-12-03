@@ -22,8 +22,10 @@ from ..util.codegen import \
 from .basics import \
     Field, \
     FieldError, FieldValueError, FieldTypeError, FieldNotNullable, RecordsAreImmutable
-from .json_codec import \
-    JsonMethodsForRecordTemplate
+from .json_decoder import \
+    JsonDecoderMethodsForRecordTemplate
+from .json_encoder import \
+    JsonEncoderMethodsForRecordTemplate
 from .unpickler import \
     RecordUnpickler, register_class_for_unpickler
 from .utils import \
@@ -69,7 +71,9 @@ class RecordClassTemplate (SourceCodeTemplate):
             def __delattr__ (self, attr):
                 raise $RecordsAreImmutable ("$cls_name objects are immutable")
 
-            $json_methods
+            $json_decoder_methods
+
+            $json_encoder_methods
 
             def __repr__ (self):
                 return "$cls_name ($repr_str)" % $values_as_tuple
@@ -82,6 +86,9 @@ class RecordClassTemplate (SourceCodeTemplate):
                 return ($RecordUnpickler("$cls_name"), $values_as_tuple)
     '''
 
+    RecordsAreImmutable = RecordsAreImmutable
+    RecordUnpickler = RecordUnpickler
+
     def __init__ (self, cls_name, **field_defs):
         self.cls_name = cls_name
         self.field_defs = dict (
@@ -92,9 +99,8 @@ class RecordClassTemplate (SourceCodeTemplate):
             field_defs,
             key = lambda f: (self.field_defs[f].nullable, f),
         )
-        self.json_methods = JsonMethodsForRecordTemplate (self.cls_name, self.field_defs)
-        for sym in (RecordsAreImmutable, RecordUnpickler):
-            setattr (self, sym.__name__, ExternalValue(sym))
+        self.json_decoder_methods = JsonDecoderMethodsForRecordTemplate (self.field_defs)
+        self.json_encoder_methods = JsonEncoderMethodsForRecordTemplate (self.cls_name, self.field_defs)
 
     def field_joiner_property (sep, prefix='', suffix=''):
         return lambda raw_meth: property (
@@ -169,14 +175,18 @@ class FieldHandlingStmtsTemplate (SourceCodeTemplate):
         $type_check
     '''
 
+    FieldError = FieldError
+    FieldTypeError = FieldTypeError
+    FieldValueError = FieldValueError
+    FieldNotNullable = FieldNotNullable
+    re = re
+
     def __init__ (self, fdef, var_name, expr_descr):
         self.fdef = fdef
         self.var_name = var_name
         self.expr_descr = expr_descr
-        self.fdef_type = ExternalValue(fdef.type)
+        self.fdef_type = fdef.type
         self.fdef_type_name = fdef.type.__name__
-        for sym in (FieldError, FieldTypeError, FieldValueError, FieldNotNullable, re):
-            setattr (self, sym.__name__, ExternalValue(sym))
 
     @property
     def default_value (self):
