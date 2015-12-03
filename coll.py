@@ -20,7 +20,7 @@ from .basics import Field, FieldValueError
 from .record import FieldHandlingStmtsTemplate
 from json_decoder import JsonDecoderMethodsForDictTemplate, JsonDecoderMethodsForSeqTemplate
 from json_encoder import JsonEncoderMethodsForDictTemplate, JsonEncoderMethodsForSeqTemplate
-from .unpickler import RecordUnpickler, register_class_for_unpickler
+from .unpickler import RecordRegistryMetaclass, RecordUnpickler
 from .utils import compile_field_def
 
 #----------------------------------------------------------------------------------------------------------------------------------
@@ -31,6 +31,7 @@ class CollectionTypeCodeTemplate (SourceCodeTemplate):
 
     template = '''
         class $cls_name ($superclass):
+            __metaclass__ = $RecordRegistryMetaclass
 
             def $constructor (cls_or_self, iter_elems):
                 return $superclass.$constructor (cls_or_self, $cls_name.check_elems(iter_elems))
@@ -49,6 +50,7 @@ class CollectionTypeCodeTemplate (SourceCodeTemplate):
                 return ($RecordUnpickler("$cls_name"), ($superclass(self),))
     '''
 
+    RecordRegistryMetaclass = RecordRegistryMetaclass
     RecordUnpickler = RecordUnpickler
 
 #----------------------------------------------------------------------------------------------------------------------------------
@@ -120,7 +122,6 @@ class DictCollCodeTemplate (CollectionTypeCodeTemplate):
 
 def make_coll (templ, verbose=False):
     coll_cls = compile_expr (templ, templ.cls_name, verbose=verbose)
-    register_class_for_unpickler (templ.cls_name, coll_cls)
     return Field (
         coll_cls,
         coerce = lambda elems: coll_cls(elems) if elems is not None else None,

@@ -27,20 +27,18 @@ from .json_decoder import \
 from .json_encoder import \
     JsonEncoderMethodsForRecordTemplate
 from .unpickler import \
-    RecordUnpickler, register_class_for_unpickler
+    RecordRegistryMetaclass, RecordUnpickler
 from .utils import \
     ExternalCodeInvocation, Joiner, \
     compile_field_def
 
 #----------------------------------------------------------------------------------------------------------------------------------
-# the `record' function and the `Field' data structure are the two main exports of this module
+# the `record' function is the main export of this module. The `Field' data structure is also public.
 
 def record (cls_name, **field_defs):
     verbose = field_defs.pop ('__verbose', False)
     src_code_gen = RecordClassTemplate (cls_name, **field_defs)
-    cls = compile_expr (src_code_gen, cls_name, verbose=verbose)
-    register_class_for_unpickler (cls_name, cls)
-    return cls
+    return compile_expr (src_code_gen, cls_name, verbose=verbose)
 
 #----------------------------------------------------------------------------------------------------------------------------------
 
@@ -60,6 +58,7 @@ class RecordClassTemplate (SourceCodeTemplate):
 
     template = '''
         class $cls_name (object):
+            __metaclass__ = $RecordRegistryMetaclass
             __slots__ = $slots
 
             def __init__ (self, $init_params):
@@ -83,10 +82,11 @@ class RecordClassTemplate (SourceCodeTemplate):
                 return $hash_expr
 
             def __reduce__ (self):
-                return ($RecordUnpickler("$cls_name"), $values_as_tuple)
+                return ($RecordUnpickler(self.__class__.__name__), $values_as_tuple)
     '''
 
     RecordsAreImmutable = RecordsAreImmutable
+    RecordRegistryMetaclass = RecordRegistryMetaclass
     RecordUnpickler = RecordUnpickler
 
     def __init__ (self, cls_name, **field_defs):

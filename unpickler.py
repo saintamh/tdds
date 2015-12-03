@@ -18,8 +18,12 @@ Edinburgh
 
 ALL_RECORDS = {}
 
-def register_class_for_unpickler (cls_name, cls):
-    ALL_RECORDS[cls_name] = cls
+class RecordRegistryMetaclass (type):
+    # All this does is that it registers the record class, and all its subclasses, for unpickling
+    def __new__ (mcls, name, bases, attrib):
+        cls = type.__new__ (mcls, name, bases, attrib)
+        ALL_RECORDS[name] = cls
+        return cls
 
 class RecordUnpickler (object):
     def __init__ (self, cls_name):
