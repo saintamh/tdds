@@ -80,26 +80,25 @@ class JsonDecoderMethodsForRecordTemplate (JsonDecoderMethodsTemplate):
             '''
                 $match_open_curly
                 if m.group(1) is None:
-                    return None,m.end()
+                    return None,pos
                 constructor_kwargs = {}
                 while True:
-                    # NB we will never parse an empty JSON object here, so there will always be a quote
-                    $match_quote
+                    $match_quote_maybe
+                    else:
+                        break
                     key,pos = $py_scanstring (json_str, pos)
                     $match_semicol
                     constructor_kwargs[key],pos = $scanner_funcs_by_fname[key](json_str, pos)
                     # NB we allow a comma at the end of an object, unlike strict JSON
-                    $match_comma
-                    if not m.group(1):
-                        break
+                    $match_comma_maybe
                 $match_close_curly
                 return cls(**constructor_kwargs),pos
             ''',
-            match_open_curly  = code_to_match_json_str (r'(?:(\{)|null)\s*'),
+            match_open_curly  = code_to_match_json_str (r'\s*(?:(\{)|null)\s*'),
             match_close_curly = code_to_match_json_str (r'\s*\}\s*'),
-            match_quote       = code_to_match_json_str (r'"'),
+            match_quote_maybe = code_to_match_json_str (r'"', allow_mismatch=True),
             match_semicol     = code_to_match_json_str (r'\s*:\s*'),
-            match_comma       = code_to_match_json_str (r'\s*(?:(,)\s*|(?=\}))'),
+            match_comma_maybe = code_to_match_json_str (r'\s*(?:,\s*)?', allow_mismatch=True),
             scanner_funcs_by_fname = {
                 fname: scanner_func_for_field(fdef,fname)
                 for fname,fdef in self.field_defs.iteritems()
@@ -122,19 +121,18 @@ class JsonDecoderMethodsForSeqTemplate (JsonDecoderMethodsTemplate):
                 values = []
                 $match_open_square
                 if m.group(1) is None:
-                    return None,m.end()
+                    return None,pos
                 while True:
+                    $match_close_square_maybe
+                        break
                     val,pos = $scanner (json_str, pos)
                     values.append(val)
-                    $match_comma
-                    if not m.group(1):
-                        break
-                $match_close_square
+                    $match_comma_maybe
                 return cls(values),pos
             ''',
-            match_open_square  = code_to_match_json_str (r'(?:(\[)|null)\s*'),
-            match_comma        = code_to_match_json_str (r'\s*(?:(,)\s*|(?=\]))'),
-            match_close_square = code_to_match_json_str (r'\s*\]\s*'),
+            match_open_square        = code_to_match_json_str (r'\s*(?:(\[)|null)\s*'),
+            match_comma_maybe        = code_to_match_json_str (r'\s*(?:,\s*)?', allow_mismatch=True),
+            match_close_square_maybe = code_to_match_json_str (r'\s*\]\s*', allow_mismatch=True),
             scanner = scanner_func_for_field (self.elem_fdef, '[elem]')
         )
 
@@ -152,25 +150,24 @@ class JsonDecoderMethodsForDictTemplate (JsonDecoderMethodsTemplate):
             '''
                 $match_open_curly
                 if m.group(1) is None:
-                    return None,m.end()
+                    return None,pos
                 pairs = {}
                 while True:
+                    $match_close_curly_maybe
+                        break
                     key,pos = $key_scanner_func (json_str, pos)
                     $match_semicol
                     pairs[key],pos = $val_scanner_func (json_str, pos)
-                    $match_comma
-                    if not m.group(1):
-                        break
-                $match_close_curly
+                    $match_comma_maybe
                 return cls(pairs),pos
             ''',
-            match_open_curly  = code_to_match_json_str (r'(?:(\{)|null)\s*'),
-            match_close_curly = code_to_match_json_str (r'\s*\}\s*'),
-            match_quote       = code_to_match_json_str (r'"'),
-            match_semicol     = code_to_match_json_str (r'\s*:\s*'),
-            match_comma       = code_to_match_json_str (r'\s*(?:(,)\s*|(?=\}))'),
-            key_scanner_func  = scanner_func_for_field (self.key_fdef, '<key>'),
-            val_scanner_func  = scanner_func_for_field (self.val_fdef, '<val>'),
+            match_open_curly        = code_to_match_json_str (r'\s*(?:(\{)|null)\s*'),
+            match_close_curly_maybe = code_to_match_json_str (r'\s*\}\s*', allow_mismatch=True),
+            match_quote             = code_to_match_json_str (r'"'),
+            match_semicol           = code_to_match_json_str (r'\s*:\s*'),
+            match_comma_maybe       = code_to_match_json_str (r'\s*(?:,\s*)?', allow_mismatch=True),
+            key_scanner_func        = scanner_func_for_field (self.key_fdef, '<key>'),
+            val_scanner_func        = scanner_func_for_field (self.val_fdef, '<val>'),
         )
 
 #----------------------------------------------------------------------------------------------------------------------------------
@@ -179,6 +176,7 @@ class JsonDecoderMethodsForDictTemplate (JsonDecoderMethodsTemplate):
 # and returns the parsed `int' instance.
 
 def scanner_func_for_field (fdef, descr):
+
     types_parsed_by_regex = {
         int: (r'(?:(\d+)|null)', int),
         long: (r'(?:(\d+)|null)', long),
@@ -227,23 +225,38 @@ def scanner_func_for_field (fdef, descr):
 #----------------------------------------------------------------------------------------------------------------------------------
 # utils
 
-def code_to_match_json_str (regex):
+def code_to_match_json_str (regex, allow_mismatch=False):
     # Assumes that variables `json_str' and `pos' exist
     if isinstance (regex, basestring):
         regex = re.compile(regex)
-    return SourceCodeTemplate (
-        '''
-            m = $match (json_str, pos)
-            if not m:
-                raise ValueError ("Couldn't match /%s/ from %s" % (
-                    $pattern,
-                    $preview(json_str,pos)
-                ))
-            pos = m.end()
-        ''',
+    stmt = SourceCodeTemplate (
+        'm = $match (json_str, pos)',
         match = regex.match,
-        pattern = repr(regex.pattern),
-        preview = preview,
     )
+    if allow_mismatch:
+        stmt = SourceCodeTemplate (
+            '''
+                $stmt
+                if m:
+                    pos = m.end()            
+            ''', # NB we depend on the statement ending in this "if", so we can append an "else" to it
+            stmt = stmt,
+            preview = preview,
+        )
+    else:
+        stmt = SourceCodeTemplate (
+            '''
+                $stmt
+                if not m:
+                    raise ValueError ("Couldn't match /$pattern/ from %s" % (
+                        $preview(json_str,pos),
+                    ))
+                pos = m.end()
+            ''',
+            stmt = stmt,
+            pattern = re.sub (r'[\\"/]', lambda m: '\\'+m.group(), repr(regex.pattern)[1:-1]),
+            preview = preview,
+        )
+    return stmt
 
 #----------------------------------------------------------------------------------------------------------------------------------

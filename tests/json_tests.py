@@ -14,6 +14,7 @@ Edinburgh
 from cStringIO import StringIO
 from collections import namedtuple
 import json
+import re
 
 # saintamh
 from saintamh.util.lang import Undef
@@ -32,7 +33,7 @@ ALL_TESTS,test = build_test_registry()
 
 @test("scalar fields are directly rendered to JSON")
 def _():
-    R = record ('R', id=str, label=unicode, age=int, salary=float, null=nullable(str))
+    R = record ('R', id=str, label=unicode, age=int, salary=float)
     r = R (id='robert', label=u"Robert Smith", age=42, salary=12.70)
     j = json.loads(r.json_dumps())
     assert_eq (j, {
@@ -40,8 +41,14 @@ def _():
         "label": "Robert Smith",
         "age": 42,
         "salary": 12.70,
-        "null": None,
     })
+
+@test("null fields are simply not included in the JSON")
+def _():
+    R = record ('R', x=int, y=nullable(int))
+    r = R (x=1, y=None)
+    j = json.loads(r.json_dumps())
+    assert_eq (j, {'x':1})
 
 @test("nested records are rendered to JSON as nested objects")
 def _():
@@ -67,7 +74,7 @@ def _():
 # type-sepcific tests
 
 @foreach (
-    (cls_name, cls, val, nullable_or_not)
+    (cls_name, cls, val, nullable_or_not, mutator_descr, mutator_func)
     for cls_name,cls,non_null_val in (
         ('str', str, '\xE2\x9C\x93'),
         ('unicode', unicode, u'Herv\u00E9'),
@@ -75,25 +82,43 @@ def _():
         ('long', long, 42L),
         ('float', float, 0.3),
         ('sequence', seq_of(int), (1,2,3)),
+        ('sequence', seq_of(int),[]),
         ('set', set_of(int), (1,2,3)),
+        ('set', set_of(int), []),
         ('dict', dict_of(str,int), {'one':1,'two':2}),
+        ('dict', dict_of(str,int), []),
         (lambda R2: ('other record', R2, R2(2)))(record ('R2', v=int)),
     )
     for nullable_or_not,vals in (
         (lambda f: f, (non_null_val,)),
         (nullable, (non_null_val,None)),
     )
+    for mutator_descr,mutator_func in sorted (dict.iteritems ({
+        'as-is': lambda s: s,
+        'w/ spaces everywhere': lambda s: re.sub (r'(?:(?<=[,:\{\[\]\}])|(?=[,:\{\[\]\}]))', ' ', s),
+        'w/out spaces': lambda s: re.sub (r'\s+', '', s),
+    }))
     for val in vals
 )
-def test_json_serialization (cls_name, cls, val, nullable_or_not):
+def test_json_serialization (cls_name, cls, val, nullable_or_not, mutator_descr, mutator_func):
 
-    @test("Record with {} field -> JSON obj -> str -> JSON obj -> Record".format(cls_name))
+    @test("Record with {}{} field (set to {!r}) -> JSON obj -> str {} -> JSON obj -> Record".format(
+        'nullable ' if nullable_or_not is nullable else '',
+        cls_name,
+        val,
+        mutator_descr,
+    ))
     def _():
         R = record ('R', field=nullable_or_not(cls))
         r1 = R(val)
-        j = r1.json_dumps()
+        j = mutator_func(r1.json_dumps())
         assert_isinstance (j, str)
-        r2 = R.json_loads (j)
+        try:
+            r2 = R.json_loads (j)
+        except Exception:
+            print
+            print "JSON str: %r" % j
+            raise
         assert_eq (r1.field, r2.field)
 
 #----------------------------------------------------------------------------------------------------------------------------------

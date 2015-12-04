@@ -75,17 +75,6 @@ class JsonEncoderMethodsTemplate (SourceCodeTemplate):
             )
         else:
             raise CannotBeSerializedToJson ("{} (type {}) cannot be serialized to JSON".format(value_descr,fdef.type.__name__))
-        if fdef.nullable:
-            writer_code = SourceCodeTemplate (
-                '''
-                    if $v is None:
-                        fh.write ("null")
-                    else:
-                        $rest
-                ''',
-                v = value_expr,
-                rest = writer_code,
-            )
         return writer_code
 
 #----------------------------------------------------------------------------------------------------------------------------------
@@ -99,23 +88,57 @@ class JsonEncoderMethodsForRecordTemplate (JsonEncoderMethodsTemplate):
     @property
     def json_dump_method_body (self):
         return Joiner ('', values=tuple(
-            SourceCodeTemplate (
-                '''
-                    fh.write ('$prefix"$fname": ')
-                    $write_value
-                    $write_suffix
-                ''',
-                fname = fname,
-                prefix = '{' if i == 0 else ', ',
-                write_value = self.code_to_write_value_to_fh (
-                    fdef,
-                    value_expr = 'self.%s' % fname,
-                    value_descr = '%s.%s' % (self.cls_name, fname),
-                ),
-                write_suffix = 'fh.write("}")' if i == len(self.field_defs)-1 else None,
-            )
+            self.stmts_to_write_one_field (i,fname,fdef)
             for i,(fname,fdef) in enumerate(sorted(self.field_defs.iteritems()))
         ))
+
+    def stmts_to_write_one_field (self, i, fname, fdef):
+        stmt = SourceCodeTemplate (
+            '''
+                fh.write ('"$fname": ')
+                $write_value
+            ''',
+            fname = fname,
+            write_value = self.code_to_write_value_to_fh (
+                fdef,
+                value_expr = 'self.%s' % fname,
+                value_descr = '%s.%s' % (self.cls_name, fname),
+            ),
+        )
+        if i > 0:
+            stmt = SourceCodeTemplate (
+                '''
+                    fh.write (',')
+                    $stmt
+                ''',
+                stmt = stmt
+            )
+        if fdef.nullable:
+            stmt = SourceCodeTemplate (
+                '''
+                    if self.$fname is not None:
+                        $stmt
+                ''',
+                fname = fname,
+                stmt = stmt
+            )
+        if i == 0:
+            stmt = SourceCodeTemplate (
+                '''
+                    fh.write ('{')
+                    $stmt
+                ''',
+                stmt = stmt
+            )
+        if i == len(self.field_defs) - 1:
+            stmt = SourceCodeTemplate (
+                '''
+                    $stmt
+                    fh.write("}")
+                ''',
+                stmt = stmt,
+            )
+        return stmt
 
 #----------------------------------------------------------------------------------------------------------------------------------
 
