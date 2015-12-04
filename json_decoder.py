@@ -19,7 +19,7 @@ from json.decoder import py_scanstring
 import re
 
 # saintamh
-from saintamh.util.codegen import SourceCodeTemplate, compile_expr
+from saintamh.util.codegen import ExternalValue, SourceCodeTemplate
 
 #----------------------------------------------------------------------------------------------------------------------------------
 
@@ -57,7 +57,15 @@ class JsonDecoderMethodsTemplate (SourceCodeTemplate):
             $json_scan
     '''
 
-    preview = preview
+    preview = ExternalValue(preview)
+    CannotParseJson = CannotParseJson
+
+    @property
+    def json_scan (self):
+        try:
+            return self.json_scan_or_cannot_parse
+        except CannotParseJson, err:
+            return 'raise $CannotParseJson(%r)' % str(err)
 
 #----------------------------------------------------------------------------------------------------------------------------------
 
@@ -67,7 +75,7 @@ class JsonDecoderMethodsForRecordTemplate (JsonDecoderMethodsTemplate):
         self.field_defs = field_defs
 
     @property
-    def json_scan (self):
+    def json_scan_or_cannot_parse (self):
         return SourceCodeTemplate (
             '''
                 $match_open_curly
@@ -105,10 +113,10 @@ class JsonDecoderMethodsForRecordTemplate (JsonDecoderMethodsTemplate):
 class JsonDecoderMethodsForSeqTemplate (JsonDecoderMethodsTemplate):
 
     def __init__ (self, elem_fdef):
-        self.scanner_func = scanner_func_for_field (elem_fdef, '[elem]')
+        self.elem_fdef = elem_fdef
 
     @property
-    def json_scan (self):
+    def json_scan_or_cannot_parse (self):
         return SourceCodeTemplate (
             '''
                 values = []
@@ -127,7 +135,7 @@ class JsonDecoderMethodsForSeqTemplate (JsonDecoderMethodsTemplate):
             match_open_square  = code_to_match_json_str (r'(?:(\[)|null)\s*'),
             match_comma        = code_to_match_json_str (r'\s*(?:(,)\s*|(?=\]))'),
             match_close_square = code_to_match_json_str (r'\s*\]\s*'),
-            scanner = self.scanner_func,
+            scanner = scanner_func_for_field (self.elem_fdef, '[elem]')
         )
 
 #----------------------------------------------------------------------------------------------------------------------------------
@@ -135,11 +143,11 @@ class JsonDecoderMethodsForSeqTemplate (JsonDecoderMethodsTemplate):
 class JsonDecoderMethodsForDictTemplate (JsonDecoderMethodsTemplate):
 
     def __init__ (self, key_fdef, val_fdef):
-        self.key_scanner_func = scanner_func_for_field (key_fdef, '<key>')
-        self.val_scanner_func = scanner_func_for_field (val_fdef, '<val>')
+        self.key_fdef = key_fdef
+        self.val_fdef = val_fdef
 
     @property
-    def json_scan (self):
+    def json_scan_or_cannot_parse (self):
         return SourceCodeTemplate (
             '''
                 $match_open_curly
@@ -161,8 +169,8 @@ class JsonDecoderMethodsForDictTemplate (JsonDecoderMethodsTemplate):
             match_quote       = code_to_match_json_str (r'"'),
             match_semicol     = code_to_match_json_str (r'\s*:\s*'),
             match_comma       = code_to_match_json_str (r'\s*(?:(,)\s*|(?=\}))'),
-            key_scanner_func = self.key_scanner_func,
-            val_scanner_func = self.val_scanner_func,
+            key_scanner_func  = scanner_func_for_field (self.key_fdef, '<key>'),
+            val_scanner_func  = scanner_func_for_field (self.val_fdef, '<val>'),
         )
 
 #----------------------------------------------------------------------------------------------------------------------------------
@@ -177,8 +185,10 @@ def scanner_func_for_field (fdef, descr):
         float: (r'(?:(\d+(?:\.\d+)?)|null)', float),
         bool: (r'(?:(true|false)|null)', {'true':True,'false':False}.__getitem__),
     }
+
     if hasattr (fdef.type, 'json_scan'):
-        return fdef.type.json_scan
+        scanner = fdef.type.json_scan
+
     elif fdef.type in types_parsed_by_regex:
         regex_pattern,parse = types_parsed_by_regex[fdef.type]
         regex_match = re.compile(regex_pattern).match
@@ -193,6 +203,7 @@ def scanner_func_for_field (fdef, descr):
             if val_str is None:
                 return None,m.end()
             return parse(val_str),m.end()
+
     elif issubclass (fdef.type, basestring):
         def scanner (json_str, pos):
             if json_str[pos:pos+4] == 'null':
@@ -207,9 +218,10 @@ def scanner_func_for_field (fdef, descr):
                     # convert that to bytes?
                     val = ''.join (map (chr, map (ord, val)))
             return val,end
+
     else:
-        def scanner (json_str, pos):
-            raise CannotParseJson ("%s is of a type (%s) that has no `json_scan' method" % (descr, fdef.type.__name__))
+        raise CannotParseJson ("%s is of a type (%s) that has no `json_scan' method" % (descr, fdef.type.__name__))
+
     return scanner
 
 #----------------------------------------------------------------------------------------------------------------------------------
@@ -221,14 +233,14 @@ def code_to_match_json_str (regex):
         regex = re.compile(regex)
     return SourceCodeTemplate (
         '''
-                m = $match (json_str, pos)
-                if not m:
-                    raise ValueError ("Couldn't match /%s/ from %s" % (
-                        $pattern,
-                        $preview(json_str,pos)
-                    ))
-                pos = m.end()
-            ''',
+            m = $match (json_str, pos)
+            if not m:
+                raise ValueError ("Couldn't match /%s/ from %s" % (
+                    $pattern,
+                    $preview(json_str,pos)
+                ))
+            pos = m.end()
+        ''',
         match = regex.match,
         pattern = repr(regex.pattern),
         preview = preview,

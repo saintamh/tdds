@@ -18,6 +18,12 @@ from .basics import \
 from .record import \
     record
 
+from .json_encoder import \
+    CannotBeSerializedToJson
+
+from .json_decoder import \
+    CannotParseJson
+
 from .shortcuts import \
     one_of, nullable, \
     nonempty, nonnegative, strictly_positive, \

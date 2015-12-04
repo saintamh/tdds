@@ -12,7 +12,6 @@ Edinburgh
 
 # standards
 from cStringIO import StringIO
-from json.encoder import encode_basestring_ascii
 import re
 
 # saintamh
