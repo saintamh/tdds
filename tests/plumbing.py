@@ -18,6 +18,8 @@ def build_test_registry ():
     ALL_TESTS = []
     def test (test_id):
         def register_test_func (func):
+            if any (prev_test_id == test_id for prev_test_id,prev_func in ALL_TESTS):
+                raise ValueError ("Two tests with id '%s'" % test_id)
             ALL_TESTS.append ((test_id, func))
             return func
         return register_test_func

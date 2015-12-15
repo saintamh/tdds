@@ -81,12 +81,12 @@ def _():
         ('int', int, 42),
         ('long', long, 42L),
         ('float', float, 0.3),
-        ('sequence', seq_of(int), (1,2,3)),
-        ('sequence', seq_of(int),[]),
-        ('set', set_of(int), (1,2,3)),
-        ('set', set_of(int), []),
-        ('dict', dict_of(str,int), {'one':1,'two':2}),
-        ('dict', dict_of(str,int), []),
+        ('sequence (nonempty)', seq_of(int), (1,2,3)),
+        ('sequence (empty)', seq_of(int), []),
+        ('set (nonempty)', set_of(int), (1,2,3)),
+        ('set (empty)', set_of(int), []),
+        ('dict (nonempty)', dict_of(str,int), {'one':1,'two':2}),
+        ('dict (empty)', dict_of(str,int), []),
         (lambda R2: ('other record', R2, R2(2)))(record ('R2', v=int)),
     )
     for nullable_or_not,vals in (

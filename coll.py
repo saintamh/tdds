@@ -120,26 +120,41 @@ class DictCollCodeTemplate (CollectionTypeCodeTemplate):
 
 #----------------------------------------------------------------------------------------------------------------------------------
 
-def make_coll (templ, verbose=False):
+def make_coll (templ, **kwargs):
+    verbose = kwargs.pop ('__verbose', False)
     coll_cls = compile_expr (templ, templ.cls_name, verbose=verbose)
-    return Field (
-        coll_cls,
-        coerce = lambda elems: coll_cls(elems) if elems is not None else None,
-    )
+    user_supplied_coerce = kwargs.pop ('coerce', None)
+    if user_supplied_coerce is None:
+        kwargs['coerce'] = lambda elems: coll_cls(elems) if elems is not None else None
+    else:
+        kwargs['coerce'] = lambda elems: coll_cls(user_supplied_coerce(elems))
+    return Field (coll_cls, **kwargs)
 
 # NB there's no reason for the dunder in "__verbose", except that it makes it the same as in the call to `record', where it *is*
 # needed.
 
-def seq_of (elem_fdef, __verbose=False):
-    return make_coll (SequenceCollCodeTemplate(compile_field_def(elem_fdef)), verbose=__verbose)
+def seq_of (elem_fdef, **kwargs):
+    return make_coll (
+        SequenceCollCodeTemplate(compile_field_def(elem_fdef)),
+        **kwargs
+    )
 
-def pair_of (elem_fdef, __verbose=False):
-    return make_coll (PairCollCodeTemplate(compile_field_def(elem_fdef)), verbose=__verbose)
+def pair_of (elem_fdef, **kwargs):
+    return make_coll (
+        PairCollCodeTemplate(compile_field_def(elem_fdef)),
+        **kwargs
+    )
 
-def set_of (elem_fdef, __verbose=False):
-    return make_coll (SetCollCodeTemplate(compile_field_def(elem_fdef)), verbose=__verbose)
+def set_of (elem_fdef, **kwargs):
+    return make_coll (
+        SetCollCodeTemplate(compile_field_def(elem_fdef)),
+        **kwargs
+    )
 
-def dict_of (key_fdef, val_fdef, __verbose=False):
-    return make_coll (DictCollCodeTemplate(compile_field_def(key_fdef), compile_field_def(val_fdef)), verbose=__verbose)
+def dict_of (key_fdef, val_fdef, **kwargs):
+    return make_coll (
+        DictCollCodeTemplate(compile_field_def(key_fdef), compile_field_def(val_fdef)),
+        **kwargs
+    )
 
 #----------------------------------------------------------------------------------------------------------------------------------

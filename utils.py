@@ -22,9 +22,12 @@ from .basics import Field
 #----------------------------------------------------------------------------------------------------------------------------------
 # code-generation utils (private)
 
-def compile_field_def (fdef):
+def compile_field_def (fdef, **kwargs):
     if isinstance(fdef,Field):
-        return fdef
+        if kwargs:
+            return fdef.derive (**kwargs)
+        else:
+            return fdef
     else:
         return Field(fdef)
 

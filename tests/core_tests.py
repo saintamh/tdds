@@ -68,6 +68,14 @@ def val_type_tests (val_type):
             R(id=None)
 
 #----------------------------------------------------------------------------------------------------------------------------------
+# explicit Field defs
+
+@test("fields can be defined using the Field class")
+def _():
+    R = record ('R', id=Field(int))
+    assert_eq (R(10).id, 10)
+
+#----------------------------------------------------------------------------------------------------------------------------------
 # more type checks
 
 @test("objects can be of a subclass of the declared type")

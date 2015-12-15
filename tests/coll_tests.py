@@ -106,6 +106,44 @@ def _():
     s = R(None)
     assert_is (s.v, None)
 
+@test("seq_of types can be defined using the Field class")
+def _():
+    R = record ('R', v=seq_of(Field(int)))
+    assert_eq (R((1,2,3)).v, (1,2,3))
+
+@test("seq_of accepts a `coerce' kwarg")
+def _():
+    R = record ('R', v=seq_of (int, coerce = lambda v: map (int, v)))
+    assert_eq (
+        R("123").v,
+        (1,2,3),
+    )
+
+@test("seq_of accepts a `check' kwarg")
+def _():
+    R = record ('R', v=seq_of (int, check = lambda s: len(s) == 3))
+    assert_eq (R((1,2,3)).v, (1,2,3))
+    with expected_error (FieldValueError):
+        R((1,2,3,4))
+
+@test("seq_of accepts a `nullable' kwarg")
+def _():
+    R = record ('R', v=seq_of (int, nullable=True))
+    assert_none (R().v)
+    assert_none (R(None).v)
+    R = record ('R', v=seq_of (int, nullable=False))
+    with expected_error (TypeError):
+        R()
+    with expected_error (FieldNotNullable):
+        R(None)
+
+@test("seq_of accepts a `default' kwarg")
+def _():
+    R = record ('R', v=seq_of (int, nullable=True, default=(1,2,3)))
+    assert_eq (R((4,5,6)).v, (4,5,6))
+    assert_eq (R(None).v, (1,2,3))
+    assert_eq (R().v, (1,2,3))
+
 #----------------------------------------------------------------------------------------------------------------------------------
 # pair_of
 
@@ -173,6 +211,44 @@ def _():
     s = R(None)
     assert_is (s.v, None)
 
+@test("pair_of types can be defined using the Field class")
+def _():
+    R = record ('R', v=pair_of(Field(int)))
+    assert_eq (R((1,2)).v, (1,2))
+
+@test("pair_of accepts a `coerce' kwarg")
+def _():
+    R = record ('R', v=pair_of (int, coerce = lambda v: map (int, v)))
+    assert_eq (
+        R("12").v,
+        (1,2),
+    )
+
+@test("pair_of accepts a `check' kwarg")
+def _():
+    R = record ('R', v=pair_of (int, check = lambda s: sum(s) == 3))
+    assert_eq (R((1,2)).v, (1,2))
+    with expected_error (FieldValueError):
+        R((4,5))
+
+@test("pair_of accepts a `nullable' kwarg")
+def _():
+    R = record ('R', v=pair_of (int, nullable=True))
+    assert_none (R().v)
+    assert_none (R(None).v)
+    R = record ('R', v=pair_of (int, nullable=False))
+    with expected_error (TypeError):
+        R()
+    with expected_error (FieldNotNullable):
+        R(None)
+
+@test("pair_of accepts a `default' kwarg")
+def _():
+    R = record ('R', v=pair_of (int, nullable=True, default=(1,2)))
+    assert_eq (R((4,5)).v, (4,5))
+    assert_eq (R(None).v, (1,2))
+    assert_eq (R().v, (1,2))
+
 #----------------------------------------------------------------------------------------------------------------------------------
 # set_of
 
@@ -225,6 +301,44 @@ def _():
     s = R(None)
     assert_is (s.v, None)
 
+@test("set_of types can be defined using the Field class")
+def _():
+    R = record ('R', v=set_of(Field(int)))
+    assert_eq (R({1,2,3}).v, {1,2,3})
+
+@test("set_of accepts a `coerce' kwarg")
+def _():
+    R = record ('R', v=set_of (int, coerce = lambda v: map (int, v)))
+    assert_eq (
+        R("123").v,
+        {1,2,3},
+    )
+
+@test("set_of accepts a `check' kwarg")
+def _():
+    R = record ('R', v=set_of (int, check = lambda s: len(s) == 3))
+    assert_eq (R({1,2,3}).v, {1,2,3})
+    with expected_error (FieldValueError):
+        R({1,2,3,4})
+
+@test("set_of accepts a `nullable' kwarg")
+def _():
+    R = record ('R', v=set_of (int, nullable=True))
+    assert_none (R().v)
+    assert_none (R(None).v)
+    R = record ('R', v=set_of (int, nullable=False))
+    with expected_error (TypeError):
+        R()
+    with expected_error (FieldNotNullable):
+        R(None)
+
+@test("set_of accepts a `default' kwarg")
+def _():
+    R = record ('R', v=set_of (int, nullable=True, default={1,2,3}))
+    assert_eq (R({4,5,6}).v, {4,5,6})
+    assert_eq (R(None).v, {1,2,3})
+    assert_eq (R().v, {1,2,3})
+
 #----------------------------------------------------------------------------------------------------------------------------------
 # dict_of
 
@@ -270,7 +384,7 @@ def _():
     assert_eq (r2.elems.__class__.__name__, 'IntToElementDict')
     assert r1.elems.__class__ is not r2.elems.__class__
 
-@test("If two sets use types of the same name, you still can't put one's elems in the other")
+@test("If two dicts use types of the same name, you still can't put one's elems in the other")
 def _():
     C1 = type ('Element', (object,), {})
     C2 = type ('Element', (object,), {})
@@ -302,6 +416,44 @@ def _():
     R = record ('R', v=nullable(dict_of(int,int)))
     s = R(None)
     assert_is (s.v, None)
+
+@test("dict_of types can be defined using the Field class")
+def _():
+    R = record ('R', v=dict_of(Field(int),Field(int)))
+    assert_eq (R({1:1,2:2,3:3}).v, {1:1,2:2,3:3})
+
+@test("dict_of accepts a `coerce' kwarg")
+def _():
+    R = record ('R', v=dict_of (int, int, coerce = lambda v: {int(i):int(i) for i in v}))
+    assert_eq (
+        R("123").v,
+        {1:1,2:2,3:3},
+    )
+
+@test("dict_of accepts a `check' kwarg")
+def _():
+    R = record ('R', v=dict_of (int, int, check = lambda s: len(s) == 3))
+    assert_eq (R({1:1,2:2,3:3}).v, {1:1,2:2,3:3})
+    with expected_error (FieldValueError):
+        R({1:1,2:2,3:3,4:4})
+
+@test("dict_of accepts a `nullable' kwarg")
+def _():
+    R = record ('R', v=dict_of (int, int, nullable=True))
+    assert_none (R().v)
+    assert_none (R(None).v)
+    R = record ('R', v=dict_of (int, int, nullable=False))
+    with expected_error (TypeError):
+        R()
+    with expected_error (FieldNotNullable):
+        R(None)
+
+@test("dict_of accepts a `default' kwarg")
+def _():
+    R = record ('R', v=dict_of (int, int, nullable=True, default={1:1,2:2,3:3}))
+    assert_eq (R({4:4,5:5,6:6}).v, {4:4,5:5,6:6})
+    assert_eq (R(None).v, {1:1,2:2,3:3})
+    assert_eq (R().v, {1:1,2:2,3:3})
 
 #----------------------------------------------------------------------------------------------------------------------------------
 # ImmutableDict
