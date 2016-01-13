@@ -56,7 +56,7 @@ class ExternalCodeInvocation (SourceCodeGenerator):
                 params = Joiner (', ', values=self.param_exprs).expand(ns),
             )
         else:
-            raise TypeError (repr(code_refy))
+            raise TypeError (repr(code_ref))
 
 class Joiner (SourceCodeGenerator):
 

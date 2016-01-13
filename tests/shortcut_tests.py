@@ -138,7 +138,14 @@ def _():
 #----------------------------------------------------------------------------------------------------------------------------------
 # nonempty
 
-def define_nonempty_tests (ftype, ftype_name, empty_val):
+@foreach ((
+    (str, "str's", ''),
+    (unicode, 'unicode strings', u''),
+    (seq_of(int), 'seqeuence fields', ()),
+    (set_of(int), 'set fields', ()),
+    (dict_of(int,int), 'dict fields', {}),
+))
+def _ (ftype, ftype_name, empty_val):
 
     @test("in general {} fields can be empty".format(ftype_name))
     def _():
@@ -150,14 +157,5 @@ def define_nonempty_tests (ftype, ftype_name, empty_val):
         R = record ('R', v=nonempty(ftype))
         with expected_error (FieldValueError):
             R(empty_val)
-
-for ftype,ftype_name,empty_val in (
-        (str, "str's", ''),
-        (unicode, 'unicode strings', u''),
-        (seq_of(int), 'seqeuence fields', ()),
-        (set_of(int), 'set fields', ()),
-        (dict_of(int,int), 'dict fields', {}),
-        ):
-    define_nonempty_tests (ftype, ftype_name, empty_val)
 
 #----------------------------------------------------------------------------------------------------------------------------------

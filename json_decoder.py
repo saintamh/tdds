@@ -118,10 +118,10 @@ class JsonDecoderMethodsForSeqTemplate (JsonDecoderMethodsTemplate):
     def json_scan_or_cannot_parse (self):
         return SourceCodeTemplate (
             '''
-                values = []
                 $match_open_square
                 if m.group(1) is None:
                     return None,pos
+                values = []
                 while True:
                     $match_close_square_maybe
                         break
@@ -239,7 +239,7 @@ def code_to_match_json_str (regex, allow_mismatch=False):
                 $stmt
                 if m:
                     pos = m.end()            
-            ''', # NB we depend on the statement ending in this "if", so we can append an "else" to it
+            ''', # NB we depend on the template ending in this "if", so we can append an "else" to it
             stmt = stmt,
             preview = preview,
         )

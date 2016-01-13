@@ -10,6 +10,9 @@ Edinburgh
 #----------------------------------------------------------------------------------------------------------------------------------
 # includes
 
+# saintamh
+from ...util.codegen import SourceCodeTemplate
+
 # this module
 from .. import *
 from .plumbing import *
@@ -20,7 +23,7 @@ from .plumbing import *
 ALL_TESTS,test = build_test_registry()
 
 #----------------------------------------------------------------------------------------------------------------------------------
-# "coerce" functions
+# "coerce" function specified as a callable
 
 @test("a 'coerce' function specified as a lambda can modify the value")
 def _():
@@ -42,6 +45,9 @@ def _():
     ))
     r = R('a')
     assert_eq (r.id, 'A')
+
+#----------------------------------------------------------------------------------------------------------------------------------
+# "coerce" function specified as a string
 
 @test("a 'coerce' function specified as a string can modify the value")
 def _():
@@ -76,6 +82,56 @@ def _():
             coerce = '{}.upper({})',
         ))
 
+#----------------------------------------------------------------------------------------------------------------------------------
+# "coerce" function specified as a SourceCodeGenerator
+
+@test("a 'coerce' function specified as a SourceCodeGenerator can modify the value")
+def _():
+    R = record ('R', id=Field (
+        type = str,
+        coerce = SourceCodeTemplate (
+            '$upper({})',
+            upper = lambda s: s.upper(),
+        ),
+    ))
+    assert_eq (R('a').id, 'A')
+
+@test("a 'coerce' function specified as a SourceCodeTemplate must contain a '{}'")
+def _():
+    with expected_error(ValueError):
+        record ('R', id=Field (
+            type = str,
+            coerce = SourceCodeTemplate (
+                '$upper(%s)',
+                upper = lambda s: s.upper(),
+            ),
+        ))
+
+@test("a 'coerce' function specified as a SourceCodeTemplate must contain a '{}' with nothing in it")
+def _():
+    with expected_error(ValueError):
+        record ('R', id=Field (
+            type = str,
+            coerce = SourceCodeTemplate (
+                '$upper({0})',
+                upper = lambda s: s.upper(),
+            ),
+        ))
+
+@test("a 'coerce' function specified as a SourceCodeTemplate may not contain more than one '{}'")
+def _():
+    with expected_error(ValueError):
+        record ('R', id=Field (
+            type = str,
+            coerce = SourceCodeTemplate (
+                '$upper({},{})',
+                upper = lambda s: s.upper(),
+            ),
+        ))
+
+#----------------------------------------------------------------------------------------------------------------------------------
+# checks on what the coerce function receives
+
 @test("the 'coerce' function is invoked before the null check and therefore may get a None value")
 def _():
     R = record ('R', id=Field (
@@ -84,6 +140,20 @@ def _():
     ))
     r = R(None)
     assert_eq (r.id, 'None')
+
+@test("if the field is nullable, the coercion function is run on the default value")
+def _():
+    R = record ('R', id=Field (
+        type = str,
+        nullable = True,
+        default = 'lower',
+        coerce = lambda v: v.upper(),
+    ))
+    r = R(id=None)
+    assert_eq (r.id, 'LOWER')
+
+#----------------------------------------------------------------------------------------------------------------------------------
+# checks on what the coerce function returns
 
 @test("the 'coerce' function may not return None if the field is not nullable")
 def _():
@@ -104,14 +174,6 @@ def _():
     r = R('a')
     assert_none (r.id)
 
-@test("specifying something other than a string or a callable as 'coerce' raises a TypeError")
-def _():
-    with expected_error(TypeError):
-        R = record ('R', id=Field (
-            type = str,
-            coerce = 0,
-        ))
-
 @test("the coercion function must return a value of the correct type")
 def _():
     R = record ('R', id=Field (
@@ -120,6 +182,18 @@ def _():
     ))
     with expected_error(FieldTypeError):
         R(id='not ten')
+
+@test("if the field is not nullable, the coercion function may not return None")
+def _():
+    R = record ('R', id=Field (
+        type = str,
+        coerce = lambda v: None,
+    ))
+    with expected_error(FieldNotNullable):
+        R(id='not None')
+
+#----------------------------------------------------------------------------------------------------------------------------------
+# misc
 
 @test("unlike in struct.py, the coerce function is always called, even if the value is of the correct type")
 def _():
@@ -134,24 +208,12 @@ def _():
     R(10)
     assert_eq (all_vals, [10])
 
-@test("is the field is not nullable, the coercion function may not return None")
+@test("specifying something other than a string, a SourceCodeGenerator or a callable as 'coerce' raises a TypeError")
 def _():
-    R = record ('R', id=Field (
-        type = str,
-        coerce = lambda v: None,
-    ))
-    with expected_error(FieldNotNullable):
-        R(id='not None')
-
-@test("is the field is nullable, the coercion function is run on the default value")
-def _():
-    R = record ('R', id=Field (
-        type = str,
-        nullable = True,
-        default = 'lower',
-        coerce = lambda v: v.upper(),
-    ))
-    r = R(id=None)
-    assert_eq (r.id, 'LOWER')
+    with expected_error(TypeError):
+        R = record ('R', id=Field (
+            type = str,
+            coerce = 0,
+        ))
 
 #----------------------------------------------------------------------------------------------------------------------------------
