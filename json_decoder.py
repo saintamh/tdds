@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 """
-$Id: $
+$Id$
 Herve Saint-Amand
 Edinburgh
 """
@@ -20,6 +20,9 @@ import re
 
 # saintamh
 from saintamh.util.codegen import ExternalValue, SourceCodeTemplate
+
+# this module
+from .utils import Joiner
 
 #----------------------------------------------------------------------------------------------------------------------------------
 
@@ -81,7 +84,11 @@ class JsonDecoderMethodsForRecordTemplate (JsonDecoderMethodsTemplate):
                 $match_open_curly
                 if m.group(1) is None:
                     return None,pos
-                constructor_kwargs = {}
+                constructor_kwargs = {
+                    # we initialize all to None, so that if a value is missing we get a FieldNotNullable exception, not a 
+                    # mysterious TypeError about invalid number of parameters to some unspecified function
+                    $none_constructor_kwargs
+                }
                 while True:
                     $match_quote_maybe
                     else:
@@ -105,6 +112,10 @@ class JsonDecoderMethodsForRecordTemplate (JsonDecoderMethodsTemplate):
             },
             preview = preview,
             py_scanstring = py_scanstring,
+            none_constructor_kwargs = Joiner (', ', values=(
+                '"%s":None' % fname
+                for fname in self.field_defs
+            )),
         )
 
 #----------------------------------------------------------------------------------------------------------------------------------
