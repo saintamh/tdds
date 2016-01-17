@@ -280,3 +280,22 @@ def _():
         R.json_load (StringIO('{"x":11}'))
 
 #----------------------------------------------------------------------------------------------------------------------------------
+# character escaping in the JSON data
+
+@test("unicode strings with funny characters get correctly escaped as \uXXXX sequences")
+def _():
+    R = record ('R', label=unicode)
+    assert_eq (
+        R(u"Herv\u00E9").json_dumps(),
+        '{"label": "Herv\u00e9"}',
+    )
+
+@test("str objects that contain UTF-8 stay as bytes (unlike in the standard JSON module, which auto-converts)")
+def _():
+    R = record ('R', label=str)
+    assert_eq (
+        R(u"Herv\u00E9".encode('UTF-8')).json_dumps(),
+        '{"label": "Herv\\u00c3\\u00a9"}',
+    )
+
+#----------------------------------------------------------------------------------------------------------------------------------
