@@ -22,6 +22,7 @@ from . import coll_tests
 from . import core_tests
 from . import json_tests
 from . import pickle_tests
+from . import marshaller_tests
 from . import shortcut_tests
 
 #----------------------------------------------------------------------------------------------------------------------------------
@@ -32,6 +33,7 @@ ALL_TEST_MODS = (
     coll_tests,
     core_tests,
     json_tests,
+    marshaller_tests,
     pickle_tests,
     shortcut_tests,
 )
