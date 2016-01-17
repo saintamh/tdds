@@ -43,23 +43,6 @@ def _():
         "salary": 12.70,
     })
 
-@test("null fields are simply not included in the JSON")
-def _():
-    R = record ('R', x=int, y=nullable(int))
-    r = R (x=1, y=None)
-    j = json.loads(r.json_dumps())
-    assert_eq (j, {'x':1})
-
-@test("explicit 'null' values can be parsed, though")
-def _():
-    R = record ('R', x=int, y=nullable(int))
-    r0 = R(11)
-    r1 = R.json_load (StringIO('{"x":11}'))
-    r2 = R.json_load (StringIO('{"x":11,"y":null}'))
-    assert_eq (r1, r0)
-    assert_eq (r2, r0)
-    assert_eq (r1, r2)
-
 @test("nested records are rendered to JSON as nested objects")
 def _():
     Name = record ('Name', first=unicode, last=unicode)
@@ -263,5 +246,37 @@ def _():
     parsed_obj = R({'ten':10})
     assert_eq (R.json_loads(json_str), parsed_obj)
     assert_eq (R.json_loads(json_str+'  \n\t '), parsed_obj)
+
+#----------------------------------------------------------------------------------------------------------------------------------
+# handling of null values
+
+@test("null fields are simply not included in the JSON")
+def _():
+    R = record ('R', x=int, y=nullable(int))
+    r = R (x=1, y=None)
+    j = json.loads(r.json_dumps())
+    assert_eq (j, {'x':1})
+
+@test("explicit 'null' values can be parsed, though")
+def _():
+    R = record ('R', x=int, y=nullable(int))
+    r0 = R(11)
+    r1 = R.json_load (StringIO('{"x":11}'))
+    r2 = R.json_load (StringIO('{"x":11,"y":null}'))
+    assert_eq (r1, r0)
+    assert_eq (r2, r0)
+    assert_eq (r1, r2)
+
+@test("if the field is not nullable, FieldNotNullable is raised when parsing an explicit 'null'")
+def _():
+    R = record ('R', x=int, y=int)
+    with expected_error(FieldNotNullable):
+        R.json_load (StringIO('{"x":11,"y":null}'))
+
+@test("if the field is not nullable, FieldNotNullable is raised when parsing an implicit 'null'")
+def _():
+    R = record ('R', x=int, y=int)
+    with expected_error(FieldNotNullable):
+        R.json_load (StringIO('{"x":11}'))
 
 #----------------------------------------------------------------------------------------------------------------------------------
