@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 """
-$Id: $
+$Id$
 Herve Saint-Amand
 Edinburgh
 """
