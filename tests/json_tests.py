@@ -50,6 +50,16 @@ def _():
     j = json.loads(r.json_dumps())
     assert_eq (j, {'x':1})
 
+@test("explicit 'null' values can be parsed, though")
+def _():
+    R = record ('R', x=int, y=nullable(int))
+    r0 = R(11)
+    r1 = R.json_load (StringIO('{"x":11}'))
+    r2 = R.json_load (StringIO('{"x":11,"y":null}'))
+    assert_eq (r1, r0)
+    assert_eq (r2, r0)
+    assert_eq (r1, r2)
+
 @test("nested records are rendered to JSON as nested objects")
 def _():
     Name = record ('Name', first=unicode, last=unicode)
