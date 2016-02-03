@@ -10,6 +10,12 @@ Edinburgh
 #----------------------------------------------------------------------------------------------------------------------------------
 # includes
 
+# standards
+import re
+
+# saintamh
+from ..util.codegen import SourceCodeTemplate
+
 # this module
 from .record import Field, compile_field_def
 
@@ -54,7 +60,10 @@ digits_str        = regex_check ('digits_str', '0-9')
 
 absolute_http_url = Field (
     type = str,
-    check = "re.search(r'^https?://.{1,2000}$',{})"
+    check = SourceCodeTemplate (
+        "$re.search(r'^https?://.{{1,2000}}$',{})",
+        re = re,
+    ),
 )
 
 #----------------------------------------------------------------------------------------------------------------------------------
