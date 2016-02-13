@@ -239,7 +239,7 @@ def _():
     with expected_error(ValueError):
         R.json_loads (json_str + '123')
 
-@test("the input may contains trailing spaces, though")
+@test("the input may contain trailing spaces, though")
 def _():
     R = record ('R', v=dict_of(str,int))
     json_str = '{"v":{"ten":10}}'

@@ -10,6 +10,9 @@ Edinburgh
 #----------------------------------------------------------------------------------------------------------------------------------
 # includes
 
+# standards
+import re
+
 # saintamh
 from ...util.codegen import SourceCodeTemplate
 
@@ -158,7 +161,7 @@ def _():
         check = lambda s: s == 'valid',
     ))
     with expected_error(FieldValueError):
-        r = R('invalid')
+        R('invalid')
 
 @test("if the 'check' function returns True, no FieldValueError exception is raised")
 def _():
@@ -167,6 +170,23 @@ def _():
         check = lambda s: s == 'valid',
     ))
     r = R('valid')
+
+@test("the check function can return any truthy value")
+def _():
+    R = record ('R', id=Field (
+        type = str,
+        check = re.compile(r'brac').search,
+    ))
+    assert_eq (R('abracadabra').id, 'abracadabra')
+
+@test("the check function can return any falsy value")
+def _():
+    R = record ('R', id=Field (
+        type = str,
+        check = re.compile(r'brac').search,
+    ))
+    with expected_error(FieldValueError):
+        R('abragadabra')
 
 @test("the 'check' function may raise exceptions, these are not caught and bubble up")
 def _():
