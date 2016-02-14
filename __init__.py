@@ -22,7 +22,7 @@ from .json_encoder import \
     CannotBeSerializedToJson
 
 from .json_decoder import \
-    CannotParseJson
+    JsonDecodingError, CannotParseJson
 
 from .shortcuts import \
     one_of, nullable, \
@@ -32,5 +32,9 @@ from .shortcuts import \
 
 from .coll import \
     dict_of, pair_of, seq_of, set_of
+
+from .marshaller import \
+    CannotMarshalType, Marshaller, \
+    register_marshaller, unregister_marshaller, temporary_marshaller_registration
 
 #----------------------------------------------------------------------------------------------------------------------------------

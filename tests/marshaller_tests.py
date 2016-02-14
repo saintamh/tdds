@@ -11,11 +11,12 @@ Edinburgh
 # includes
 
 # standards
+from collections import namedtuple
 from datetime import datetime
 
 # this module
 from .plumbing import *
-from ..marshaller import STANDARD_MARSHALLERS
+from ..marshaller import CannotMarshalType, Marshaller, lookup_marshaller_for_type, temporary_marshaller_registration
 
 #----------------------------------------------------------------------------------------------------------------------------------
 # init
@@ -35,7 +36,7 @@ ALL_TESTS,test = build_test_registry()
 def _(value, marshalled_bytes):
     cls = value.__class__
     cls_name = cls.__name__
-    marshaller = STANDARD_MARSHALLERS[cls]
+    marshaller = lookup_marshaller_for_type(cls)
 
     @test("%s fields can be marshalled" % cls_name)
     def _():
@@ -57,5 +58,18 @@ def _(value, marshalled_bytes):
             value,
             marshaller.unmarshal (marshaller.marshal(value)),
         )
+
+#----------------------------------------------------------------------------------------------------------------------------------
+
+@test("temporary_marshaller_registration does just that")
+def _():
+    Point = namedtuple ('Point', ('x','y'))
+    assert_none (lookup_marshaller_for_type(Point))
+    bogus_marshaller = Marshaller(str,lambda v: None)
+    with temporary_marshaller_registration(Point,bogus_marshaller):
+        assert_is (bogus_marshaller, lookup_marshaller_for_type(Point))
+    assert_none (lookup_marshaller_for_type(Point))
+
+# TODO: test DuckTypedMarshaller
 
 #----------------------------------------------------------------------------------------------------------------------------------

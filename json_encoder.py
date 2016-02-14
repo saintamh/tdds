@@ -8,6 +8,28 @@ Edinburgh
 """
 
 #----------------------------------------------------------------------------------------------------------------------------------
+# 2016-02-13 - on serializing `str' values to JSON
+
+# JSON is meant for strings, not arbitrary binary data, so you have to be careful if you want to encode arbitrary `str' objects,
+# which we do. If your str contains only ASCII data then it's easy, but if it contains anything between 0x80 and 0xFF, there's the
+# question of how to encode it in JSON. JSON doesn't have Python's "\xFF" escapes.
+
+# I considered sidestepping the whole issue by decreeing that only `str' objects that could be encoded as US-ASCII strings were
+# allowed, and that for anything else you had to pre-encode the data, say to base64. But then that could lead to situations where,
+# say, you have a scraper that saves URLs to JSON, and it works fine for months, then one day it hits a URL from the wild that has
+# a non-ASCII, non-escaped value in it, and then the JSON serializer crashes. That would suck.
+
+# Another option would have been to insert python-style "\xFF" escapes in the data. Then only a program that's aware of the trick
+# would be able to parse it. But that would suck because any other program I write to read the JSON (and JSON is great for
+# inter-program data exchange) would need a custom JSON parser, which is out of the question.
+
+# What I settled on is a bit of a hack: values between 0x80 and 0xFF are simply encoded as unicode escapes ranging from "\u0080" to
+# "\u00FF". This is wrong, in the sense that "\u00FF" means "latin small letter y with diaeresis", but what we're handling here is
+# bytes, not characters. A 3rd party program parsing this data would have to make sure they know what they're doing when parsing
+# this. This works for us, because we know the type of our fields, but other JSON libs will dutifully parse "\u00FF" as a "y with
+# diaeresis", and you'll have to somehow convert that back to a 0xFF byte. It seemed to be the least bad option.
+
+#----------------------------------------------------------------------------------------------------------------------------------
 # includes
 
 # standards
@@ -18,11 +40,12 @@ import re
 from ..util.codegen import SourceCodeTemplate
 
 # this module
-from .utils import Joiner
+from .marshaller import lookup_marshalling_code_for_type
+from .utils import ExternalCodeInvocation, Joiner
 
 #----------------------------------------------------------------------------------------------------------------------------------
 
-TYPES_THAT_CAN_BE_DUMPED_RAW = frozenset ((int,long,float,bool,None.__class__))
+TYPES_THAT_CAN_BE_DUMPED_RAW = frozenset ((int,long,float,bool))
 
 class CannotBeSerializedToJson (TypeError):
     pass
@@ -55,14 +78,24 @@ class JsonEncoderMethodsTemplate (SourceCodeTemplate):
     json_dump_method_body = NotImplemented
 
     def code_to_write_value_to_fh (self, fdef, value_expr, value_descr):
-        if hasattr (fdef.type, 'json_dump'):
-            writer_code = SourceCodeTemplate ('$v.json_dump(fh)', v=value_expr)
-        elif fdef.type in TYPES_THAT_CAN_BE_DUMPED_RAW:
+        ftype = fdef.type
+        if ftype in TYPES_THAT_CAN_BE_DUMPED_RAW:
             writer_code = SourceCodeTemplate ('fh.write(str($v))', v=value_expr)
-        elif issubclass (fdef.type, basestring):
+        elif callable (getattr (ftype, 'json_dump', None)):
+            writer_code = SourceCodeTemplate ('$v.json_dump(fh)', v=value_expr)
+        else:
+            if not issubclass (ftype, basestring):
+                marshalling_code = lookup_marshalling_code_for_type (ftype)
+                if not marshalling_code:
+                    raise CannotBeSerializedToJson ("Cannot serialize {} (type {}) to JSON (try registering a marshaller)".format (
+                        value_descr,
+                        ftype.__name__,
+                    ))
+                value_expr = ExternalCodeInvocation (marshalling_code, value_expr)
             # I'd want to use the standard json.encoder.encode_basestring_ascii here, but it insists on implicity decoding
             # UTF-8 bytes into a unicode string, which is not what I want
             writer_code = SourceCodeTemplate (
+                # `str' bytes such as 0xFF will be serialized as "\u00FF" -- see comment in header
                 r'''
                     fh.write ('"%s"' % $re.sub (
                         r'[^\ !\#-~]',
@@ -73,8 +106,6 @@ class JsonEncoderMethodsTemplate (SourceCodeTemplate):
                 re = re,
                 v = value_expr,
             )
-        else:
-            raise CannotBeSerializedToJson ("{} (type {}) cannot be serialized to JSON".format(value_descr,fdef.type.__name__))
         return writer_code
 
 #----------------------------------------------------------------------------------------------------------------------------------

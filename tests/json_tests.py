@@ -93,7 +93,7 @@ def _():
     }))
     for val in vals
 )
-def test_json_serialization (cls_name, cls, val, nullable_or_not, mutator_descr, mutator_func):
+def _(cls_name, cls, val, nullable_or_not, mutator_descr, mutator_func):
 
     @test("Record with {}{} field (set to {!r}) -> JSON obj -> str {} -> JSON obj -> Record".format(
         'nullable ' if nullable_or_not is nullable else '',
@@ -236,7 +236,7 @@ def _():
     json_str = '{"v":{"ten":10}}'
     parsed_obj = R({'ten':10})
     assert_eq (R.json_loads(json_str), parsed_obj)
-    with expected_error(ValueError):
+    with expected_error(JsonDecodingError):
         R.json_loads (json_str + '123')
 
 @test("the input may contain trailing spaces, though")
@@ -297,5 +297,93 @@ def _():
         R(u"Herv\u00E9".encode('UTF-8')).json_dumps(),
         '{"label": "Herv\\u00c3\\u00a9"}',
     )
+
+#----------------------------------------------------------------------------------------------------------------------------------
+# custom marshallers
+
+@test("fields can be serialized and deserialized using custom marshallers")
+def _():
+    Point = namedtuple ('Point', ('x','y'))
+    marshaller = Marshaller (
+        lambda pt: '%d,%d' % pt,
+        lambda s: Point(*map(int,s.split(','))),
+    )
+    with temporary_marshaller_registration (Point, marshaller):
+        R = record ('R', pt=Point)
+        r1 = R(Point(1,2))
+        assert_eq (
+            r1.json_dumps(),
+            '{"pt": "1,2"}',
+        )
+        assert_eq (
+            R.json_loads(r1.json_dumps()),
+            r1,
+        )
+
+@test("the marshaller must be available when the class is compiled, not when json_dumps() is called")
+def _():
+    Point = namedtuple ('Point', ('x','y'))
+    marshaller = Marshaller (
+        lambda pt: '%d,%d' % pt,
+        lambda s: Point(*map(int,s.split(','))),
+    )
+    R = record ('R', pt=Point)
+    with expected_error(CannotBeSerializedToJson):
+        R(Point(1,2)).json_dumps()
+
+#----------------------------------------------------------------------------------------------------------------------------------
+# pathological cases
+
+@foreach ((
+    ('{"id":10', "missing closing mustache"),
+    ('{"id" 10}', "missing colon"),
+    ('{"id",10}', "comma instead of colon"),
+    ('{"id:10}', "missing closing quote"),
+    ('{"id":10,"id":11}', "duplicated key"),
+    ('{"id":10,,}', "repeated commas"),
+    ('{"id":10 "extra":12}', "missing comma"),
+))
+def _(invalid_json_str, reason):
+
+    @test("JSON parsing of record objects raises an exception for {}".format(reason))
+    def _():
+        R = record ('R', id=int, extra=nullable(int))
+        with expected_error(JsonDecodingError):
+            R.json_loads (invalid_json_str)
+
+@foreach ((
+    ('{"vals":[1,2,3}', "missing closing square"),
+    ('{"vals":[1,,2,3]}', "repeated commas"),
+    ('{"vals":[1,2 3]}', "missing comma"),
+))
+def _(invalid_json_str, reason):
+
+    @test("JSON parsing of seq objects raises an exception for {}".format(reason))
+    def _():
+        R = record ('R', vals=seq_of(int))
+        with expected_error(JsonDecodingError):
+            R.json_loads (invalid_json_str)
+
+@foreach ((
+    ('{"items":{"a":1, "b":2}', "missing closing mustache"),
+    ('{"items" {"a":1, "b" 2}}', "missing colon"),
+    ('{"items",{"a":1, "b",2}}', "comma instead of colon"),
+    ('{"items:{"a":1, "b:2}}', "missing closing quote"),
+    ('{"items":{"a":1, "a":2, "b":2}}', "duplicated key"),
+    ('{"items":{"a":1,, "b":2}}', "repeated commas"),
+    ('{"items":{"a":1 "b":2} "extra":12}', "missing comma"),
+))
+def _(invalid_json_str, reason):
+
+    @test("JSON parsing of dict objects raises an exception for {}".format(reason))
+    def _():
+        R = record ('R', items=dict_of(str,int))
+        with expected_error(JsonDecodingError):
+            R.json_loads (invalid_json_str)
+
+#----------------------------------------------------------------------------------------------------------------------------------
+# TODO
+
+# * Decimal fields are serialized to JSON as strings
 
 #----------------------------------------------------------------------------------------------------------------------------------

@@ -8,6 +8,12 @@ Edinburgh
 """
 
 #----------------------------------------------------------------------------------------------------------------------------------
+# includes
+
+# standards
+from traceback import print_exc
+
+#----------------------------------------------------------------------------------------------------------------------------------
 
 class TestFailure (Exception):
     pass
@@ -46,6 +52,7 @@ class expected_error (object):
         elif exc_type is None:
             raise TestFailure ("Expected %s, no exception raised" % self.exc_type.__name__)
         else:
+            print_exc()
             raise TestFailure ("Expected %s, got %s: %s" % (self.exc_type.__name__, exc_type.__name__, exc_value))
 
 def assert_eq (v1, v2):
