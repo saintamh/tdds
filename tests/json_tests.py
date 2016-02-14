@@ -13,6 +13,8 @@ Edinburgh
 # standards
 from cStringIO import StringIO
 from collections import namedtuple
+from datetime import datetime
+from decimal import Decimal
 import json
 import re
 
@@ -312,6 +314,23 @@ def _(special_char, string_cls):
         json_str = r1.json_dumps()
         assert_eq (json_str, '{"label": "\\u%04x"}' % ord(special_char))
         assert_eq (R.json_loads(json_str), r1)
+
+#----------------------------------------------------------------------------------------------------------------------------------
+# built-in marshallers
+
+@foreach ((
+    (datetime(2009,10,28,8,53,2), "2009-10-28T08:53:02"),
+    (Decimal('10.3'), "10.3"),
+))
+def _(obj, marshalled_str):
+
+    @test ("{} objects automatically get marshalled and unmarshalled as expected".format (obj.__class__.__name__))
+    def _():
+        R = record ('R', obj=obj.__class__)
+        r1 = R(obj)
+        json_str = r1.json_dumps()
+        assert_eq (json_str, '{"obj": "%s"}' % marshalled_str)
+        assert_eq (r1, R.json_loads(json_str))
 
 #----------------------------------------------------------------------------------------------------------------------------------
 # custom marshallers
