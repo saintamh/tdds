@@ -149,11 +149,10 @@ class JsonDecoderMethodsForRecordTemplate (JsonDecoderMethodsTemplate):
         return Joiner ('', values = tuple (
             SourceCodeTemplate (
                 '''
-                    {if_or_elif} key == $fname:
+                    $if_or_elif key == $fname:
                         $parse
-                '''.format (
-                    if_or_elif = 'if' if i == 0 else 'elif',
-                ),
+                ''',
+                if_or_elif = 'if' if i == 0 else 'elif',
                 fname = ExternalValue(fname),
                 parse = code_to_decode_one_field (fdef, fname),
             )
@@ -351,7 +350,7 @@ def code_to_parse_string (string_cls, output_var_name):
             $match_quote_and_first_chunk
             chunk,terminator = m.groups()
             if terminator != '\\\\': # NB double-escaped because this is code as a string. In real code it'd be single escaped
-                {output_var_name} = chunk
+                $output_var_name = chunk
             else:
                 # only build an array if you must
                 all_chunks = [chunk]
@@ -363,10 +362,9 @@ def code_to_parse_string (string_cls, output_var_name):
                         raise $JsonDecodingError ("Unterminated string literal starting at char %d" % string_start_pos)
                     chunk,terminator = m.groups()
                     all_chunks.append(chunk)
-                {output_var_name} = $empty_string.join(all_chunks)
-        '''.format (
-            output_var_name = output_var_name,
-        ),
+                $output_var_name = $empty_string.join(all_chunks)
+        ''',
+        output_var_name             = output_var_name,
         JsonDecodingError           = JsonDecodingError,
         match_quote_and_first_chunk = code_to_match_json_str (r'\"' + re_chunk),
         match_chunk                 = code_to_match_json_str (re_chunk, allow_mismatch='yes so we can give a better error mesg'),
