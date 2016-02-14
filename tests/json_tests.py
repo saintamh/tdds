@@ -57,7 +57,7 @@ def _():
         "age": 100,
     })
 
-@test("json_dump always creates str objects, never unicode")
+@test("json_dumps always creates str objects, never unicode")
 def _():
     R = record ('R', v=unicode)
     s = R(u"Herv\u00E9").json_dumps()
@@ -285,18 +285,18 @@ def _():
 @test("unicode strings with funny characters get correctly escaped as \uXXXX sequences")
 def _():
     R = record ('R', label=unicode)
-    assert_eq (
-        R(u"Herv\u00E9").json_dumps(),
-        '{"label": "Herv\u00e9"}',
-    )
+    r1 = R(u"Herv\u00E9")
+    json_str = r1.json_dumps()
+    assert_eq (json_str, '{"label": "Herv\u00e9"}')
+    assert_eq (r1, R.json_loads(json_str))
 
 @test("str objects that contain UTF-8 stay as bytes (unlike in the standard JSON module, which auto-converts)")
 def _():
     R = record ('R', label=str)
-    assert_eq (
-        R(u"Herv\u00E9".encode('UTF-8')).json_dumps(),
-        '{"label": "Herv\\u00c3\\u00a9"}',
-    )
+    r1 = R(u"Herv\u00E9".encode('UTF-8'))
+    json_str = r1.json_dumps()
+    assert_eq (json_str, '{"label": "Herv\\u00c3\\u00a9"}')
+    assert_eq (r1, R.json_loads(json_str))
 
 #----------------------------------------------------------------------------------------------------------------------------------
 # custom marshallers
