@@ -298,6 +298,21 @@ def _():
     assert_eq (json_str, '{"label": "Herv\\u00c3\\u00a9"}')
     assert_eq (r1, R.json_loads(json_str))
 
+@foreach (
+    (special_char, string_cls)
+    for special_char in ('"', '\n', '\r')
+    for string_cls in (str, unicode)
+)
+def _(special_char, string_cls):
+
+    @test("{!r} chars get properly escaped in {} fields".format (special_char, string_cls.__name__))
+    def _():
+        R = record ('R', label=string_cls)
+        r1 = R(string_cls(special_char))
+        json_str = r1.json_dumps()
+        assert_eq (json_str, '{"label": "\\u%04x"}' % ord(special_char))
+        assert_eq (R.json_loads(json_str), r1)
+
 #----------------------------------------------------------------------------------------------------------------------------------
 # custom marshallers
 
