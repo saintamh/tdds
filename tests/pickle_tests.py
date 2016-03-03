@@ -39,6 +39,22 @@ for protocol in (0,1,2,-1):
         r2 = pickle.loads (pickle.dumps (r1, protocol=protocol))
         assert_eq (r2, r1)
 
+    @test("records with set fields can be pickled with protocol {:d}".format(protocol))
+    def _():
+        import pickle
+        R = record ('R', elems=set_of(int))
+        r1 = R (elems=((1,2,3)))
+        r2 = pickle.loads (pickle.dumps (r1, protocol=protocol))
+        assert_eq (r2.elems, r1.elems)
+
+    @test("records with dict fields can be pickled with protocol {:d}".format(protocol))
+    def _():
+        import pickle
+        R = record ('R', elems=dict_of(str,str))
+        r1 = R (elems={'a':'alpha','b':'beta'})
+        r2 = pickle.loads (pickle.dumps (r1, protocol=protocol))
+        assert_eq (r2, r1)
+
     @test("nested records can be pickled with protocol {:d}".format(protocol))
     def _():
         import pickle

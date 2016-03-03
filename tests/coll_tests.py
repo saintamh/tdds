@@ -475,35 +475,35 @@ def _():
 @test("ImmutableDict objects are immutable, and therefore you can't call .clear() on them")
 def _():
     elems = ImmutableDict ({1:'uno',2:'zwei'})
-    with expected_error(TypeError):
+    with expected_error(AttributeError):
         elems.clear()
     assert_eq (elems, {1:'uno',2:'zwei'})
 
 @test("ImmutableDict objects are immutable, and therefore you can't call .pop() on them")
 def _():
     elems = ImmutableDict ({1:'uno',2:'zwei'})
-    with expected_error(TypeError):
+    with expected_error(AttributeError):
         elems.pop(1)
     assert_eq (elems, {1:'uno',2:'zwei'})
 
 @test("ImmutableDict objects are immutable, and therefore you can't call .popitem() on them")
 def _():
     elems = ImmutableDict ({1:'uno',2:'zwei'})
-    with expected_error(TypeError):
+    with expected_error(AttributeError):
         elems.popitem()
     assert_eq (elems, {1:'uno',2:'zwei'})
 
 @test("ImmutableDict objects are immutable, and therefore you can't call .setdefault() on them")
 def _():
     elems = ImmutableDict ({1:'uno',2:'zwei'})
-    with expected_error(TypeError):
+    with expected_error(AttributeError):
         elems.setdefault(3,'trois')
     assert_eq (elems, {1:'uno',2:'zwei'})
 
 @test("ImmutableDict objects are immutable, and therefore you can't call .update() on them")
 def _():
     elems = ImmutableDict ({1:'uno',2:'zwei'})
-    with expected_error(TypeError):
+    with expected_error(AttributeError):
         elems.update({3:'trois'})
     assert_eq (elems, {1:'uno',2:'zwei'})
 
