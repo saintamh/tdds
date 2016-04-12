@@ -44,7 +44,7 @@ class CollectionTypeCodeTemplate (SourceCodeTemplate):
 
             $json_encoder_methods
 
-            # __repr__, __cmp__ and __hash__ are left to the superclass to implement
+            $core_methods
 
             def __reduce__ (self):
                 return ($RecordUnpickler("$cls_name"), ($superclass(self),))
@@ -52,6 +52,9 @@ class CollectionTypeCodeTemplate (SourceCodeTemplate):
 
     RecordRegistryMetaclass = RecordRegistryMetaclass
     RecordUnpickler = RecordUnpickler
+
+    # by default, __repr__, __cmp__ and __hash__ are left to the superclass to implement, but subclasses may override this:
+    core_methods = ''
 
 #----------------------------------------------------------------------------------------------------------------------------------
 # Subclasses of the above template, one per type
@@ -96,6 +99,10 @@ class PairCollCodeTemplate (SequenceCollCodeTemplate):
 class SetCollCodeTemplate (SequenceCollCodeTemplate):
     superclass = frozenset
     cls_name_suffix = 'Set'
+    core_methods = '''
+        def __cmp__ (self, other):
+            return cmp(sorted(self), sorted(other))
+    '''
 
 class DictCollCodeTemplate (CollectionTypeCodeTemplate):
     superclass = ImmutableDict
