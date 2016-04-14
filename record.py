@@ -61,6 +61,8 @@ class RecordClassTemplate (SourceCodeTemplate):
             __metaclass__ = $RecordRegistryMetaclass
             __slots__ = $slots
 
+            record_fields = $slots
+
             def __init__ (self, $init_params):
                 $field_checks
                 $set_fields
@@ -141,7 +143,7 @@ class RecordClassTemplate (SourceCodeTemplate):
     def repr_str (self, findex, fname, fdef):
         return '{}=%r'.format(fname)
 
-    @field_joiner_property (' or ')
+    @field_joiner_property (' or ', prefix='1 if other is None else (', suffix=')')
     def cmp_stmt (self, findex, fname, fdef):
         return 'cmp(self.{0},other.{0})'.format(fname)
 
