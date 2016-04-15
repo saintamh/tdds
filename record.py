@@ -61,8 +61,6 @@ class RecordClassTemplate (SourceCodeTemplate):
             __metaclass__ = $RecordRegistryMetaclass
             __slots__ = $slots
 
-            record_fields = $slots
-
             def __init__ (self, $init_params):
                 $field_checks
                 $set_fields
@@ -75,6 +73,18 @@ class RecordClassTemplate (SourceCodeTemplate):
             $json_decoder_methods
 
             $json_encoder_methods
+
+            # 2016-04-14 - added this for the JIRA client. Not sure yet it's the best approach. This can clash with field names.
+            # Should we take the same approach as namedtuple and prefix all internal members with an underscore?
+            record_fields = $slots
+
+            # 2016-04-15 - same comment as above, I still reserve the option of changing the same here
+            # Also should unroll the loop at compile time.
+            def derive (self, **kwargs):
+                return self.__class__ (**{
+                    field: kwargs.get (field, getattr(self,field))
+                    for field in $slots
+                })
 
             def __repr__ (self):
                 return "$cls_name ($repr_str)" % $values_as_tuple
