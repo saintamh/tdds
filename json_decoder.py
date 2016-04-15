@@ -284,7 +284,8 @@ def code_to_decode_marshalled_type (ftype, descr):
     return SourceCodeTemplate (
         '''
             $decode_string
-            decoded_val = $unmarshall
+            if decoded_val is not None:
+                decoded_val = $unmarshall
         ''',
         decode_string = code_to_decode_string_field (str),
         unmarshall = ExternalCodeInvocation (

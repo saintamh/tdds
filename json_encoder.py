@@ -79,6 +79,7 @@ class JsonEncoderMethodsTemplate (SourceCodeTemplate):
 
     def code_to_write_value_to_fh (self, fdef, value_expr, value_descr):
         ftype = fdef.type
+        orig_value_expr = value_expr
         if ftype in TYPES_THAT_CAN_BE_DUMPED_RAW:
             writer_code = SourceCodeTemplate ('fh.write(str($v))', v=value_expr)
         elif callable (getattr (ftype, 'json_dump', None)):
@@ -109,12 +110,12 @@ class JsonEncoderMethodsTemplate (SourceCodeTemplate):
         if fdef.nullable:
             writer_code = SourceCodeTemplate (
                 '''
-                    if $v is None:
+                    if $ov is None:
                         fh.write('null')
                     else:
                         $writer_code
                 ''',
-                v = value_expr,
+                ov = orig_value_expr,
                 writer_code = writer_code,
             )
         return writer_code

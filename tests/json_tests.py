@@ -83,6 +83,7 @@ def _():
         ('set (empty)', set_of(int), []),
         ('dict (nonempty)', dict_of(str,int), {'one':1,'two':2}),
         ('dict (empty)', dict_of(str,int), []),
+        ('datetime', datetime, datetime(2016, 4, 15, 10, 01, 59)),
         (lambda R2: ('other record', R2, R2(2)))(record ('R2', v=int)),
     )
     for nullable_or_not,vals in (
@@ -91,7 +92,7 @@ def _():
     )
     for mutator_descr,mutator_func in sorted (dict.iteritems ({
         'as-is': lambda s: s,
-        'w/ spaces everywhere': lambda s: re.sub (r'(?:(?<=[,:\{\[\]\}])|(?=[,:\{\[\]\}]))', ' ', s),
+        'w/ spaces everywhere': lambda s: re.sub (r'(?:(?<=[,:\{\[\]\}])(?!\d)|(?<!\d)(?=[,:\{\[\]\}]))', ' ', s),
         'w/out spaces': lambda s: re.sub (r'\s+', '', s),
     }))
     for val in vals
