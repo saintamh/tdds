@@ -66,13 +66,14 @@ def _():
     assert_isinstance (s, str)
 
 #----------------------------------------------------------------------------------------------------------------------------------
-# type-sepcific tests
+# type-specific tests
 
 @foreach (
-    (cls_name, cls, val, nullable_or_not, mutator_descr, mutator_func)
+    (cls_name, cls, val, nullable_or_not, mutator_descr, mutator_func, other_fields)
     for cls_name,cls,non_null_val in (
-        ('str', str, '\xE2\x9C\x93'),
-        ('unicode', unicode, u'Herv\u00E9'),
+        ('str', str, '\xE2\x9C\x93\'\\\"\xE2\x9C\x93'),
+        ('unicode', unicode, u'Herv\u00E9\'\\\"Herv\u00E9'),
+        ('ascii-only unicode', unicode, u'ASCII'),
         ('int', int, 42),
         ('long', long, 42L),
         ('float', float, 0.3),
@@ -94,27 +95,56 @@ def _():
         'w/out spaces': lambda s: re.sub (r'\s+', '', s),
     }))
     for val in vals
+    for other_fields in (
+        {},
+        {'AA_other': (int, 1)},
+        {'zz_other': (str, 'x')},
+        {'AA_other': (int, 1), 'zz_other': (str, 'x')},
+    )
 )
-def _(cls_name, cls, val, nullable_or_not, mutator_descr, mutator_func):
+def _(cls_name, cls, val, nullable_or_not, mutator_descr, mutator_func, other_fields):
 
-    @test("Record with {}{} field (set to {!r}) -> JSON obj -> str {} -> JSON obj -> Record".format(
+    @test("Record with {}{} field (set to {!r}) ({}) -> JSON obj -> str {} -> JSON obj -> Record".format(
         'nullable ' if nullable_or_not is nullable else '',
         cls_name,
         val,
+        '+{}'.format(','.join(sorted(other_fields))) if other_fields else 'and no other fields',
         mutator_descr,
     ))
     def _():
-        R = record ('R', field=nullable_or_not(cls))
-        r1 = R(val)
+        R = record ('R', field=nullable_or_not(cls), **{
+            other_field_name: other_field_type
+            for other_field_name,(other_field_type,_) in other_fields.iteritems()
+        })
+        r1 = R(field=val, **{
+            other_field_name: other_field_value
+            for other_field_name,(_,other_field_value) in other_fields.iteritems()
+        })
         j = mutator_func(r1.json_dumps())
         assert_isinstance (j, str)
         try:
             r2 = R.json_loads (j)
+            assert_eq (r1.field, r2.field)
         except Exception:
             print
             print "JSON str: %r" % j
             raise
-        assert_eq (r1.field, r2.field)
+
+# @test("2016-04-15 - weird bug with serializing null values?")
+# def _():
+#     Item = record (
+#         'Item',
+#         one = nullable(unicode),
+#         two = seq_of(int),
+#     )
+#     Collection = record ('Collection', items=seq_of(Item))
+#     c = Collection([Item(one=None,two=[1,2,3])])
+#     j = json.loads(c.json_dumps())
+#     assert_eq (j, {
+#         "items": [{
+#             "two": [1,2,3]
+#         }]
+#     })
 
 #----------------------------------------------------------------------------------------------------------------------------------
 # duck-typing which classes can be serialized to JSON
@@ -252,12 +282,14 @@ def _():
 #----------------------------------------------------------------------------------------------------------------------------------
 # handling of null values
 
-@test("null fields are simply not included in the JSON")
+@test("null fields are included in the JSON")
 def _():
+    # 2016-04-15 - I just reversed this. It used to be that null fields were not included in the JSON at all. Now they are, mostly
+    # because (1) it makes the encoder simpler, and (2) it doesn't matter very much. Hopefully I won't come to regret this.
     R = record ('R', x=int, y=nullable(int))
     r = R (x=1, y=None)
     j = json.loads(r.json_dumps())
-    assert_eq (j, {'x':1})
+    assert_eq (j, {'x':1, 'y': None})
 
 @test("explicit 'null' values can be parsed, though")
 def _():
@@ -302,7 +334,7 @@ def _():
 
 @foreach (
     (special_char, string_cls)
-    for special_char in ('"', '\n', '\r')
+    for special_char in ('"', '\n', '\r', '\t', '\\')
     for string_cls in (str, unicode)
 )
 def _(special_char, string_cls):
@@ -312,8 +344,31 @@ def _(special_char, string_cls):
         R = record ('R', label=string_cls)
         r1 = R(string_cls(special_char))
         json_str = r1.json_dumps()
-        assert_eq (json_str, '{"label": "\\u%04x"}' % ord(special_char))
+        assert_eq (json_str, '{"label": "%s"}' % {
+            '\\': '\\\\',
+        }.get (special_char, '\\u%04x' % ord(special_char)))
         assert_eq (R.json_loads(json_str), r1)
+
+    @test("{!r} chars with a simple backslash (as other sources produce) are parsed correctly for {}".format (
+        special_char,
+        string_cls.__name__,
+    ))
+    def _():
+        R = record ('R', label=string_cls)
+        r1 = R(string_cls(special_char))
+        json_str = '{"label": "\\%s"}' % {
+            '"': '"',
+            '\n': 'n',
+            '\r': 'r',
+            '\t': 't',
+            '\\': '\\',
+        }[special_char]
+        try:
+            assert_eq (R.json_loads(json_str), r1)
+        except Exception:
+            print
+            print '    JSON str: {!r}'.format(json_str)
+            raise
 
 #----------------------------------------------------------------------------------------------------------------------------------
 # built-in marshallers

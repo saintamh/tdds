@@ -350,27 +350,33 @@ def code_to_parse_string (string_cls, output_var_name):
             $match_quote_and_first_chunk
             chunk,terminator = m.groups()
             if terminator != '\\\\': # NB double-escaped because this is code as a string. In real code it'd be single escaped
-                $output_var_name = chunk
+                $output_var_name = $chunk_in_correct_class
             else:
                 # only build an array if you must
-                all_chunks = [chunk]
+                all_chunks = [$chunk_in_correct_class]
                 while terminator == '\\\\': # same remark as above about the escaping. This checks where it's a single backslash.
                     $match_char_value
-                    all_chunks.append ($char(int(m.group(1),16)))
+                    all_chunks.append ($unescaped[m.group(1)] if m.group(1) else $char(int(m.group(2),16)))
                     $match_chunk
                     else:
                         raise $JsonDecodingError ("Unterminated string literal starting at char %d" % string_start_pos)
                     chunk,terminator = m.groups()
-                    all_chunks.append(chunk)
+                    all_chunks.append($chunk_in_correct_class)
                 $output_var_name = $empty_string.join(all_chunks)
         ''',
         output_var_name             = output_var_name,
         JsonDecodingError           = JsonDecodingError,
         match_quote_and_first_chunk = code_to_match_json_str (r'\"' + re_chunk),
         match_chunk                 = code_to_match_json_str (re_chunk, allow_mismatch='yes so we can give a better error mesg'),
-        match_char_value            = code_to_match_json_str (r'u([0-9a-fA-F]{4})'),
+        match_char_value            = code_to_match_json_str (r'(?:([\\nrt\"])|u([0-9a-fA-F]{4}))'),
         char                        = {unicode:unichr,str:chr}[string_cls],
-        empty_string                = ExternalValue ({unicode:u'',   str:'' }[string_cls]),
+        backslash                   = ExternalValue ({unicode:u'\\',str:'\\'}[string_cls]),
+        empty_string                = ExternalValue ({unicode:u'', str:'' }[string_cls]),
+        chunk_in_correct_class      = {unicode:'unicode(chunk)', str:'chunk'}[string_cls],
+        unescaped                   = {
+            unicode: {'\\':u'\\', 'n':u'\n', 'r':u'\r', 't':u'\t', '"':u'"'},
+            str:     {'\\': '\\', 'n': '\n', 'r': '\r', 't': '\t', '"': '"'},
+        }[string_cls],
     )
 
 #----------------------------------------------------------------------------------------------------------------------------------

@@ -100,11 +100,22 @@ class JsonEncoderMethodsTemplate (SourceCodeTemplate):
                     fh.write ('"%s"' % $re.sub (
                         r'[^\ !\#-~]',
                         lambda m: '\\u%04x' % ord(m.group()),
-                        $v
+                        $v.replace('\\', '\\\\')
                     ))
                 ''',
                 re = re,
                 v = value_expr,
+            )
+        if fdef.nullable:
+            writer_code = SourceCodeTemplate (
+                '''
+                    if $v is None:
+                        fh.write('null')
+                    else:
+                        $writer_code
+                ''',
+                v = value_expr,
+                writer_code = writer_code,
             )
         return writer_code
 
@@ -142,15 +153,6 @@ class JsonEncoderMethodsForRecordTemplate (JsonEncoderMethodsTemplate):
                     fh.write (',')
                     $stmt
                 ''',
-                stmt = stmt
-            )
-        if fdef.nullable:
-            stmt = SourceCodeTemplate (
-                '''
-                    if self.$fname is not None:
-                        $stmt
-                ''',
-                fname = fname,
                 stmt = stmt
             )
         if i == 0:
