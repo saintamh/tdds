@@ -65,6 +65,8 @@ class RecordClassTemplate (SourceCodeTemplate):
                 $field_checks
                 $set_fields
 
+            $properties
+
             def __setattr__ (self, attr, value):
                 raise $RecordsAreImmutable ("$cls_name objects are immutable")
             def __delattr__ (self, attr):
@@ -103,6 +105,11 @@ class RecordClassTemplate (SourceCodeTemplate):
 
     def __init__ (self, cls_name, **field_defs):
         self.cls_name = cls_name
+        self.prop_defs = dict (
+            (fname, field_defs.pop(fname))
+            for fname,fdef in field_defs.items()
+            if fdef.__class__ is property
+        )
         self.field_defs = dict (
             (fname,compile_field_def(fdef))
             for fname,fdef in field_defs.items()
@@ -148,6 +155,21 @@ class RecordClassTemplate (SourceCodeTemplate):
     def set_fields (self, findex, fname, fdef):
         # you can cheat past our fake immutability by using object.__setattr__, but don't tell anyone
         return 'object.__setattr__ (self, "{0}", {0})'.format (fname)
+
+    @property
+    def properties (self):
+        if any(prop.fset is not None for prop in self.prop_defs.values()):
+            raise TypeError("record properties may not have an fset function")
+        if any(prop.fdel is not None for prop in self.prop_defs.values()):
+            raise TypeError("record properties may not have an fdef function")
+        return Joiner (sep='\n', values=(
+            SourceCodeTemplate (
+                '$name = $prop',
+                name = fname,
+                prop = prop,
+            )
+            for fname, prop in self.prop_defs.items()
+        ))
 
     @field_joiner_property (', ')
     def repr_str (self, findex, fname, fdef):

@@ -90,3 +90,68 @@ def _():
     assert_is (r.obj, c)
 
 #----------------------------------------------------------------------------------------------------------------------------------
+# properties
+
+@test("you can set properties on a record class")
+def _():
+    R = record ('R', x=int, square=property(lambda self: self.x*self.x))
+    r = R(3)
+    assert_eq (r.square, 9)
+
+# 2016-09-06 - this passes, but it's more an implementation detail than part of the interface. Commented out.
+# 
+# @test("the property is set on the class itself, not its instances")
+# def _():
+#     R = record ('R', x=int, square=property(lambda self: self.x*self.x))
+#     assert_is (R.square.__class__, property)
+
+@test("the property function it not internally cached") # unlike in struct.py
+def _():
+    returned = []
+    def getnext(self):
+        returned.append(len(returned))
+        return returned[-1]
+    R = record ('R', x=int, next_value=property(getnext))
+    r = R(999)
+    assert_eq (r.next_value, 0)
+    assert_eq (r.next_value, 1)
+    assert_eq (r.next_value, 2)
+    assert_eq (len(returned), 3)
+
+@test("properties cannot have an fset function")
+def _():
+    def fset_x(self, val):
+        self.x = val
+    square_prop = property (
+        lambda self: self.x*self.x,
+        fset_x,
+    )
+    with expected_error(TypeError):
+        record ('R', x=int, square=square_prop)
+
+@test("properties cannot have an fdel function")
+def _():
+    def fdel_x(self):
+        del self.x
+    square_prop = property (
+        lambda self: self.x*self.x,
+        fdel = fdel_x,
+    )
+    with expected_error(TypeError):
+        record ('R', x=int, square=square_prop)
+
+@test("cannot override a property by setting a value")
+def _():
+    R = record ('R', x=int, square=property(lambda self: self.x*self.x))
+    r = R(3)
+    with expected_error(RecordsAreImmutable):
+        r.square = 18
+
+@test("cannot override a property with a new one either")
+def _():
+    R = record ('R', x=int, square=property(lambda self: self.x*self.x))
+    r = R(3)
+    with expected_error(RecordsAreImmutable):
+        r.square = property(lambda self: self.x**3)
+
+#----------------------------------------------------------------------------------------------------------------------------------
