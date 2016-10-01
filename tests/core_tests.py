@@ -154,4 +154,55 @@ def _():
     with expected_error(RecordsAreImmutable):
         r.square = property(lambda self: self.x**3)
 
+@test("the property is not part of the record's fields")
+def _():
+    R = record ('R', x=int, square=property(lambda self: self.x*self.x))
+    assert_eq(R.record_fields, ('x',))
+
+@test("the property cannot be passed in to the constructor")
+def _():
+    R = record ('R', x=int, square=property(lambda self: self.x*self.x))
+    with expected_error(TypeError):
+        R(x=10, square=99)
+
+#----------------------------------------------------------------------------------------------------------------------------------
+# classmethods
+
+@test("you can set classmethods on a record class")
+def _():
+    R = record ('R', x=int, parse=classmethod(lambda cls, val: cls(int(val))))
+    r = R.parse('9')
+    assert_eq (r.x, 9)
+
+@test("the classmethod is not part of the record's fields")
+def _():
+    R = record ('R', x=int, parse=classmethod(lambda cls, val: cls(int(val))))
+    assert_eq(R.record_fields, ('x',))
+
+@test("the classmethod cannot be passed in to the constructor")
+def _():
+    R = record ('R', x=int, parse=classmethod(lambda cls, val: cls(int(val))))
+    with expected_error(TypeError):
+        R(x=10, parse='blah')
+
+#----------------------------------------------------------------------------------------------------------------------------------
+# staticmethods
+
+@test("you can set staticmethods on a record class")
+def _():
+    R = record ('R', x=int, square=staticmethod(lambda val: val*val))
+    r = R(3)
+    assert_eq (R.square(9), 81)
+
+@test("the staticmethod is not part of the record's fields")
+def _():
+    R = record ('R', x=int, square=staticmethod(lambda val: val*val))
+    assert_eq(R.record_fields, ('x',))
+
+@test("the staticmethod cannot be passed in to the constructor")
+def _():
+    R = record ('R', x=int, square=staticmethod(lambda val: val*val))
+    with expected_error(TypeError):
+        R(x=10, square='blah')
+
 #----------------------------------------------------------------------------------------------------------------------------------

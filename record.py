@@ -66,6 +66,8 @@ class RecordClassTemplate (SourceCodeTemplate):
                 $set_fields
 
             $properties
+            $classmethods
+            $staticmethods
 
             def __setattr__ (self, attr, value):
                 raise $RecordsAreImmutable ("$cls_name objects are immutable")
@@ -89,7 +91,7 @@ class RecordClassTemplate (SourceCodeTemplate):
                 })
 
             def __repr__ (self):
-                return "$cls_name ($repr_str)" % $values_as_tuple
+                return "$cls_name($repr_str)" % $values_as_tuple
             def __cmp__ (self, other):
                 return $cmp_stmt
             def __hash__ (self):
@@ -105,10 +107,13 @@ class RecordClassTemplate (SourceCodeTemplate):
 
     def __init__ (self, cls_name, **field_defs):
         self.cls_name = cls_name
-        self.prop_defs = dict (
-            (fname, field_defs.pop(fname))
-            for fname,fdef in field_defs.items()
-            if fdef.__class__ is property
+        self.prop_defs, self.classmethod_defs, self.staticmethod_defs = (
+            dict (
+                (fname, field_defs.pop(fname))
+                for fname,fdef in field_defs.items()
+                if fdef.__class__ is special_type
+            )
+            for special_type in (property, classmethod, staticmethod)
         )
         self.field_defs = dict (
             (fname,compile_field_def(fdef))
@@ -162,13 +167,24 @@ class RecordClassTemplate (SourceCodeTemplate):
             raise TypeError("record properties may not have an fset function")
         if any(prop.fdel is not None for prop in self.prop_defs.values()):
             raise TypeError("record properties may not have an fdef function")
+        return self._class_level_definitions(self.prop_defs)
+
+    @property
+    def classmethods (self):
+        return self._class_level_definitions(self.classmethod_defs)
+
+    @property
+    def staticmethods (self):
+        return self._class_level_definitions(self.staticmethod_defs)
+
+    def _class_level_definitions(self, defs):
         return Joiner (sep='\n', values=(
             SourceCodeTemplate (
-                '$name = $prop',
-                name = fname,
-                prop = prop,
+                '$fname = $value',
+                fname = fname,
+                value = value,
             )
-            for fname, prop in self.prop_defs.items()
+            for fname, value in defs.items()
         ))
 
     @field_joiner_property (', ')
