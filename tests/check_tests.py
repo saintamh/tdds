@@ -132,15 +132,31 @@ def _():
 
 @test("the 'check' function is invoked after the null check and will not receive a None value if the field is not nullable")
 def _():
+    class SpecificError(Exception):
+        pass
     def not_none (value):
         if value is None:
-            raise BufferError()
+            raise SpecificError()
     R = record ('R', id=Field (
         type = str,
-        coerce = not_none,
+        check = not_none,
     ))
-    with expected_error(BufferError):
+    with expected_error(FieldNotNullable):
         r = R(None)
+
+@test("the 'check' function will not receive a None value when the field is nullable, either")
+def _():
+    class SpecificError(Exception):
+        pass
+    def not_none (value):
+        if value is None:
+            raise SpecificError()
+    R = record ('R', id=Field (
+        type = str,
+        nullable = True,
+        check = not_none,
+    ))
+    assert_is (None, R(None).id)
 
 @test("if both a default value and a check are provided, the check is invoked on the default value, too")
 def _():

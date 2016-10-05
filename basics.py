@@ -8,25 +8,27 @@ Edinburgh
 """
 
 #----------------------------------------------------------------------------------------------------------------------------------
+# includes
+
+# standards
+from collections import namedtuple
+
+#----------------------------------------------------------------------------------------------------------------------------------
 # core data structures
 
-class Field (object):
+class Field (namedtuple ('Field', (
+        'type',
+        'nullable',
+        'default',
+        'coerce',
+        'check',
+        ))):
 
-    def __init__ (self, type, nullable=False, default=None, coerce=None, check=None):
-        self.type = type
-        self.nullable = nullable
-        self.default = default
-        self.coerce = coerce
-        self.check = check
+    def __new__ (cls, type, nullable=False, default=None, coerce=None, check=None):
+        return super(Field,cls).__new__(cls, type, nullable, default, coerce, check)
 
-    def derive (self, nullable=None, default=None, coerce=None, check=None):
-        return self.__class__ (
-            type = self.type,
-            nullable = self.nullable if nullable is None else nullable,
-            default = self.default if default is None else default,
-            coerce = self.coerce if coerce is None else coerce,
-            check = self.check if check is None else check,
-        )
+    def derive (self, **kwargs):
+        return self._replace(**kwargs)
 
     def __repr__ (self):
         return 'Field (%r%s%s%s%s)' % (

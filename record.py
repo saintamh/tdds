@@ -271,7 +271,7 @@ class FieldHandlingStmtsTemplate (SourceCodeTemplate):
     def value_check (self):
         if self.fdef.check is not None:
             return '''
-                if not $check_invocation:
+                if $var_name is not None and not $check_invocation:
                     raise $FieldValueError("$expr_descr: %r is not a valid value" % ($var_name,))
             '''
 

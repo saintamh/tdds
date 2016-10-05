@@ -135,6 +135,12 @@ def _():
     R = record ('R', c=one_of(c1))
     assert_eq (R(c=c2).c, c2)
 
+@test("one_of fields can be nullable")
+def _():
+    R = record ('R', v=nullable(one_of('a', 'b', 'b')))
+    assert_eq(R('a').v, 'a')
+    assert_is(None, R(None).v)
+
 #----------------------------------------------------------------------------------------------------------------------------------
 # nonempty
 
