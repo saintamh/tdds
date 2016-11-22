@@ -12,7 +12,7 @@ Edinburgh
 
 # standards
 from contextlib import contextmanager
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal
 
 # saintamh
@@ -24,7 +24,8 @@ from .utils import ExternalCodeInvocation
 #----------------------------------------------------------------------------------------------------------------------------------
 # constants, config
 
-DT_FMT = '%Y-%m-%dT%H:%M:%S'
+DATETIME_FORMAT = '%Y-%m-%dT%H:%M:%S'
+DATE_FORMAT = '%Y-%m-%d'
 
 #----------------------------------------------------------------------------------------------------------------------------------
 
@@ -74,11 +75,20 @@ STANDARD_MARSHALLERS = {
     Decimal: Marshaller (str, Decimal),
 
     datetime: Marshaller (
-        '{}.strftime(%r)' % DT_FMT,
+        '{}.strftime(%r)' % DATETIME_FORMAT,
         SourceCodeTemplate (
             '$datetime.strptime ({}, $fmt)',
             datetime = datetime,
-            fmt = ExternalValue(DT_FMT),
+            fmt = ExternalValue(DATETIME_FORMAT),
+        ),
+    ),
+
+    date: Marshaller (
+        '{}.strftime(%r)' % DATE_FORMAT,
+        SourceCodeTemplate (
+            '$datetime.strptime({}, $fmt).date()',
+            datetime = datetime,
+            fmt = ExternalValue(DATE_FORMAT),
         ),
     ),
 
