@@ -45,7 +45,12 @@ from .utils import ExternalCodeInvocation, Joiner
 
 #----------------------------------------------------------------------------------------------------------------------------------
 
-TYPES_THAT_CAN_BE_DUMPED_RAW = frozenset ((int,long,float,bool))
+TYPES_THAT_CAN_BE_DUMPED_RAW = {
+    int: lambda v: '%d' % v,
+    long: lambda v: '%d' % v,
+    float: lambda v: '%f' % v,
+    bool: lambda v: str(v).lower(),
+}
 
 class CannotBeSerializedToJson (TypeError):
     pass
@@ -81,7 +86,11 @@ class JsonEncoderMethodsTemplate (SourceCodeTemplate):
         ftype = fdef.type
         orig_value_expr = value_expr
         if ftype in TYPES_THAT_CAN_BE_DUMPED_RAW:
-            writer_code = SourceCodeTemplate ('fh.write(str($v))', v=value_expr)
+            writer_code = SourceCodeTemplate (
+                'fh.write($f($v))',
+                f = TYPES_THAT_CAN_BE_DUMPED_RAW[ftype],
+                v = value_expr,
+            )
         elif callable (getattr (ftype, 'json_dump', None)):
             writer_code = SourceCodeTemplate ('$v.json_dump(fh)', v=value_expr)
         else:
