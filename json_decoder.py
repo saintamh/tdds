@@ -238,9 +238,9 @@ class JsonDecoderMethodsForDictTemplate (JsonDecoderMethodsTemplate):
 # Generate code to parse all the JSON types, as well as code to parse other, custom types
 
 TYPES_PARSED_BY_REGEX = {
-    int: (r'(?:(\d+)|null)', int),
-    long: (r'(?:(\d+)|null)', long),
-    float: (r'(?:(\d+(?:\.\d+)?)|null)', float),
+    int: (r'(?:([\+\-]?\d+)|null)', int),
+    long: (r'(?:([\+\-]?\d+)|null)', long),
+    float: (r'(?:([\+\-]?\d+(?:\.\d+)?)|null)', float),
     bool: (r'(?:(true|false)|null)', {'true':True,'false':False}.__getitem__),
 }
 
