@@ -13,7 +13,8 @@ Edinburgh
 
 from .basics import \
     Field, \
-    FieldValueError, FieldTypeError, FieldNotNullable, RecordsAreImmutable
+    FieldValueError, FieldTypeError, FieldNotNullable, RecordsAreImmutable, \
+    RecursiveType
 
 from .record import \
     record

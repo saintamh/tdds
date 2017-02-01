@@ -24,6 +24,7 @@ import re
 from saintamh.util.codegen import ExternalValue, SourceCodeTemplate
 
 # this module
+from .basics import RecursiveType
 from .marshaller import lookup_unmarshalling_code_for_type
 from .utils import ExternalCodeInvocation, Joiner
 
@@ -255,12 +256,12 @@ def code_to_decode_one_field_from_regex (regex, parse_str):
         parse_str = parse_str,
     )
 
-def code_to_decode_field_having_json_scan_method (ftype):
+def code_to_decode_field_having_json_scan_method (json_scan):
     return SourceCodeTemplate (
         '''
             decoded_val,pos = $json_scan (json_str, pos)
         ''',
-        json_scan = ftype.json_scan,
+        json_scan = json_scan,
     )
 
 def code_to_decode_string_field (ftype):
@@ -299,7 +300,9 @@ def code_to_decode_one_field (fdef, descr):
     if ftype in TYPES_PARSED_BY_REGEX:
         return code_to_decode_one_field_from_regex (*TYPES_PARSED_BY_REGEX[ftype])
     elif callable (getattr (ftype, 'json_scan', None)):
-        return code_to_decode_field_having_json_scan_method (ftype)
+        return code_to_decode_field_having_json_scan_method (ftype.json_scan)
+    elif ftype is RecursiveType:
+        return code_to_decode_field_having_json_scan_method ('cls.json_scan')
     elif issubclass (ftype, basestring):
         return code_to_decode_string_field (ftype)
     else:

@@ -472,6 +472,15 @@ def _(invalid_json_str, reason):
             R.json_loads (invalid_json_str)
 
 #----------------------------------------------------------------------------------------------------------------------------------
+# recursive types
+
+@test("Recursive types can de decoded")
+def _():
+    R = record ('R', nxt=nullable(RecursiveType))
+    r = R.json_loads('{"nxt": {}}')
+    assert_eq (r, R(R()))
+
+#----------------------------------------------------------------------------------------------------------------------------------
 # TODO
 
 # * Decimal fields are serialized to JSON as strings

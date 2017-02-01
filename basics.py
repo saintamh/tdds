@@ -58,3 +58,10 @@ class FieldNotNullable (FieldValueError):
     pass
 
 #----------------------------------------------------------------------------------------------------------------------------------
+# If a field has `RecursiveType' as its `type', then that gets translated to the record's own class. This allows the user to define
+# typed recursive data structures, e.g. LinkedLists, where the object has a field of the same type as itself.
+
+class RecursiveType (object):
+    pass
+
+#----------------------------------------------------------------------------------------------------------------------------------

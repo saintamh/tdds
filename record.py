@@ -21,7 +21,8 @@ from ..util.codegen import \
 # this module
 from .basics import \
     Field, \
-    FieldError, FieldValueError, FieldTypeError, FieldNotNullable, RecordsAreImmutable
+    FieldError, FieldValueError, FieldTypeError, FieldNotNullable, RecordsAreImmutable, \
+    RecursiveType
 from .json_decoder import \
     JsonDecoderMethodsForRecordTemplate
 from .json_encoder import \
@@ -283,12 +284,19 @@ class FieldHandlingStmtsTemplate (SourceCodeTemplate):
     def type_check (self):
         if self.fdef.coerce is not self.fdef.type:
             return '''
-                if $not_null_and not isinstance ($var_name, $fdef_type):
+                if $not_null_and not $type_check_expr:
                     raise $FieldTypeError ("$expr_descr should be of type $fdef_type_name, not %s (%r)" % (
                         $var_name.__class__.__name__,
                         $var_name,
                     ))
             '''
+
+    @property
+    def type_check_expr (self):
+        if self.fdef.type is RecursiveType:
+            return 'isinstance ($var_name, self.__class__)'
+        else:
+            return 'isinstance ($var_name, $fdef_type)'
 
     @property
     def not_null_and (self):

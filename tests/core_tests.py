@@ -89,6 +89,21 @@ def _():
     r = R(c)
     assert_is (r.obj, c)
 
+@test("RecursiveType allows recursive type definitions")
+def _():
+    R = record ('R', nxt=nullable(RecursiveType))
+    r1 = R()
+    r2 = R(r1)
+    assert_is (r2.nxt, r1)
+
+@test("RecursiveType works with subtypes")
+def _():
+    R = record ('R', nxt=nullable(RecursiveType))
+    SubR = type ('SubR', (R,), {})
+    r1 = SubR()
+    r2 = R(r1)
+    assert_is (r2.nxt, r1)
+
 #----------------------------------------------------------------------------------------------------------------------------------
 # properties
 
