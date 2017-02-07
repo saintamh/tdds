@@ -15,31 +15,44 @@ import re
 
 # saintamh
 from ..util.codegen import \
-    ClassDefEvaluationNamespace, ExternalValue, SourceCodeTemplate, \
+    ExternalValue, SourceCodeTemplate, \
     compile_expr
+from ..util.coll import ImmutableDict
 
 # this module
 from .basics import \
     Field, \
     FieldError, FieldValueError, FieldTypeError, FieldNotNullable, RecordsAreImmutable, \
     RecursiveType
-from .json_decoder import \
-    JsonDecoderMethodsForRecordTemplate
-from .json_encoder import \
-    JsonEncoderMethodsForRecordTemplate
+from .pods import \
+    PodsMethodsForRecordTemplate
 from .unpickler import \
-    RecordRegistryMetaclass, RecordUnpickler
+    RecordRegistryMetaClass, RecordUnpickler
 from .utils import \
     ExternalCodeInvocation, Joiner, \
     compile_field_def
 
 #----------------------------------------------------------------------------------------------------------------------------------
-# the `record' function is the main export of this module. The `Field' data structure is also public.
+# the `Record' class is the main export of this module.
 
-def record (cls_name, **field_defs):
-    verbose = field_defs.pop ('__verbose', False)
-    src_code_gen = RecordClassTemplate (cls_name, **field_defs)
-    return compile_expr (src_code_gen, cls_name, verbose=verbose)
+class RecordMetaClass (RecordRegistryMetaClass):
+    def __new__ (mcls, cls_name, bases, attrib):
+        module = attrib.pop('__module__', None)
+        is_codegen = (module == '__builtin__')
+        if bases == (object,) or is_codegen or Record not in bases:
+            return type.__new__ (mcls, cls_name, bases, attrib)
+        verbose = attrib.pop ('_%s__verbose' % cls_name, False)
+        src_code_gen = RecordClassTemplate (cls_name, **attrib)
+        cls = compile_expr (src_code_gen, cls_name, verbose=verbose)
+        if module is not None:
+            setattr(cls, '__module__', module)
+        mcls.register (cls_name, cls)
+        for fname,fdef in cls.record_fields.iteritems():
+            fdef.set_recursive_type(cls)
+        return cls
+
+class Record(object):
+    __metaclass__ = RecordMetaClass
 
 #----------------------------------------------------------------------------------------------------------------------------------
 
@@ -58,8 +71,7 @@ def record (cls_name, **field_defs):
 class RecordClassTemplate (SourceCodeTemplate):
 
     template = '''
-        class $cls_name (object):
-            __metaclass__ = $RecordRegistryMetaclass
+        class $cls_name ($Record):
             __slots__ = $slots
 
             def __init__ (self, $init_params):
@@ -69,23 +81,18 @@ class RecordClassTemplate (SourceCodeTemplate):
             $properties
             $classmethods
             $staticmethods
+            $instancemethods
 
             def __setattr__ (self, attr, value):
                 raise $RecordsAreImmutable ("$cls_name objects are immutable")
             def __delattr__ (self, attr):
                 raise $RecordsAreImmutable ("$cls_name objects are immutable")
 
-            $json_decoder_methods
+            $pods_methods
 
-            $json_encoder_methods
+            record_fields = $record_fields
 
-            # 2016-04-14 - added this for the JIRA client. Not sure yet it's the best approach. This can clash with field names.
-            # Should we take the same approach as namedtuple and prefix all internal members with an underscore?
-            record_fields = $slots
-
-            # 2016-04-15 - same comment as above, I still reserve the option of changing the same here
-            # Also should unroll the loop at compile time.
-            def derive (self, **kwargs):
+            def record_derive (self, **kwargs):
                 return self.__class__ (**{
                     field: kwargs.get (field, getattr(self,field))
                     for field in $slots
@@ -102,30 +109,35 @@ class RecordClassTemplate (SourceCodeTemplate):
                 return ($RecordUnpickler(self.__class__.__name__), $values_as_tuple)
     '''
 
+    Record = Record
     RecordsAreImmutable = RecordsAreImmutable
-    RecordRegistryMetaclass = RecordRegistryMetaclass
     RecordUnpickler = RecordUnpickler
 
     def __init__ (self, cls_name, **field_defs):
         self.cls_name = cls_name
         self.prop_defs, self.classmethod_defs, self.staticmethod_defs = (
-            dict (
-                (fname, field_defs.pop(fname))
+            {
+                fname: field_defs.pop(fname)
                 for fname,fdef in field_defs.items()
                 if fdef.__class__ is special_type
-            )
+            }
             for special_type in (property, classmethod, staticmethod)
         )
-        self.field_defs = dict (
-            (fname,compile_field_def(fdef))
+        self.instancemethod_defs = {
+            fname: field_defs.pop(fname)
             for fname,fdef in field_defs.items()
-        )
+            if callable(fdef)
+            and not isinstance(fdef, (type, Field))
+        }
+        self.field_defs = {
+            fname: compile_field_def(fdef)
+            for fname,fdef in field_defs.items()
+        }
         self.sorted_field_names = sorted (
             field_defs,
             key = lambda f: (self.field_defs[f].nullable, f),
         )
-        self.json_decoder_methods = JsonDecoderMethodsForRecordTemplate (self.field_defs)
-        self.json_encoder_methods = JsonEncoderMethodsForRecordTemplate (self.cls_name, self.field_defs)
+        self.pods_methods = PodsMethodsForRecordTemplate (self.cls_name, self.field_defs)
 
     def field_joiner_property (sep, prefix='', suffix=''):
         return lambda raw_meth: property (
@@ -178,6 +190,10 @@ class RecordClassTemplate (SourceCodeTemplate):
     def staticmethods (self):
         return self._class_level_definitions(self.staticmethod_defs)
 
+    @property
+    def instancemethods (self):
+        return self._class_level_definitions(self.instancemethod_defs)
+
     def _class_level_definitions(self, defs):
         return Joiner (sep='\n', values=(
             SourceCodeTemplate (
@@ -187,6 +203,10 @@ class RecordClassTemplate (SourceCodeTemplate):
             )
             for fname, value in defs.items()
         ))
+
+    @property
+    def record_fields (self):
+        return ImmutableDict(self.field_defs)
 
     @field_joiner_property (', ')
     def repr_str (self, findex, fname, fdef):
@@ -294,7 +314,11 @@ class FieldHandlingStmtsTemplate (SourceCodeTemplate):
     @property
     def type_check_expr (self):
         if self.fdef.type is RecursiveType:
-            return 'isinstance ($var_name, self.__class__)'
+            # `self.fdef.type' will be imperatively modified after the class is compiled
+            return ExternalCodeInvocation(
+                lambda value: isinstance (value, self.fdef.type),
+                '$var_name',
+            )
         else:
             return 'isinstance ($var_name, $fdef_type)'
 

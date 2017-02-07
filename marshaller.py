@@ -139,4 +139,14 @@ def temporary_marshaller_registration (cls, marshaller):
     yield
     unregister_marshaller (cls, marshaller)
 
+def wrap_in_null_check(nullable, value_expr, code):
+    if nullable:
+        return SourceCodeTemplate(
+            'None if $value is None else $code',
+            value = value_expr,
+            code = code,
+        )
+    else:
+        return code
+
 #----------------------------------------------------------------------------------------------------------------------------------

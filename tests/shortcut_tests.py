@@ -24,35 +24,41 @@ ALL_TESTS,test = build_test_registry()
 
 @test("nonnegative numbers cannot be smaller than zero")
 def _():
-    R = record ('R', id=nonnegative(int))
+    class R (Record):
+        id = nonnegative(int)
     with expected_error(FieldValueError):
         R(id=-1)
 
 @test("nonnegative numbers can be zero")
 def _():
-    R = record ('R', id=nonnegative(int))
+    class R (Record):
+        id = nonnegative(int)
     assert_eq (R(id=0).id, 0)
 
 @test("nonnegative numbers can be greater than zero")
 def _():
-    R = record ('R', id=nonnegative(int))
+    class R (Record):
+        id = nonnegative(int)
     assert_eq (R(id=10).id, 10)
 
 @test("strictly_positive numbers cannot be smaller than zero")
 def _():
-    R = record ('R', id=strictly_positive(int))
+    class R (Record):
+        id = strictly_positive(int)
     with expected_error(FieldValueError):
         R(id=-1)
 
 @test("strictly_positive numbers cannot be zero")
 def _():
-    R = record ('R', id=strictly_positive(int))
+    class R (Record):
+        id = strictly_positive(int)
     with expected_error(FieldValueError):
         R(id=0)
 
 @test("strictly_positive numbers can be greater than zero")
 def _():
-    R = record ('R', id=strictly_positive(int))
+    class R (Record):
+        id = strictly_positive(int)
     assert_eq (R(id=10).id, 10)
 
 #----------------------------------------------------------------------------------------------------------------------------------
@@ -60,40 +66,47 @@ def _():
 
 @test("uppercase_letters(3) accepts 3 uppercase letters")
 def _():
-    R = record ('R', s=uppercase_letters(3))
+    class R (Record):
+        s = uppercase_letters(3)
     assert_eq (R(s='ABC').s, 'ABC')
 
 @test("uppercase_letters(3) doesn't accept less than 3 letters")
 def _():
-    R = record ('R', s=uppercase_letters(3))
+    class R (Record):
+        s = uppercase_letters(3)
     with expected_error(FieldValueError):
         R(s='AB')
 
 @test("uppercase_letters(3) doesn't accept more than 3 letters")
 def _():
-    R = record ('R', s=uppercase_letters(3))
+    class R (Record):
+        s = uppercase_letters(3)
     with expected_error(FieldValueError):
         R(s='ABCD')
 
 @test("uppercase_letters doesn't accept lowercase letters")
 def _():
-    R = record ('R', s=uppercase_letters(3))
+    class R (Record):
+        s = uppercase_letters(3)
     with expected_error(FieldValueError):
         R(s='abc')
 
 @test("uppercase_letters() accepts any number of uppercase letters")
 def _():
-    R = record ('R', s=uppercase_letters())
+    class R (Record):
+        s = uppercase_letters()
     assert_eq (R(s='ABCDEFGH').s, 'ABCDEFGH')
 
 @test("uppercase_letters() accepts empty strings")
 def _():
-    R = record ('R', s=uppercase_letters())
+    class R (Record):
+        s = uppercase_letters()
     assert_eq (R(s='').s, '')
 
 @test("uppercase_letters() still only accepts uppercase letters")
 def _():
-    R = record ('R', s=uppercase_letters())
+    class R (Record):
+        s = uppercase_letters()
     with expected_error(FieldValueError):
         R(s='a')
 
@@ -102,12 +115,14 @@ def _():
 
 @test("one_of accepts a fixed list of values")
 def _():
-    R = record ('R', v=one_of('a','b','c'))
+    class R (Record):
+        v = one_of('a','b','c')
     assert_eq (R(v='a').v, 'a')
 
 @test("one_of doesn't accept values outside the given list")
 def _():
-    R = record ('R', v=one_of('a','b','c'))
+    class R (Record):
+        v = one_of('a','b','c')
     with expected_error(FieldValueError):
         R(v='d')
 
@@ -132,12 +147,14 @@ def _():
             return hash(self.value[0])
     c1 = C (['a','bcde'])
     c2 = C (['a','bracadabra'])
-    R = record ('R', c=one_of(c1))
+    class R (Record):
+        c = one_of(c1)
     assert_eq (R(c=c2).c, c2)
 
 @test("one_of fields can be nullable")
 def _():
-    R = record ('R', v=nullable(one_of('a', 'b', 'b')))
+    class R (Record):
+        v = nullable(one_of('a', 'b', 'b'))
     assert_eq(R('a').v, 'a')
     assert_is(None, R(None).v)
 
@@ -155,13 +172,25 @@ def _ (ftype, ftype_name, empty_val):
 
     @test("in general {} fields can be empty".format(ftype_name))
     def _():
-        R = record ('R', v=ftype)
+        class R (Record):
+            v = ftype
         assert_eq (len(R(empty_val).v), 0)
-
     @test("nonempty {} can't be empty".format(ftype_name))
     def _():
-        R = record ('R', v=nonempty(ftype))
+        class R (Record):
+            v = nonempty(ftype)
         with expected_error (FieldValueError):
             R(empty_val)
+
+#----------------------------------------------------------------------------------------------------------------------------------
+# misc
+
+@test("uppercase_wchars() fields can be nullable")
+def _():
+    # 2017-02-07 - I wrote half a year ago that this wasn't working. Wrote the test today, it passes. I'll leave it here although
+    # it does seem redundant.
+    class R (Record):
+        s = nullable(uppercase_wchars(10))
+    assert_none(R().s)
 
 #----------------------------------------------------------------------------------------------------------------------------------

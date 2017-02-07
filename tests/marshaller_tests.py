@@ -16,7 +16,7 @@ from datetime import datetime
 
 # this module
 from .plumbing import *
-from ..marshaller import CannotMarshalType, Marshaller, lookup_marshaller_for_type, temporary_marshaller_registration
+from ..marshaller import Marshaller, lookup_marshaller_for_type, temporary_marshaller_registration
 
 #----------------------------------------------------------------------------------------------------------------------------------
 # init

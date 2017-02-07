@@ -20,9 +20,10 @@ from . import check_tests
 from . import coercion_tests
 from . import coll_tests
 from . import core_tests
-from . import json_tests
 from . import pickle_tests
+from . import pods_tests
 from . import marshaller_tests
+from . import recursive_types_tests
 from . import shortcut_tests
 
 #----------------------------------------------------------------------------------------------------------------------------------
@@ -32,9 +33,10 @@ ALL_TEST_MODS = (
     coercion_tests,
     coll_tests,
     core_tests,
-    json_tests,
+    pods_tests,
     marshaller_tests,
     pickle_tests,
+    recursive_types_tests,
     shortcut_tests,
 )
 

@@ -11,16 +11,15 @@ Edinburgh
 # includes
 
 # saintamh
-from ..util.codegen import ClassDefEvaluationNamespace, SourceCodeTemplate, compile_expr
+from ..util.codegen import SourceCodeTemplate, compile_expr
 from ..util.coll import ImmutableDict
 from ..util.strings import ucfirst
 
 # this module
 from .basics import Field, FieldValueError
+from .pods import PodsMethodsForSeqTemplate, PodsMethodsForDictTemplate
 from .record import FieldHandlingStmtsTemplate
-from json_decoder import JsonDecoderMethodsForDictTemplate, JsonDecoderMethodsForSeqTemplate
-from json_encoder import JsonEncoderMethodsForDictTemplate, JsonEncoderMethodsForSeqTemplate
-from .unpickler import RecordRegistryMetaclass, RecordUnpickler
+from .unpickler import RecordRegistryMetaClass, RecordUnpickler
 from .utils import compile_field_def
 
 #----------------------------------------------------------------------------------------------------------------------------------
@@ -31,7 +30,7 @@ class CollectionTypeCodeTemplate (SourceCodeTemplate):
 
     template = '''
         class $cls_name ($superclass):
-            __metaclass__ = $RecordRegistryMetaclass
+            __metaclass__ = $RecordRegistryMetaClass
 
             def $constructor (cls_or_self, iter_elems):
                 return $superclass.$constructor (cls_or_self, $cls_name.check_elems(iter_elems))
@@ -40,9 +39,7 @@ class CollectionTypeCodeTemplate (SourceCodeTemplate):
             def check_elems (iter_elems):
                 $check_elems_body
 
-            $json_decoder_methods
-
-            $json_encoder_methods
+            $pods_methods
 
             $core_methods
 
@@ -50,7 +47,7 @@ class CollectionTypeCodeTemplate (SourceCodeTemplate):
                 return ($RecordUnpickler("$cls_name"), ($superclass(self),))
     '''
 
-    RecordRegistryMetaclass = RecordRegistryMetaclass
+    RecordRegistryMetaClass = RecordRegistryMetaClass
     RecordUnpickler = RecordUnpickler
 
     # by default, __repr__, __cmp__ and __hash__ are left to the superclass to implement, but subclasses may override this:
@@ -67,8 +64,7 @@ class SequenceCollCodeTemplate (CollectionTypeCodeTemplate):
 
     def __init__ (self, elem_fdef):
         self.cls_name = ucfirst(elem_fdef.type.__name__) + self.cls_name_suffix
-        self.json_decoder_methods = JsonDecoderMethodsForSeqTemplate (elem_fdef)
-        self.json_encoder_methods = JsonEncoderMethodsForSeqTemplate (elem_fdef)
+        self.pods_methods = PodsMethodsForSeqTemplate(elem_fdef)
         self.elem_check_impl = FieldHandlingStmtsTemplate (
             elem_fdef,
             'elem',
@@ -115,8 +111,7 @@ class DictCollCodeTemplate (CollectionTypeCodeTemplate):
         )
         self.key_handling_stmts = FieldHandlingStmtsTemplate (key_fdef, 'key', expr_descr='<key>')
         self.val_handling_stmts = FieldHandlingStmtsTemplate (val_fdef, 'val', expr_descr='<val>')
-        self.json_decoder_methods = JsonDecoderMethodsForDictTemplate (key_fdef, val_fdef)
-        self.json_encoder_methods = JsonEncoderMethodsForDictTemplate (key_fdef, val_fdef)
+        self.pods_methods = PodsMethodsForDictTemplate (key_fdef, val_fdef)
 
     check_elems_body = '''
         for key,val in getattr (iter_elems, "iteritems", iter_elems.__iter__)():

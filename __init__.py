@@ -17,13 +17,10 @@ from .basics import \
     RecursiveType
 
 from .record import \
-    record
+    Record
 
-from .json_encoder import \
-    CannotBeSerializedToJson
-
-from .json_decoder import \
-    JsonDecodingError, CannotParseJson
+from .pods import \
+    CannotBeSerializedToPods
 
 from .shortcuts import \
     one_of, nullable, \

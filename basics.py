@@ -8,27 +8,37 @@ Edinburgh
 """
 
 #----------------------------------------------------------------------------------------------------------------------------------
-# includes
-
-# standards
-from collections import namedtuple
-
-#----------------------------------------------------------------------------------------------------------------------------------
 # core data structures
 
-class Field (namedtuple ('Field', (
-        'type',
-        'nullable',
-        'default',
-        'coerce',
-        'check',
-        ))):
+class Field (object):
 
-    def __new__ (cls, type, nullable=False, default=None, coerce=None, check=None):
-        return super(Field,cls).__new__(cls, type, nullable, default, coerce, check)
+    def __init__ (self, type, nullable=False, default=None, coerce=None, check=None):
+        object.__setattr__(self, 'type', type)
+        object.__setattr__(self, 'nullable', nullable)
+        object.__setattr__(self, 'default', default)
+        object.__setattr__(self, 'coerce', coerce)
+        object.__setattr__(self, 'check', check)
+
+    def __setattr__ (self, attr, value):
+        raise TypeError ("Field objects are immutable")
+    def __delattr__ (self, attr):
+        raise TypeError ("Field objects are immutable")
+
+    def set_recursive_type (self, ftype):
+        if self.type is RecursiveType:
+            object.__setattr__(self, 'type', ftype)
 
     def derive (self, **kwargs):
-        return self._replace(**kwargs)
+        new_field = Field (
+            self.type,
+            kwargs.pop ('nullable', self.nullable),
+            kwargs.pop ('default', self.default),
+            kwargs.pop ('coerce', self.coerce),
+            kwargs.pop ('check', self.check),
+        )
+        if kwargs:
+            raise TypeError ("Unknown kwargs: %s" % ', '.join(sorted(kwargs)))
+        return new_field
 
     def __repr__ (self):
         return 'Field (%r%s%s%s%s)' % (
