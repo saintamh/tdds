@@ -12,7 +12,7 @@ Edinburgh
 
 # standards
 from contextlib import contextmanager
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from decimal import Decimal
 
 # saintamh
@@ -89,6 +89,14 @@ STANDARD_MARSHALLERS = {
             '$datetime.strptime({}, $fmt).date()',
             datetime = datetime,
             fmt = ExternalValue(DATE_FORMAT),
+        ),
+    ),
+
+    timedelta: Marshaller (
+        'str({}.total_seconds())',
+        SourceCodeTemplate (
+            '$timedelta(seconds=float({}))',
+            timedelta = timedelta,
         ),
     ),
 

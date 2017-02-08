@@ -12,7 +12,7 @@ Edinburgh
 
 # standards
 from collections import namedtuple
-from datetime import datetime
+from datetime import datetime, timedelta
 from decimal import Decimal
 
 # saintamh
@@ -88,6 +88,7 @@ def _other_record():
         ('dict (nonempty)', dict_of(str,int), {'one':1,'two':2}),
         ('dict (empty)', dict_of(str,int), []),
         ('datetime', datetime, datetime(2016, 4, 15, 10, 01, 59)),
+        ('timedelta', timedelta, timedelta(days=1, hours=2, minutes=3, seconds=4)),
         (lambda R2: ('other record', R2, R2(2)))(_other_record()),
     )
     for nullable_or_not,vals in (

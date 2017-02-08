@@ -10,6 +10,9 @@ Edinburgh
 #----------------------------------------------------------------------------------------------------------------------------------
 # includes
 
+# standards
+from random import randrange
+
 # this module
 from .. import *
 from .plumbing import *
@@ -159,7 +162,9 @@ def _():
         fset_x,
     )
     with expected_error(TypeError):
-        record ('R', x=int, square=square_prop)
+        class R(Record):
+            x = int
+            square = square_prop
 
 @test("properties cannot have an fdel function")
 def _():
@@ -170,7 +175,9 @@ def _():
         fdel = fdel_x,
     )
     with expected_error(TypeError):
-        record ('R', x=int, square=square_prop)
+        class R(Record):
+            x = int
+            square = square_prop
 
 @test("cannot override a property by setting a value")
 def _():
@@ -276,5 +283,124 @@ def _():
         square = staticmethod(lambda val: val*val)
     with expected_error(TypeError):
         R(x=10, square='blah')
+
+#----------------------------------------------------------------------------------------------------------------------------------
+# overriding standard methods
+
+@test("classes have a default __str__")
+def _():
+    class Point (Record):
+        x = int
+        y = int
+    assert_eq(
+        str(Point(5,6)),
+        'Point(x=5, y=6)',
+    )
+
+@test("classes can set their own __str__")
+def _():
+    class Point (Record):
+        x = int
+        y = int
+        def __str__ (self):
+            return '[%d,%d]' % (self.x, self.y)
+    assert_eq(
+        str(Point(5,6)),
+        '[5,6]',
+    )
+
+@test("classes have a default __repr__")
+def _():
+    class Point (Record):
+        x = int
+        y = int
+    assert_eq(
+        repr(Point(5,6)),
+        'Point(x=5, y=6)',
+    )
+
+@test("classes can set their own __repr__")
+def _():
+    class Point (Record):
+        x = int
+        y = int
+        def __repr__(self):
+            return 'Point(%d,%d)' % (self.x, self.y)
+    assert_eq(
+        repr(Point(5,6)),
+        'Point(5,6)',
+    )
+
+@test("classes have a default __cmp__, which sorts by alphabetical field name")
+def _():
+    class Name (Record):
+        first = unicode
+        middle = unicode
+        last = unicode
+    assert_eq(
+        sorted((
+            Name(first=u"Jesus", middle=u"H.", last=u"Christ"),
+            Name(first=u"Jesus", middle=u"de", last=u"Nazareth"),
+            Name(first=u"King", middle=u"of", last=u"Jews"),
+        )),
+        [
+            # 'last' comes before 'middle'
+            Name(first=u"Jesus", middle=u"H.", last=u"Christ"),
+            Name(first=u"Jesus", middle=u"de", last=u"Nazareth"),
+            Name(first=u"King", middle=u"of", last=u"Jews"),
+        ]
+    )
+
+@test("classes have their own __cmp__")
+def _():
+    class Name (Record):
+        first = unicode
+        middle = unicode
+        last = unicode
+        def __cmp__ (self, other):
+            return cmp(self.last, other.last) \
+                or cmp(self.first, other.first) \
+                or cmp(self.middle, other.middle)
+    assert_eq(
+        sorted((
+            Name(first=u"Jesus", middle=u"H.", last=u"Christ"),
+            Name(first=u"Jesus", middle=u"de", last=u"Nazareth"),
+            Name(first=u"King", middle=u"of", last=u"Jews"),
+        )),
+        [
+            Name(first=u"Jesus", middle=u"H.", last=u"Christ"),
+            Name(first=u"King", middle=u"of", last=u"Jews"),
+            Name(first=u"Jesus", middle=u"de", last=u"Nazareth"),
+        ]
+    )
+
+@test("classes have a default __hash__")
+def _():
+    class Point (Record):
+        x = int
+        y = int
+    for _ in xrange(1000):
+        x = randrange(1000)
+        y = randrange(1000)
+        assert_eq(
+            hash(Point(x,y)),
+            hash(Point(x,y)),
+        )
+
+@test("classes can define their own __hash__")
+def _():
+    hash_impl = max
+    class Point (Record):
+        x = int
+        y = int
+        def __hash__ (self):
+            return hash_impl(self.x, self.y)
+    for _ in xrange(1000):
+        x = randrange(1000)
+        y = randrange(1000)
+        assert_eq(
+            hash(Point(x,y)),
+            hash_impl(x, y),
+        )
 
 #----------------------------------------------------------------------------------------------------------------------------------

@@ -18,6 +18,7 @@ from ..util.codegen import \
     ExternalValue, SourceCodeTemplate, \
     compile_expr
 from ..util.coll import ImmutableDict
+from ..util.regexes import capture_one
 
 # this module
 from .basics import \
@@ -98,15 +99,7 @@ class RecordClassTemplate (SourceCodeTemplate):
                     for field in $slots
                 })
 
-            def __repr__ (self):
-                return "$cls_name($repr_str)" % $values_as_tuple
-            def __cmp__ (self, other):
-                return $cmp_stmt
-            def __hash__ (self):
-                return $hash_expr
-
-            def __reduce__ (self):
-                return ($RecordUnpickler(self.__class__.__name__), $values_as_tuple)
+            $core_methods
     '''
 
     Record = Record
@@ -208,13 +201,39 @@ class RecordClassTemplate (SourceCodeTemplate):
     def record_fields (self):
         return ImmutableDict(self.field_defs)
 
+    @property
+    def core_methods (self):
+        return '\n'.join(
+            code
+            for code in self.iter_core_methods()
+            if capture_one('def (\w+)', code) not in self.instancemethod_defs
+        )
+
+    def iter_core_methods (self):
+        yield '''
+            def __repr__ (self):
+                return "$cls_name($repr_str)" % $values_as_tuple
+        '''
+        yield '''
+            def __cmp__ (self, other):
+                return $cmp_stmt
+        '''
+        yield '''
+            def __hash__ (self):
+                return $hash_expr
+        '''
+        yield '''
+            def __reduce__ (self):
+                return ($RecordUnpickler(self.__class__.__name__), $values_as_tuple)
+        '''
+
     @field_joiner_property (', ')
     def repr_str (self, findex, fname, fdef):
         return '{}=%r'.format(fname)
 
     @field_joiner_property (' or ', prefix='1 if other is None else (', suffix=')')
     def cmp_stmt (self, findex, fname, fdef):
-        return 'cmp(self.{0},other.{0})'.format(fname)
+        return 'cmp(self.{0},getattr(other,{0!r},None))'.format(fname)
 
     @field_joiner_property (' + ')
     def hash_expr (self, findex, fname, fdef):
