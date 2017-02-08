@@ -175,7 +175,7 @@ class PodsMethodsForRecordTemplate (PodsMethodsTemplate):
                     needs_null_check = False,
                 ),
             )
-            for fname,fdef in self.field_defs.iteritems()
+            for fname,fdef in sorted(self.field_defs.iteritems())
         ))
 
     @property

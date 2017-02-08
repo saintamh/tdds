@@ -35,4 +35,7 @@ from .marshaller import \
     CannotMarshalType, Marshaller, \
     register_marshaller, unregister_marshaller, temporary_marshaller_registration
 
+from .utils import \
+    builder
+
 #----------------------------------------------------------------------------------------------------------------------------------
