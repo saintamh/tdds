@@ -87,30 +87,6 @@ def _():
     assert_eq (R(10).id, 10)
 
 #----------------------------------------------------------------------------------------------------------------------------------
-# more type checks
-
-@test("objects can be of a subclass of the declared type")
-def _():
-    class Parent (object):
-        pass
-    class Child (Parent):
-        pass
-    class R (Record):
-        obj = Parent
-    c = Child()
-    r = R(c)
-    assert_is (r.obj, c)
-
-@test("record classes can be subclasses as normal")
-def _():
-    class R (Record):
-        name = unicode
-    class Person (R):
-        def greet(self):
-            return 'Hello, {}'.format(self.name)
-    assert_eq(Person(u'Pearl').greet(), u'Hello, Pearl')
-
-#----------------------------------------------------------------------------------------------------------------------------------
 # properties
 
 @test("you can set properties on a record class")
@@ -351,7 +327,7 @@ def _():
         ]
     )
 
-@test("classes have their own __cmp__")
+@test("classes can define their own __cmp__")
 def _():
     class Name (Record):
         first = unicode

@@ -16,15 +16,18 @@ import re
 from sys import argv
 
 # this module
-from . import check_tests
-from . import coercion_tests
-from . import coll_tests
-from . import core_tests
-from . import pickle_tests
-from . import pods_tests
-from . import marshaller_tests
-from . import recursive_types_tests
-from . import shortcut_tests
+from . import (
+    check_tests,
+    coercion_tests,
+    coll_tests,
+    core_tests,
+    pickle_tests,
+    pods_tests,
+    marshaller_tests,
+    recursive_types_tests,
+    shortcut_tests,
+    subclassing_tests,
+)
 
 #----------------------------------------------------------------------------------------------------------------------------------
 
@@ -38,6 +41,7 @@ ALL_TEST_MODS = (
     pickle_tests,
     recursive_types_tests,
     shortcut_tests,
+    subclassing_tests,
 )
 
 def iter_all_tests(selected_mod_name):
