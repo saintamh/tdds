@@ -36,18 +36,18 @@ from .utils import \
 #----------------------------------------------------------------------------------------------------------------------------------
 # the `Record' class is the main export of this module.
 
-class RecordMetaClass (RecordRegistryMetaClass):
-    def __new__ (mcls, cls_name, bases, attrib):
+class RecordMetaClass(RecordRegistryMetaClass):
+    def __new__(mcls, cls_name, bases, attrib):
         module = attrib.pop('__module__', None)
         is_codegen = (module == '__builtin__')
         if bases == (object,) or is_codegen or Record not in bases:
-            return type.__new__ (mcls, cls_name, bases, attrib)
-        verbose = attrib.pop ('_%s__verbose' % cls_name, False)
-        src_code_gen = RecordClassTemplate (cls_name, **attrib)
-        cls = compile_expr (src_code_gen, cls_name, verbose=verbose)
+            return type.__new__(mcls, cls_name, bases, attrib)
+        verbose = attrib.pop('_%s__verbose' % cls_name, False)
+        src_code_gen = RecordClassTemplate(cls_name, **attrib)
+        cls = compile_expr(src_code_gen, cls_name, verbose=verbose)
         if module is not None:
             setattr(cls, '__module__', module)
-        mcls.register (cls_name, cls)
+        mcls.register(cls_name, cls)
         for fname,fdef in cls.record_fields.iteritems():
             fdef.set_recursive_type(cls)
         return cls
@@ -69,7 +69,7 @@ class Record(object):
 # The bottom line is that this class has a huge ratio of how often it is used over how often it is modified, so I find it
 # acceptable to make it harder to maintain for the sake of performance.
 
-class RecordClassTemplate (SourceCodeTemplate):
+class RecordClassTemplate(SourceCodeTemplate):
 
     template = '''
         class $cls_name ($Record):
@@ -106,7 +106,7 @@ class RecordClassTemplate (SourceCodeTemplate):
     RecordsAreImmutable = RecordsAreImmutable
     RecordUnpickler = RecordUnpickler
 
-    def __init__ (self, cls_name, **field_defs):
+    def __init__(self, cls_name, **field_defs):
         self.cls_name = cls_name
         self.prop_defs, self.classmethod_defs, self.staticmethod_defs = (
             {
@@ -126,49 +126,49 @@ class RecordClassTemplate (SourceCodeTemplate):
             fname: compile_field_def(fdef)
             for fname,fdef in field_defs.items()
         }
-        self.sorted_field_names = sorted (
+        self.sorted_field_names = sorted(
             field_defs,
             key = lambda f: (self.field_defs[f].nullable, f),
         )
-        self.pods_methods = PodsMethodsForRecordTemplate (self.cls_name, self.field_defs)
+        self.pods_methods = PodsMethodsForRecordTemplate(self.cls_name, self.field_defs)
 
-    def field_joiner_property (sep, prefix='', suffix=''):
-        return lambda raw_meth: property (
-            lambda self: Joiner (sep, prefix, suffix, (
-                raw_meth (self, i, f, self.field_defs[f])
+    def field_joiner_property(sep, prefix='', suffix=''):
+        return lambda raw_meth: property(
+            lambda self: Joiner(sep, prefix, suffix, (
+                raw_meth(self, i, f, self.field_defs[f])
                 for i,f in enumerate(self.sorted_field_names)
             ))
         )
 
-    @field_joiner_property ('', prefix='(', suffix=')')
-    def slots (self, findex, fname, fdef):
+    @field_joiner_property('', prefix='(', suffix=')')
+    def slots(self, findex, fname, fdef):
         # NB trailing comma to ensure single val still a tuple
         return "{!r},".format(fname)
 
-    @field_joiner_property ('', prefix='(', suffix=')')
-    def values_as_tuple (self, findex, fname, fdef):
+    @field_joiner_property('', prefix='(', suffix=')')
+    def values_as_tuple(self, findex, fname, fdef):
         # NB trailing comma here too, for the same reason
-        return 'self.{},'.format (fname)
+        return 'self.{},'.format(fname)
 
-    @field_joiner_property (', ')
-    def init_params (self, findex, fname, fdef):
-        return '{}{}'.format (fname, '=None' if fdef.nullable else '')
+    @field_joiner_property(', ')
+    def init_params(self, findex, fname, fdef):
+        return '{}{}'.format(fname, '=None' if fdef.nullable else '')
 
-    @field_joiner_property ('\n')
-    def field_checks (self, findex, fname, fdef):
-        return FieldHandlingStmtsTemplate (
+    @field_joiner_property('\n')
+    def field_checks(self, findex, fname, fdef):
+        return FieldHandlingStmtsTemplate(
             fdef,
             fname,
             expr_descr='{}.{}'.format(self.cls_name,fname)
         )
 
-    @field_joiner_property ('\n')
-    def set_fields (self, findex, fname, fdef):
+    @field_joiner_property('\n')
+    def set_fields(self, findex, fname, fdef):
         # you can cheat past our fake immutability by using object.__setattr__, but don't tell anyone
-        return 'object.__setattr__ (self, "{0}", {0})'.format (fname)
+        return 'object.__setattr__ (self, "{0}", {0})'.format(fname)
 
     @property
-    def properties (self):
+    def properties(self):
         if any(prop.fset is not None for prop in self.prop_defs.values()):
             raise TypeError("record properties may not have an fset function")
         if any(prop.fdel is not None for prop in self.prop_defs.values()):
@@ -176,20 +176,20 @@ class RecordClassTemplate (SourceCodeTemplate):
         return self._class_level_definitions(self.prop_defs)
 
     @property
-    def classmethods (self):
+    def classmethods(self):
         return self._class_level_definitions(self.classmethod_defs)
 
     @property
-    def staticmethods (self):
+    def staticmethods(self):
         return self._class_level_definitions(self.staticmethod_defs)
 
     @property
-    def instancemethods (self):
+    def instancemethods(self):
         return self._class_level_definitions(self.instancemethod_defs)
 
     def _class_level_definitions(self, defs):
-        return Joiner (sep='\n', values=(
-            SourceCodeTemplate (
+        return Joiner(sep='\n', values=(
+            SourceCodeTemplate(
                 '$fname = $value',
                 fname = fname,
                 value = value,
@@ -198,18 +198,18 @@ class RecordClassTemplate (SourceCodeTemplate):
         ))
 
     @property
-    def record_fields (self):
+    def record_fields(self):
         return ImmutableDict(self.field_defs)
 
     @property
-    def core_methods (self):
+    def core_methods(self):
         return '\n'.join(
             code
             for code in self.iter_core_methods()
             if capture_one('def (\w+)', code) not in self.instancemethod_defs
         )
 
-    def iter_core_methods (self):
+    def iter_core_methods(self):
         yield '''
             def __repr__ (self):
                 return "$cls_name($repr_str)" % $values_as_tuple
@@ -227,31 +227,31 @@ class RecordClassTemplate (SourceCodeTemplate):
                 return ($RecordUnpickler(self.__class__.__name__), $values_as_tuple)
         '''
 
-    @field_joiner_property (', ')
-    def repr_str (self, findex, fname, fdef):
+    @field_joiner_property(', ')
+    def repr_str(self, findex, fname, fdef):
         return '{}=%r'.format(fname)
 
-    @field_joiner_property (' or ', prefix='1 if other is None else (', suffix=')')
-    def cmp_stmt (self, findex, fname, fdef):
+    @field_joiner_property(' or ', prefix='1 if other is None else (', suffix=')')
+    def cmp_stmt(self, findex, fname, fdef):
         return 'cmp(self.{0},getattr(other,{0!r},None))'.format(fname)
 
-    @field_joiner_property (' + ')
-    def hash_expr (self, findex, fname, fdef):
-        return 'hash(self.{fname})*{mul}'.format (
+    @field_joiner_property(' + ')
+    def hash_expr(self, findex, fname, fdef):
+        return 'hash(self.{fname})*{mul}'.format(
             fname = fname,
             mul = 7**findex,
         )
 
 #----------------------------------------------------------------------------------------------------------------------------------
 
-class FieldHandlingStmtsTemplate (SourceCodeTemplate):
+class FieldHandlingStmtsTemplate(SourceCodeTemplate):
     """
     Given one field, this generates all constructor statements that relate to that one field: checks, default values, coercion,
     etc. This is inserted both into the constructor of the Record class, as well as in the constructor of the various collection
     types (seq_of etc), which also must check the value and type of their elements.
     """
 
-    KNOWN_COERCE_FUNCTIONS_THAT_NEVER_RETURN_NONE = frozenset ((
+    KNOWN_COERCE_FUNCTIONS_THAT_NEVER_RETURN_NONE = frozenset((
         int, long, float,
         str, unicode,
         bool,
@@ -271,7 +271,7 @@ class FieldHandlingStmtsTemplate (SourceCodeTemplate):
     FieldNotNullable = FieldNotNullable
     re = re
 
-    def __init__ (self, fdef, var_name, expr_descr):
+    def __init__(self, fdef, var_name, expr_descr):
         self.fdef = fdef
         self.var_name = var_name
         self.expr_descr = expr_descr
@@ -279,7 +279,7 @@ class FieldHandlingStmtsTemplate (SourceCodeTemplate):
         self.fdef_type_name = fdef.type.__name__
 
     @property
-    def default_value (self):
+    def default_value(self):
         if self.fdef.nullable and self.fdef.default is not None:
             return '''
                 if $var_name is None:
@@ -287,20 +287,20 @@ class FieldHandlingStmtsTemplate (SourceCodeTemplate):
             '''
 
     @property
-    def default_expr (self):
+    def default_expr(self):
         return ExternalValue(self.fdef.default)
 
     @property
-    def coerce (self):
+    def coerce(self):
         if self.fdef.coerce is not None:
             return '$var_name = $coerce_invocation'
 
     @property
-    def coerce_invocation (self):
-        return ExternalCodeInvocation (self.fdef.coerce, self.var_name)
+    def coerce_invocation(self):
+        return ExternalCodeInvocation(self.fdef.coerce, self.var_name)
 
     @property
-    def null_check (self):
+    def null_check(self):
         if not self.fdef.nullable and self.fdef.coerce not in self.KNOWN_COERCE_FUNCTIONS_THAT_NEVER_RETURN_NONE:
             return '''
                 if $var_name is None:
@@ -308,7 +308,7 @@ class FieldHandlingStmtsTemplate (SourceCodeTemplate):
             '''
 
     @property
-    def value_check (self):
+    def value_check(self):
         if self.fdef.check is not None:
             return '''
                 if $var_name is not None and not $check_invocation:
@@ -316,11 +316,11 @@ class FieldHandlingStmtsTemplate (SourceCodeTemplate):
             '''
 
     @property
-    def check_invocation (self):
-        return ExternalCodeInvocation (self.fdef.check, self.var_name)
+    def check_invocation(self):
+        return ExternalCodeInvocation(self.fdef.check, self.var_name)
 
     @property
-    def type_check (self):
+    def type_check(self):
         if self.fdef.coerce is not self.fdef.type:
             return '''
                 if $not_null_and not $type_check_expr:
@@ -331,18 +331,18 @@ class FieldHandlingStmtsTemplate (SourceCodeTemplate):
             '''
 
     @property
-    def type_check_expr (self):
+    def type_check_expr(self):
         if self.fdef.type is RecursiveType:
             # `self.fdef.type' will be imperatively modified after the class is compiled
             return ExternalCodeInvocation(
-                lambda value: isinstance (value, self.fdef.type),
+                lambda value: isinstance(value, self.fdef.type),
                 '$var_name',
             )
         else:
             return 'isinstance ($var_name, $fdef_type)'
 
     @property
-    def not_null_and (self):
+    def not_null_and(self):
         if self.fdef.nullable:
             return '$var_name is not None and '
 

@@ -45,7 +45,7 @@ ALL_TEST_MODS = (
 )
 
 def iter_all_tests(selected_mod_name):
-    mod_name = lambda mod: re.sub (r'.+\.', '', re.sub (r'_tests$', '', mod.__name__))
+    mod_name = lambda mod: re.sub(r'.+\.', '', re.sub(r'_tests$', '', mod.__name__))
     found = False
     for mod in ALL_TEST_MODS:
         if selected_mod_name in (None,mod_name(mod)):
@@ -53,9 +53,9 @@ def iter_all_tests(selected_mod_name):
             for test in mod.ALL_TESTS:
                 yield test
     if selected_mod_name and not found:
-        raise Exception ("Module '%s' not found. Available modules:\n%s" % (
+        raise Exception("Module '%s' not found. Available modules:\n%s" % (
             selected_mod_name,
-            ''.join (
+            ''.join(
                 '\n\t%s' % mod_name(mod)
                 for mod in ALL_TEST_MODS,
             ),
@@ -63,10 +63,10 @@ def iter_all_tests(selected_mod_name):
 
 #----------------------------------------------------------------------------------------------------------------------------------
 
-def main (selected_mod_name=None):
+def main(selected_mod_name=None):
     tally = Counter()
     all_tests = tuple(iter_all_tests(selected_mod_name))
-    test_id_fmt = "{{:.<{width}}}".format (width = 3 + max (len(test_id) for test_id,test_func in all_tests))
+    test_id_fmt = "{{:.<{width}}}".format(width = 3 + max(len(test_id) for test_id,test_func in all_tests))
     result_fmt = "[{:^4}] {}"
     for test_id,test_func in all_tests:
         tally['total'] += 1
@@ -75,13 +75,13 @@ def main (selected_mod_name=None):
             test_func()
         except Exception, ex:
             raise
-            print result_fmt.format ('FAIL', '{}: {}'.format(ex.__class__.__name__, ex))
+            print result_fmt.format('FAIL', '{}: {}'.format(ex.__class__.__name__, ex))
             tally['failed'] += 1
         else:
-            print result_fmt.format ('OK', '')
+            print result_fmt.format('OK', '')
             tally['passed'] += 1
     print
-    for item in sorted (tally.items()):
+    for item in sorted(tally.items()):
         print "{}: {}".format(*item)
 
 if __name__ == '__main__':

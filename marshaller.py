@@ -29,9 +29,9 @@ DATE_FORMAT = '%Y-%m-%d'
 
 #----------------------------------------------------------------------------------------------------------------------------------
 
-class Marshaller (object):
+class Marshaller(object):
 
-    def __init__ (self, marshalling_code, unmarshalling_code):
+    def __init__(self, marshalling_code, unmarshalling_code):
         # These can be either strings for code with exactly one '{}' in them, or SourceCodeGenerator objects that generate such a
         # string, or callable objects. They'll be made into ExternalCodeInvocation instances for insertion into the generated code.
         # 
@@ -47,10 +47,10 @@ class Marshaller (object):
         # These are here for tests and debugging, since normally you don't call the code directly, you insert it in a code template
         # 
         self.marshal,self.unmarshal = (
-            compile_expr (
-                SourceCodeTemplate (
+            compile_expr(
+                SourceCodeTemplate(
                     'f = lambda v: $code',
-                    code = ExternalCodeInvocation (code, 'v'),
+                    code = ExternalCodeInvocation(code, 'v'),
                 ),
                 'f',
             )
@@ -62,39 +62,39 @@ class Marshaller (object):
 
 STANDARD_MARSHALLERS = {
 
-    str: Marshaller ('{}', '{}'),
-    unicode: Marshaller (
+    str: Marshaller('{}', '{}'),
+    unicode: Marshaller(
         '{}.encode("UTF-8")',
         '{}.decode("UTF-8")',
     ),
 
-    int: Marshaller (repr, int),
-    long: Marshaller (repr, long),
-    float: Marshaller (repr, float),
-    bool: Marshaller (repr, bool),
-    Decimal: Marshaller (str, Decimal),
+    int: Marshaller(repr, int),
+    long: Marshaller(repr, long),
+    float: Marshaller(repr, float),
+    bool: Marshaller(repr, bool),
+    Decimal: Marshaller(str, Decimal),
 
-    datetime: Marshaller (
+    datetime: Marshaller(
         '{}.strftime(%r)' % DATETIME_FORMAT,
-        SourceCodeTemplate (
+        SourceCodeTemplate(
             '$datetime.strptime ({}, $fmt)',
             datetime = datetime,
             fmt = ExternalValue(DATETIME_FORMAT),
         ),
     ),
 
-    date: Marshaller (
+    date: Marshaller(
         '{}.strftime(%r)' % DATE_FORMAT,
-        SourceCodeTemplate (
+        SourceCodeTemplate(
             '$datetime.strptime({}, $fmt).date()',
             datetime = datetime,
             fmt = ExternalValue(DATE_FORMAT),
         ),
     ),
 
-    timedelta: Marshaller (
+    timedelta: Marshaller(
         'str({}.total_seconds())',
-        SourceCodeTemplate (
+        SourceCodeTemplate(
             '$timedelta(seconds=float({}))',
             timedelta = timedelta,
         ),
@@ -107,34 +107,34 @@ CUSTOM_MARSHALLERS = {}
 #----------------------------------------------------------------------------------------------------------------------------------
 # public interface for this module
 
-class CannotMarshalType (TypeError):
+class CannotMarshalType(TypeError):
     pass
 
-def register_marshaller (cls, marshaller):
+def register_marshaller(cls, marshaller):
     CUSTOM_MARSHALLERS[cls] = marshaller
 
-def unregister_marshaller (cls, marshaller):
+def unregister_marshaller(cls, marshaller):
     if CUSTOM_MARSHALLERS.get(cls) is marshaller:
         del CUSTOM_MARSHALLERS[cls]
     else:
         raise KeyError(cls)
 
-def lookup_marshaller_for_type (cls):
-    marshaller = CUSTOM_MARSHALLERS.get (cls)
+def lookup_marshaller_for_type(cls):
+    marshaller = CUSTOM_MARSHALLERS.get(cls)
     if marshaller is None:
-        marshaller = STANDARD_MARSHALLERS.get (cls)
+        marshaller = STANDARD_MARSHALLERS.get(cls)
         if marshaller is None:
-            if hasattr (getattr(cls,'marshall_to_str',None), '__call__') \
-                    and hasattr (getattr(cls,'unmarshall_from_str',None), '__call__'):
+            if hasattr(getattr(cls,'marshall_to_str',None), '__call__') \
+                    and hasattr(getattr(cls,'unmarshall_from_str',None), '__call__'):
                 marshaller = DuckTypedMarshaller(cls)
     return marshaller
 
-def lookup_marshalling_code_for_type (cls):
-    marshaller = lookup_marshaller_for_type (cls)
+def lookup_marshalling_code_for_type(cls):
+    marshaller = lookup_marshaller_for_type(cls)
     return marshaller and marshaller.marshalling_code
 
-def lookup_unmarshalling_code_for_type (cls):
-    marshaller = lookup_marshaller_for_type (cls)
+def lookup_unmarshalling_code_for_type(cls):
+    marshaller = lookup_marshaller_for_type(cls)
     return marshaller and marshaller.unmarshalling_code
 
 # The marshaller lookup dict is global, which is not great, but the alternative was to have to pass around a marshaller registry,
@@ -142,10 +142,10 @@ def lookup_unmarshalling_code_for_type (cls):
 # only have that one, and so a global is fine. Still, for situations where you might want to run just a block of code with a
 # certain marshaller (which happens in tests), there's this context manager
 @contextmanager
-def temporary_marshaller_registration (cls, marshaller):
-    register_marshaller (cls, marshaller)
+def temporary_marshaller_registration(cls, marshaller):
+    register_marshaller(cls, marshaller)
     yield
-    unregister_marshaller (cls, marshaller)
+    unregister_marshaller(cls, marshaller)
 
 def wrap_in_null_check(nullable, value_expr, code):
     if nullable:

@@ -56,7 +56,7 @@ PODS_TYPES = frozenset((
     bool,
 ))
 
-class CannotBeSerializedToPods (TypeError):
+class CannotBeSerializedToPods(TypeError):
     pass
 
 def serialization_exceptions_at_runtime(func):
@@ -82,7 +82,7 @@ def serialization_exceptions_at_runtime(func):
 
 #----------------------------------------------------------------------------------------------------------------------------------
 
-class PodsMethodsTemplate (SourceCodeTemplate):
+class PodsMethodsTemplate(SourceCodeTemplate):
 
     template = '''
         def record_pods (self):
@@ -94,7 +94,7 @@ class PodsMethodsTemplate (SourceCodeTemplate):
     '''
 
     @staticmethod
-    def value_to_pods (value_expr, fdef, needs_null_check=True):
+    def value_to_pods(value_expr, fdef, needs_null_check=True):
         if fdef.type in PODS_TYPES:
             return value_expr
         elif fdef.type is RecursiveType or callable(getattr(fdef.type, 'record_pods', None)):
@@ -117,7 +117,7 @@ class PodsMethodsTemplate (SourceCodeTemplate):
                 ))
 
     @staticmethod
-    def pods_to_value (value_expr, fdef):
+    def pods_to_value(value_expr, fdef):
         if fdef.type in PODS_TYPES:
             return value_expr
         elif fdef.type is RecursiveType or callable(getattr(fdef.type, 'from_pods', None)):
@@ -150,17 +150,17 @@ class PodsMethodsTemplate (SourceCodeTemplate):
 
 #----------------------------------------------------------------------------------------------------------------------------------
 
-class PodsMethodsForRecordTemplate (PodsMethodsTemplate):
+class PodsMethodsForRecordTemplate(PodsMethodsTemplate):
 
-    def __init__ (self, cls_name, field_defs):
+    def __init__(self, cls_name, field_defs):
         self.cls_name = cls_name
         self.field_defs = field_defs
 
     @property
     @serialization_exceptions_at_runtime
-    def record_pods_impl (self):
+    def record_pods_impl(self):
         return Joiner('\n', 'pods = {}\n', '\nreturn pods', tuple(
-            SourceCodeTemplate (
+            SourceCodeTemplate(
                 '''
                 if self.$fname is not None:
                     pods[$key] = $value
@@ -180,9 +180,9 @@ class PodsMethodsForRecordTemplate (PodsMethodsTemplate):
 
     @property
     @serialization_exceptions_at_runtime
-    def from_pods_impl (self):
+    def from_pods_impl(self):
         return Joiner(', ', 'return cls(', ')', tuple(
-            SourceCodeTemplate (
+            SourceCodeTemplate(
                 '$key = $value',
                 key = fname,
                 value = self.pods_to_value(
@@ -195,39 +195,39 @@ class PodsMethodsForRecordTemplate (PodsMethodsTemplate):
 
 #----------------------------------------------------------------------------------------------------------------------------------
 
-class PodsMethodsForSeqTemplate (PodsMethodsTemplate):
+class PodsMethodsForSeqTemplate(PodsMethodsTemplate):
 
-    def __init__ (self, elem_fdef):
+    def __init__(self, elem_fdef):
         self.elem_fdef = elem_fdef
 
     @property
     @serialization_exceptions_at_runtime
-    def record_pods_impl (self):
-        return SourceCodeTemplate (
+    def record_pods_impl(self):
+        return SourceCodeTemplate(
             'return [ $code_for_elem for elem in self ]',
             code_for_elem = self.value_to_pods('elem', self.elem_fdef),
         )
 
     @property
     @serialization_exceptions_at_runtime
-    def from_pods_impl (self):
-        return SourceCodeTemplate (
+    def from_pods_impl(self):
+        return SourceCodeTemplate(
             'return [ $code_for_elem for elem in pods ]',
             code_for_elem = self.pods_to_value('elem', self.elem_fdef),
         )            
 
 #----------------------------------------------------------------------------------------------------------------------------------
 
-class PodsMethodsForDictTemplate (PodsMethodsTemplate):
+class PodsMethodsForDictTemplate(PodsMethodsTemplate):
 
-    def __init__ (self, key_fdef, val_fdef):
+    def __init__(self, key_fdef, val_fdef):
         self.key_fdef = key_fdef
         self.val_fdef = val_fdef
 
     @property
     @serialization_exceptions_at_runtime
-    def record_pods_impl (self):
-        return SourceCodeTemplate (
+    def record_pods_impl(self):
+        return SourceCodeTemplate(
             'return { $code_for_key:$code_for_val for key,val in self.iteritems() }',
             code_for_key = self.value_to_pods('key', self.key_fdef),
             code_for_val = self.value_to_pods('val', self.val_fdef),
@@ -235,8 +235,8 @@ class PodsMethodsForDictTemplate (PodsMethodsTemplate):
 
     @property
     @serialization_exceptions_at_runtime
-    def from_pods_impl (self):
-        return SourceCodeTemplate (
+    def from_pods_impl(self):
+        return SourceCodeTemplate(
             'return { $code_for_key:$code_for_val for key,val in pods.iteritems() }',
             code_for_key = self.pods_to_value('key', self.key_fdef),
             code_for_val = self.pods_to_value('val', self.val_fdef),

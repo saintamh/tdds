@@ -10,37 +10,37 @@ Edinburgh
 #----------------------------------------------------------------------------------------------------------------------------------
 # core data structures
 
-class Field (object):
+class Field(object):
 
-    def __init__ (self, type, nullable=False, default=None, coerce=None, check=None):
+    def __init__(self, type, nullable=False, default=None, coerce=None, check=None):
         object.__setattr__(self, 'type', type)
         object.__setattr__(self, 'nullable', nullable)
         object.__setattr__(self, 'default', default)
         object.__setattr__(self, 'coerce', coerce)
         object.__setattr__(self, 'check', check)
 
-    def __setattr__ (self, attr, value):
-        raise TypeError ("Field objects are immutable")
-    def __delattr__ (self, attr):
-        raise TypeError ("Field objects are immutable")
+    def __setattr__(self, attr, value):
+        raise TypeError("Field objects are immutable")
+    def __delattr__(self, attr):
+        raise TypeError("Field objects are immutable")
 
-    def set_recursive_type (self, ftype):
+    def set_recursive_type(self, ftype):
         if self.type is RecursiveType:
             object.__setattr__(self, 'type', ftype)
 
-    def derive (self, **kwargs):
-        new_field = Field (
+    def derive(self, **kwargs):
+        new_field = Field(
             self.type,
-            kwargs.pop ('nullable', self.nullable),
-            kwargs.pop ('default', self.default),
-            kwargs.pop ('coerce', self.coerce),
-            kwargs.pop ('check', self.check),
+            kwargs.pop('nullable', self.nullable),
+            kwargs.pop('default', self.default),
+            kwargs.pop('coerce', self.coerce),
+            kwargs.pop('check', self.check),
         )
         if kwargs:
-            raise TypeError ("Unknown kwargs: %s" % ', '.join(sorted(kwargs)))
+            raise TypeError("Unknown kwargs: %s" % ', '.join(sorted(kwargs)))
         return new_field
 
-    def __repr__ (self):
+    def __repr__(self):
         return 'Field (%r%s%s%s%s)' % (
             self.type,
             ', nullable=True' if self.nullable else '',
@@ -52,26 +52,26 @@ class Field (object):
 #----------------------------------------------------------------------------------------------------------------------------------
 # public exception classes
 
-class RecordsAreImmutable (TypeError):
+class RecordsAreImmutable(TypeError):
     pass
 
-class FieldError (ValueError):
+class FieldError(ValueError):
     pass
 
-class FieldValueError (FieldError):
+class FieldValueError(FieldError):
     pass
 
-class FieldTypeError (FieldError):
+class FieldTypeError(FieldError):
     pass
 
-class FieldNotNullable (FieldValueError):
+class FieldNotNullable(FieldValueError):
     pass
 
 #----------------------------------------------------------------------------------------------------------------------------------
 # If a field has `RecursiveType' as its `type', then that gets translated to the record's own class. This allows the user to define
 # typed recursive data structures, e.g. LinkedLists, where the object has a field of the same type as itself.
 
-class RecursiveType (object):
+class RecursiveType(object):
     pass
 
 #----------------------------------------------------------------------------------------------------------------------------------
