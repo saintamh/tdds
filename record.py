@@ -97,8 +97,8 @@ class RecordClassTemplate(SourceCodeTemplate):
 
             def record_derive (self, **kwargs):
                 return self.__class__ (**{
-                    field: kwargs.get (field, getattr(self,field))
-                    for field in $slots
+                    fname: kwargs.get (fname, getattr(self, fname))
+                    for fname in $field_defs_incl_super
                 })
 
             $core_methods

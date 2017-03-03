@@ -232,6 +232,16 @@ def _():
             def x():
                 pass
 
+@test("if a record subclasses another, record_derive still works")
+def _():
+    class Parent(Record):
+        x = int
+    class Child(Parent, Record):
+        y = int
+    c = Child(1,2)
+    assert_eq(c.record_derive(x=3), Child(3,2))
+    assert_eq(c.record_derive(y=4), Child(1,4))
+
 # 2017-03-03 - I'm comment this one out even though it passes, but 3-way inheritance doesn't work anyway because of some problem
 # with __slots__ (see "Layout Conflicts" at http://mcjeff.blogspot.co.uk/2009/05/odd-python-errors.html)
 # 
