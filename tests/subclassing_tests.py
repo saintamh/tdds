@@ -118,3 +118,135 @@ def _():
     )
 
 #----------------------------------------------------------------------------------------------------------------------------------
+
+@test("if a record subclasses another, the subclass's record_fields contain fields from both")
+def _():
+    class Parent(Record):
+        x = int
+    class Child(Parent, Record):
+        y = int
+    assert_eq(
+        sorted(Child.record_fields.keys()),
+        ['x', 'y'],
+    )
+
+@test("if a record subclasses another, the subclass's __repr__ contains fields from both")
+def _():
+    class Parent(Record):
+        x = int
+    class Child(Parent, Record):
+        y = int
+    c = Child(x=5, y=9)
+    assert_matches(r'\bx=5\b', repr(c))
+    assert_matches(r'\by=9\b', repr(c))
+
+@test("if a record subclasses another, the subclass's __hash__ uses fields from both")
+def _():
+    hashed = []
+    class LoudHashable(object):
+        def __init__(self, value):
+            self.value = value
+        def __hash__(self):
+            hashed.append(self.value)
+            return hash(self.value)
+    class Parent(Record):
+        x = LoudHashable
+    class Child(Parent, Record):
+        y = LoudHashable
+    c = Child(x=LoudHashable(5), y=LoudHashable(9))
+    hash(c)
+    assert_eq(hashed, [5, 9])
+
+@test("if a record subclasses another, the subclass's __cmp__ uses fields from both")
+def _():
+    compared = []
+    class LoudComparable(object):
+        def __init__(self, value):
+            self.value = value
+        def __cmp__(self, other):
+            compared.append((self.value, other.value))
+            return cmp(self.value, other.value)
+    class Parent(Record):
+        x = LoudComparable
+    class Child(Parent, Record):
+        y = LoudComparable
+    c1 = Child(x=LoudComparable(5), y=LoudComparable(9))
+    c2 = Child(x=LoudComparable(5), y=LoudComparable(8))
+    cmp(c1, c2)
+    assert_eq(compared, [(5,5), (9,8)])
+
+@test("if a record subclasses another, the subclass's record_pods includes fields from both")
+def _():
+    class Parent(Record):
+        x = int
+    class Child(Parent, Record):
+        y = int
+    c = Child(x=5, y=9)
+    assert_eq(
+        c.record_pods(),
+        {'x': 5, 'y': 9},
+    )
+
+@test("if a record subclasses another, it cannot override the superclass's fields as that would invalidate superclass invariants")
+def _():
+    class Parent(Record):
+        x = int
+    with expected_error(TypeError):
+        class Child(Parent, Record):
+            x = int
+
+@test("if a record subclasses another, it cannot override the superclass's fields, even with a method")
+def _():
+    class Parent(Record):
+        x = int
+    with expected_error(TypeError):
+        class Child(Parent, Record):
+            def x(self):
+                pass
+
+@test("if a record subclasses another, it cannot override the superclass's fields, even with a property")
+def _():
+    class Parent(Record):
+        x = int
+    with expected_error(TypeError):
+        class Child(Parent, Record):
+            x = property(lambda self: 'ex')
+
+@test("if a record subclasses another, it cannot override the superclass's fields, even with a classmethod")
+def _():
+    class Parent(Record):
+        x = int
+    with expected_error(TypeError):
+        class Child(Parent, Record):
+            @classmethod
+            def x(cls):
+                pass
+
+@test("if a record subclasses another, it cannot override the superclass's fields, even with a staticmethod")
+def _():
+    class Parent(Record):
+        x = int
+    with expected_error(TypeError):
+        class Child(Parent, Record):
+            @staticmethod
+            def x():
+                pass
+
+# 2017-03-03 - I'm comment this one out even though it passes, but 3-way inheritance doesn't work anyway because of some problem
+# with __slots__ (see "Layout Conflicts" at http://mcjeff.blogspot.co.uk/2009/05/odd-python-errors.html)
+# 
+# @test("can't subclass two record classes with a field having the same name, as I don't see how that could work")
+# def _():
+#     class LeftParent(Record):
+#         x = int
+#     class RightParent(Record):
+#         x = int
+#     with expected_error(TypeError):
+#         class Child(LeftParent, RightParent, Record):
+#             y = int
+
+#----------------------------------------------------------------------------------------------------------------------------------
+
+# TODO make sure reduce works when pickling
+
+#----------------------------------------------------------------------------------------------------------------------------------

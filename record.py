@@ -11,6 +11,7 @@ Edinburgh
 # includes
 
 # standards
+from itertools import chain
 import re
 
 # saintamh
@@ -43,7 +44,7 @@ class RecordMetaClass(RecordRegistryMetaClass):
         if bases == (object,) or is_codegen or Record not in bases:
             return type.__new__(mcls, cls_name, bases, attrib)
         verbose = attrib.pop('_%s__verbose' % cls_name, False)
-        src_code_gen = RecordClassTemplate(cls_name, **attrib)
+        src_code_gen = RecordClassTemplate(cls_name, bases, **attrib)
         cls = compile_expr(src_code_gen, cls_name, verbose=verbose)
         if module is not None:
             setattr(cls, '__module__', module)
@@ -72,10 +73,11 @@ class Record(object):
 class RecordClassTemplate(SourceCodeTemplate):
 
     template = '''
-        class $cls_name ($Record):
+        class $cls_name ($superclasses):
             __slots__ = $slots
 
             def __init__ (self, $init_params):
+                $super_call
                 $field_checks
                 $set_fields
 
@@ -106,8 +108,10 @@ class RecordClassTemplate(SourceCodeTemplate):
     RecordsAreImmutable = RecordsAreImmutable
     RecordUnpickler = RecordUnpickler
 
-    def __init__(self, cls_name, **field_defs):
+    def __init__(self, cls_name, bases, **field_defs):
         self.cls_name = cls_name
+        self.super_records = tuple(spr for spr in bases if spr is not Record and issubclass(spr, Record))
+        self.super_field_defs = self._compile_super_field_defs(self.super_records, field_defs)
         self.prop_defs, self.classmethod_defs, self.staticmethod_defs = (
             {
                 fname: field_defs.pop(fname)
@@ -126,17 +130,35 @@ class RecordClassTemplate(SourceCodeTemplate):
             fname: compile_field_def(fdef)
             for fname,fdef in field_defs.items()
         }
-        self.sorted_field_names = sorted(
-            field_defs,
-            key = lambda f: (self.field_defs[f].nullable, f),
-        )
-        self.pods_methods = PodsMethodsForRecordTemplate(self.cls_name, self.field_defs)
+        self.field_defs_incl_super = dict(chain(
+            self.field_defs.items(),
+            self.super_field_defs.items(),
+        ))
+        self.pods_methods = PodsMethodsForRecordTemplate(self.cls_name, self.field_defs_incl_super)
 
-    def field_joiner_property(sep, prefix='', suffix=''):
+    @staticmethod
+    def _compile_super_field_defs(super_records, field_defs):
+        super_field_defs = {}
+        for spr in super_records:
+            for fname, fdef in spr.record_fields.items():
+                if fname in super_field_defs:
+                    raise TypeError("Multiple superclasses have a field called %r" % fname)
+                if fname in field_defs:
+                    raise TypeError("Can't override superclass field %r" % fname)
+                super_field_defs[fname] = fdef
+        return super_field_defs
+
+    def field_joiner_property(sep, prefix='', suffix='', include_super=False):
         return lambda raw_meth: property(
             lambda self: Joiner(sep, prefix, suffix, (
-                raw_meth(self, i, f, self.field_defs[f])
-                for i,f in enumerate(self.sorted_field_names)
+                raw_meth(self, findex, fname, fdef)
+                for findex,(fname,fdef) in enumerate(sorted(
+                    dict.items(
+                        self.field_defs_incl_super if include_super
+                        else self.field_defs
+                    ),
+                    key = lambda (fname, fdef): (fdef.nullable, fname),
+                ))
             ))
         )
 
@@ -145,14 +167,28 @@ class RecordClassTemplate(SourceCodeTemplate):
         # NB trailing comma to ensure single val still a tuple
         return "{!r},".format(fname)
 
-    @field_joiner_property('', prefix='(', suffix=')')
+    @field_joiner_property('', prefix='(', suffix=')', include_super=True)
     def values_as_tuple(self, findex, fname, fdef):
         # NB trailing comma here too, for the same reason
         return 'self.{},'.format(fname)
 
-    @field_joiner_property(', ')
+    @field_joiner_property(', ', include_super=True)
     def init_params(self, findex, fname, fdef):
         return '{}{}'.format(fname, '=None' if fdef.nullable else '')
+
+    @property
+    def superclasses(self):
+        return Joiner(', ', values=self.super_records + (Record,))
+
+    @property
+    def super_call(self):
+        return 'super(%s,self).__init__(%s)' % (
+            self.cls_name,
+            ', '.join(
+                '%s=%s' % (fname, fname)
+                for fname in sorted(self.super_field_defs)
+            ),
+        )
 
     @field_joiner_property('\n')
     def field_checks(self, findex, fname, fdef):
@@ -199,11 +235,11 @@ class RecordClassTemplate(SourceCodeTemplate):
 
     @property
     def record_fields(self):
-        return ImmutableDict(self.field_defs)
+        return ImmutableDict(self.field_defs_incl_super)
 
     @property
     def core_methods(self):
-        return '\n'.join(
+        return ''.join(
             code
             for code in self.iter_core_methods()
             if capture_one('def (\w+)', code) not in self.instancemethod_defs
@@ -227,15 +263,15 @@ class RecordClassTemplate(SourceCodeTemplate):
                 return ($RecordUnpickler(self.__class__.__name__), $values_as_tuple)
         '''
 
-    @field_joiner_property(', ')
+    @field_joiner_property(', ', include_super=True)
     def repr_str(self, findex, fname, fdef):
         return '{}=%r'.format(fname)
 
-    @field_joiner_property(' or ', prefix='1 if other is None else (', suffix=')')
+    @field_joiner_property(' or ', prefix='1 if other is None else (', suffix=')', include_super=True)
     def cmp_stmt(self, findex, fname, fdef):
         return 'cmp(self.{0},getattr(other,{0!r},None))'.format(fname)
 
-    @field_joiner_property(' + ')
+    @field_joiner_property(' + ', include_super=True)
     def hash_expr(self, findex, fname, fdef):
         return 'hash(self.{fname})*{mul}'.format(
             fname = fname,

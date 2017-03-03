@@ -11,6 +11,7 @@ Edinburgh
 # includes
 
 # standards
+import re
 from traceback import print_exc
 
 #----------------------------------------------------------------------------------------------------------------------------------
@@ -70,5 +71,11 @@ def assert_isinstance(v, cls):
 def assert_none(v):
     if v is not None:
         raise AssertionError("Expected None, got %r" % (v,))
+
+def assert_matches(regex, text):
+    if isinstance(regex, basestring):
+        regex = re.compile(regex)
+    if not regex.search(text):
+        raise AssertionError("%r does not match /%s/" % (text, regex.pattern))
 
 #----------------------------------------------------------------------------------------------------------------------------------
