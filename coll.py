@@ -136,26 +136,35 @@ def make_coll(templ, **kwargs):
 # needed.
 
 def seq_of(elem_fdef, **kwargs):
+    elem_fdef = compile_field_def(elem_fdef)
     return make_coll(
-        SequenceCollCodeTemplate(compile_field_def(elem_fdef)),
+        SequenceCollCodeTemplate(elem_fdef),
+        subfields = [elem_fdef],
         **kwargs
     )
 
 def pair_of(elem_fdef, **kwargs):
+    elem_fdef = compile_field_def(elem_fdef)
     return make_coll(
-        PairCollCodeTemplate(compile_field_def(elem_fdef)),
+        PairCollCodeTemplate(elem_fdef),
+        subfields = [elem_fdef],
         **kwargs
     )
 
 def set_of(elem_fdef, **kwargs):
+    elem_fdef = compile_field_def(elem_fdef)
     return make_coll(
-        SetCollCodeTemplate(compile_field_def(elem_fdef)),
+        SetCollCodeTemplate(elem_fdef),
+        subfields = [elem_fdef],
         **kwargs
     )
 
 def dict_of(key_fdef, val_fdef, **kwargs):
+    key_fdef = compile_field_def(key_fdef)
+    val_fdef = compile_field_def(val_fdef)
     return make_coll(
-        DictCollCodeTemplate(compile_field_def(key_fdef), compile_field_def(val_fdef)),
+        DictCollCodeTemplate(key_fdef, val_fdef),
+        subfields = [key_fdef, val_fdef],
         **kwargs
     )
 

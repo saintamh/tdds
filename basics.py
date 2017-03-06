@@ -12,12 +12,13 @@ Edinburgh
 
 class Field(object):
 
-    def __init__(self, type, nullable=False, default=None, coerce=None, check=None):
+    def __init__(self, type, nullable=False, default=None, coerce=None, check=None, subfields=[]):
         object.__setattr__(self, 'type', type)
         object.__setattr__(self, 'nullable', nullable)
         object.__setattr__(self, 'default', default)
         object.__setattr__(self, 'coerce', coerce)
         object.__setattr__(self, 'check', check)
+        object.__setattr__(self, 'subfields', subfields)
 
     def __setattr__(self, attr, value):
         raise TypeError("Field objects are immutable")
@@ -27,6 +28,8 @@ class Field(object):
     def set_recursive_type(self, ftype):
         if self.type is RecursiveType:
             object.__setattr__(self, 'type', ftype)
+        for child in self.subfields:
+            child.set_recursive_type(ftype)
 
     def derive(self, **kwargs):
         new_field = Field(
@@ -35,6 +38,7 @@ class Field(object):
             kwargs.pop('default', self.default),
             kwargs.pop('coerce', self.coerce),
             kwargs.pop('check', self.check),
+            self.subfields,
         )
         if kwargs:
             raise TypeError("Unknown kwargs: %s" % ', '.join(sorted(kwargs)))
