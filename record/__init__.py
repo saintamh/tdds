@@ -28,7 +28,7 @@ from .shortcuts import \
     uppercase_letters, uppercase_wchars, uppercase_hex, lowercase_letters, lowercase_wchars, lowercase_hex, digits_str, \
     absolute_http_url
 
-from .coll import \
+from .collections import \
     dict_of, pair_of, seq_of, set_of
 
 from .marshaller import \

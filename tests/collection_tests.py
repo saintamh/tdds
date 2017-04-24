@@ -11,7 +11,7 @@ Edinburgh
 # includes
 
 # saintamh
-from ...util.coll import ImmutableDict
+from ...util.collections import ImmutableDict
 
 # this module
 from .. import *
