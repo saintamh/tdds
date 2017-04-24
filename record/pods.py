@@ -40,13 +40,10 @@ JSON specifically, the PODS should be immediately serializable to strings using 
 # standards
 from functools import wraps
 
-# saintamh
-from ..util.codegen import ExternalValue, SourceCodeTemplate
-
 # this module
 from .basics import RecursiveType
 from .marshaller import lookup_marshalling_code_for_type, lookup_unmarshalling_code_for_type, wrap_in_null_check
-from .utils import ExternalCodeInvocation, Joiner
+from .utils.codegen import ExternalCodeInvocation, ExternalValue, Joiner, SourceCodeTemplate
 
 #----------------------------------------------------------------------------------------------------------------------------------
 

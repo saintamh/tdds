@@ -13,9 +13,6 @@ Edinburgh
 # standards
 from functools import wraps
 
-# saintamh
-from saintamh.util.iterables import first
-
 #----------------------------------------------------------------------------------------------------------------------------------
 
 class BuilderMetaClass(type):
@@ -30,7 +27,7 @@ class BuilderMetaClass(type):
 
     @classmethod
     def _expand_multiple_field_methods(mcls, bases, attrib):
-        record_cls = first(getattr(b, 'record_cls', None) for b in bases)
+        record_cls = mcls._find_record_cls(bases)
         for key, value in attrib.iteritems():
             if record_cls is not None \
                     and '_and_' in key \
@@ -44,6 +41,14 @@ class BuilderMetaClass(type):
             else:
                 yield key, value
 
+    @staticmethod
+    def _find_record_cls(bases):
+        for b in bases:
+            record_cls = getattr(b, 'record_cls', None)
+            if record_cls:
+                return record_cls
+        return Exception("record_cls not found")
+        
     @staticmethod
     def _single_field_method(memoized_method, field_index):
         return lambda self: memoized_method(self)[field_index]

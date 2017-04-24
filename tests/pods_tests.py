@@ -15,9 +15,6 @@ from collections import namedtuple
 from datetime import datetime, timedelta
 from decimal import Decimal
 
-# saintamh
-from saintamh.util.lang import Undef
-
 # this module
 from .. import *
 from .plumbing import *
@@ -191,9 +188,12 @@ def _():
     class R(Record):
         name = Name
     r = R(Name('peter'))
+    class CantTouchThis(object):
+        def __getattr__(self, attr):
+            # ensure that the value given to `from_pods' below isn't even looked at in any way
+            raise Exception("boom")
     with expected_error(CannotBeSerializedToPods):
-        # using Undef here to ensure that the given value isn't even looked at in any way
-        R.from_pods(Undef)
+        R.from_pods(CantTouchThis())
 
 #----------------------------------------------------------------------------------------------------------------------------------
 # collections

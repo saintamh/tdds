@@ -13,11 +13,9 @@ Edinburgh
 # standards
 import re
 
-# saintamh
-from ..util.codegen import SourceCodeTemplate
-
 # this module
 from .record import Field, compile_field_def
+from .utils.codegen import SourceCodeTemplate
 
 #----------------------------------------------------------------------------------------------------------------------------------
 

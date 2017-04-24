@@ -10,9 +10,6 @@ Edinburgh
 #----------------------------------------------------------------------------------------------------------------------------------
 # includes
 
-# saintamh
-from ...util.collections import ImmutableDict
-
 # this module
 from .. import *
 from .plumbing import *

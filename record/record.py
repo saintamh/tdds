@@ -14,25 +14,13 @@ Edinburgh
 from itertools import chain
 import re
 
-# saintamh
-from ..util.codegen import \
-    ExternalValue, SourceCodeTemplate, \
-    compile_expr
-from ..util.coll import ImmutableDict
-from ..util.regexes import capture_one
-
 # this module
-from .basics import \
-    Field, \
-    FieldError, FieldValueError, FieldTypeError, FieldNotNullable, RecordsAreImmutable, \
-    RecursiveType
-from .pods import \
-    PodsMethodsForRecordTemplate
-from .unpickler import \
-    RecordRegistryMetaClass, RecordUnpickler
-from .utils import \
-    ExternalCodeInvocation, Joiner, \
-    compile_field_def
+from .basics import Field, FieldError, FieldValueError, FieldTypeError, FieldNotNullable, RecordsAreImmutable, \
+    RecursiveType, compile_field_def
+from .pods import PodsMethodsForRecordTemplate
+from .unpickler import RecordRegistryMetaClass, RecordUnpickler
+from .utils.codegen import ExternalCodeInvocation, ExternalValue, Joiner, SourceCodeTemplate, compile_expr
+from .utils.immutabledict import ImmutableDict
 
 #----------------------------------------------------------------------------------------------------------------------------------
 # the `Record' class is the main export of this module.
@@ -242,7 +230,7 @@ class RecordClassTemplate(SourceCodeTemplate):
         return ''.join(
             code
             for code in self.iter_core_methods()
-            if capture_one('def (\w+)', code) not in self.instancemethod_defs
+            if re.search(r'def (\w+)', code).group(1) not in self.instancemethod_defs
         )
 
     def iter_core_methods(self):

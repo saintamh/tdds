@@ -10,17 +10,13 @@ Edinburgh
 #----------------------------------------------------------------------------------------------------------------------------------
 # includes
 
-# saintamh
-from ..util.codegen import SourceCodeTemplate, compile_expr
-from ..util.coll import ImmutableDict
-from ..util.strings import ucfirst
-
-# this module
-from .basics import Field, FieldValueError
+# record
+from .basics import Field, FieldValueError, compile_field_def
 from .pods import PodsMethodsForSeqTemplate, PodsMethodsForDictTemplate
 from .record import FieldHandlingStmtsTemplate
 from .unpickler import RecordRegistryMetaClass, RecordUnpickler
-from .utils import compile_field_def
+from .utils.codegen import SourceCodeTemplate, compile_expr
+from .utils.immutabledict import ImmutableDict
 
 #----------------------------------------------------------------------------------------------------------------------------------
 # Collection fields are instances of an appropriate subclass of tuple, frozenset, or ImmutableDict. This is the template used to
@@ -65,7 +61,7 @@ class SequenceCollCodeTemplate(CollectionTypeCodeTemplate):
     cls_name_suffix = 'Seq'
 
     def __init__(self, elem_fdef):
-        self.cls_name = ucfirst(elem_fdef.type.__name__) + self.cls_name_suffix
+        self.cls_name = _ucfirst(elem_fdef.type.__name__) + self.cls_name_suffix
         self.pods_methods = PodsMethodsForSeqTemplate(elem_fdef)
         self.elem_check_impl = FieldHandlingStmtsTemplate(
             elem_fdef,
@@ -112,8 +108,8 @@ class DictCollCodeTemplate(CollectionTypeCodeTemplate):
 
     def __init__(self, key_fdef, val_fdef):
         self.cls_name = '{}To{}Dict'.format(
-            ucfirst(key_fdef.type.__name__),
-            ucfirst(val_fdef.type.__name__),
+            _ucfirst(key_fdef.type.__name__),
+            _ucfirst(val_fdef.type.__name__),
         )
         self.key_handling_stmts = FieldHandlingStmtsTemplate(key_fdef, 'key', expr_descr='<key>')
         self.val_handling_stmts = FieldHandlingStmtsTemplate(val_fdef, 'val', expr_descr='<val>')
@@ -181,5 +177,11 @@ def dict_of(key_fdef, val_fdef, **kwargs):
         subfields = [key_fdef, val_fdef],
         **kwargs
     )
+
+#----------------------------------------------------------------------------------------------------------------------------------
+# private utils
+
+def _ucfirst(text):
+    return text[0].upper() + text[1:]
 
 #----------------------------------------------------------------------------------------------------------------------------------

@@ -15,11 +15,8 @@ from contextlib import contextmanager
 from datetime import date, datetime, timedelta
 from decimal import Decimal
 
-# saintamh
-from saintamh.util.codegen import ExternalValue, SourceCodeTemplate, compile_expr
-
 # this module
-from .utils import ExternalCodeInvocation
+from .utils.codegen import ExternalCodeInvocation, ExternalValue, SourceCodeTemplate, compile_expr
 
 #----------------------------------------------------------------------------------------------------------------------------------
 # constants, config

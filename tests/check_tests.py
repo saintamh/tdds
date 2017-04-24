@@ -13,9 +13,6 @@ Edinburgh
 # standards
 import re
 
-# saintamh
-from ...util.codegen import SourceCodeTemplate
-
 # this module
 from .. import *
 from .plumbing import *

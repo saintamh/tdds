@@ -10,9 +10,6 @@ Edinburgh
 #----------------------------------------------------------------------------------------------------------------------------------
 # includes
 
-# saintamh
-from ...util.codegen import SourceCodeTemplate
-
 # this module
 from .. import *
 from .plumbing import *
