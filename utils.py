@@ -33,6 +33,7 @@ def compile_field_def(fdef, **kwargs):
         else:
             return fdef
     else:
+        assert not kwargs, (fdef, kwargs)
         return Field(fdef)
 
 class ExternalCodeInvocation(SourceCodeGenerator):

@@ -602,3 +602,40 @@ def _():
     assert_eq(elems, {1:'uno',2:'zwei'})
 
 #----------------------------------------------------------------------------------------------------------------------------------
+
+@test("The type of the elements of a seq_of is accessible")
+def _():
+    class C(object):
+        pass
+    class R(Record):
+        v = seq_of(C)
+    assert_is(R.record_fields['v'].type.elem_fdef.type, C)
+
+@test("The type of the elements of a pair_of is accessible")
+def _():
+    class C(object):
+        pass
+    class R(Record):
+        v = pair_of(C)
+    assert_is(R.record_fields['v'].type.elem_fdef.type, C)
+
+@test("The type of the elements of a set_of is accessible")
+def _():
+    class C(object):
+        pass
+    class R(Record):
+        v = set_of(C)
+    assert_is(R.record_fields['v'].type.elem_fdef.type, C)
+
+@test("The type of the keys and values of a dict_of are accessible")
+def _():
+    class C1(object):
+        pass
+    class C2(object):
+        pass
+    class R(Record):
+        v = dict_of(C1, C2)
+    assert_is(R.record_fields['v'].type.key_fdef.type, C1)
+    assert_is(R.record_fields['v'].type.val_fdef.type, C2)
+
+#----------------------------------------------------------------------------------------------------------------------------------

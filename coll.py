@@ -35,6 +35,8 @@ class CollectionTypeCodeTemplate(SourceCodeTemplate):
             def $constructor (cls_or_self, iter_elems):
                 return $superclass.$constructor (cls_or_self, $cls_name.check_elems(iter_elems))
 
+            $cls_fields
+
             @staticmethod
             def check_elems (iter_elems):
                 $check_elems_body
@@ -69,6 +71,10 @@ class SequenceCollCodeTemplate(CollectionTypeCodeTemplate):
             elem_fdef,
             'elem',
             expr_descr='[elem]',
+        )
+        self.cls_fields = SourceCodeTemplate(
+            'elem_fdef = $elem_fdef',
+            elem_fdef=elem_fdef,
         )
 
     check_elems_body = '''
@@ -112,6 +118,14 @@ class DictCollCodeTemplate(CollectionTypeCodeTemplate):
         self.key_handling_stmts = FieldHandlingStmtsTemplate(key_fdef, 'key', expr_descr='<key>')
         self.val_handling_stmts = FieldHandlingStmtsTemplate(val_fdef, 'val', expr_descr='<val>')
         self.pods_methods = PodsMethodsForDictTemplate(key_fdef, val_fdef)
+        self.cls_fields = SourceCodeTemplate(
+            '''
+            key_fdef = $key_fdef
+            val_fdef = $val_fdef
+            ''',
+            key_fdef = key_fdef,
+            val_fdef = val_fdef,
+        )
 
     check_elems_body = '''
         for key,val in getattr (iter_elems, "iteritems", iter_elems.__iter__)():
