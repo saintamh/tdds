@@ -79,3 +79,15 @@ class RecursiveType(object):
     pass
 
 #----------------------------------------------------------------------------------------------------------------------------------
+
+def compile_field_def(fdef, **kwargs):
+    if isinstance(fdef,Field):
+        if kwargs:
+            return fdef.derive(**kwargs)
+        else:
+            return fdef
+    else:
+        assert not kwargs, (fdef, kwargs)
+        return Field(fdef)
+
+#----------------------------------------------------------------------------------------------------------------------------------
