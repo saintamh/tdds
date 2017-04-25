@@ -15,7 +15,7 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 
 # record
 from record import *
-from record.utils.compatibility import text_type
+from record.utils.compatibility import native_string, text_type
 
 # this module
 from .plumbing import *
@@ -77,9 +77,8 @@ def _():
 
 @test("Two sequences can use types of the same name, they won't clash")
 def _():
-    # NB deliberate use of "native strings" in PY2+3
-    C1 = type(str('Element'), (object,), {})
-    C2 = type(str('Element'), (object,), {})
+    C1 = type(native_string('Element'), (object,), {})
+    C2 = type(native_string('Element'), (object,), {})
     class R1(Record):
         elems = seq_of(C1)
     class R2(Record):
@@ -92,9 +91,8 @@ def _():
 
 @test("If two sequences use types of the same name, you still can't put one's elems in the other")
 def _():
-    # NB deliberate use of "native strings" in PY2+3
-    C1 = type(str('Element'), (object,), {})
-    C2 = type(str('Element'), (object,), {})
+    C1 = type(native_string('Element'), (object,), {})
+    C2 = type(native_string('Element'), (object,), {})
     class R1(Record):
         elems = seq_of(C1)
     class R2(Record):
@@ -221,9 +219,8 @@ def _():
 
 @test("Two pairs can use types of the same name, they won't clash")
 def _():
-    # NB deliberate use of "native strings" in PY2+3
-    C1 = type(str('Element'), (object,), {})
-    C2 = type(str('Element'), (object,), {})
+    C1 = type(native_string('Element'), (object,), {})
+    C2 = type(native_string('Element'), (object,), {})
     class R1(Record):
         elems = pair_of(C1)
     class R2(Record):
@@ -236,9 +233,8 @@ def _():
 
 @test("If two pairs use types of the same name, you still can't put one's elems in the other")
 def _():
-    # NB deliberate use of "native strings" in PY2+3
-    C1 = type(str('Element'), (object,), {})
-    C2 = type(str('Element'), (object,), {})
+    C1 = type(native_string('Element'), (object,), {})
+    C2 = type(native_string('Element'), (object,), {})
     class R1(Record):
         elems = pair_of(C1)
     class R2(Record):
@@ -333,9 +329,8 @@ def _():
 
 @test("Two sets can use types of the same name, they won't clash")
 def _():
-    # NB deliberate use of "native strings" in PY2+3
-    C1 = type(str('Element'), (object,), {})
-    C2 = type(str('Element'), (object,), {})
+    C1 = type(native_string('Element'), (object,), {})
+    C2 = type(native_string('Element'), (object,), {})
     class R1(Record):
         elems = set_of(C1)
     class R2(Record):
@@ -348,9 +343,8 @@ def _():
 
 @test("If two sets use types of the same name, you still can't put one's elems in the other")
 def _():
-    # NB deliberate use of "native strings" in PY2+3
-    C1 = type(str('Element'), (object,), {})
-    C2 = type(str('Element'), (object,), {})
+    C1 = type(native_string('Element'), (object,), {})
+    C2 = type(native_string('Element'), (object,), {})
     class R1(Record):
         elems = set_of(C1)
     class R2(Record):
@@ -455,9 +449,8 @@ def _():
 
 @test("Two dicts can use types of the same name, they won't clash")
 def _():
-    # NB deliberate use of "native strings" in PY2+3
-    C1 = type(str('Element'), (object,), {})
-    C2 = type(str('Element'), (object,), {})
+    C1 = type(native_string('Element'), (object,), {})
+    C2 = type(native_string('Element'), (object,), {})
     class R1(Record):
         elems = dict_of(int,C1)
     class R2(Record):
@@ -470,9 +463,8 @@ def _():
 
 @test("If two dicts use types of the same name, you still can't put one's elems in the other")
 def _():
-    # NB deliberate use of "native strings" in PY2+3
-    C1 = type(str('Element'), (object,), {})
-    C2 = type(str('Element'), (object,), {})
+    C1 = type(native_string('Element'), (object,), {})
+    C2 = type(native_string('Element'), (object,), {})
     class R1(Record):
         elems = dict_of(int,C1)
     class R2(Record):

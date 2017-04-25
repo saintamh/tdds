@@ -269,13 +269,13 @@ def _():
 #----------------------------------------------------------------------------------------------------------------------------------
 # overriding standard methods
 
-@test("classes have a default __str__")
+@test("classes have a default text representation")
 def _():
     class Point(Record):
         x = int
         y = int
     assert_eq(
-        str(Point(5,6)),
+        text_type(Point(5,6)),
         'Point(x=5, y=6)',
     )
 
@@ -287,7 +287,7 @@ def _():
         def __str__(self):
             return '[%d,%d]' % (self.x, self.y)
     assert_eq(
-        str(Point(5,6)),
+        text_type(Point(5,6)),
         '[5,6]',
     )
 

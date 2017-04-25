@@ -24,7 +24,7 @@ from .basics import Field, FieldError, FieldValueError, FieldTypeError, FieldNot
 from .pods import PodsMethodsForRecordTemplate
 from .unpickler import RecordRegistryMetaClass, RecordUnpickler
 from .utils.codegen import ExternalCodeInvocation, ExternalValue, Joiner, SourceCodeTemplate, compile_expr
-from .utils.compatibility import PY2, integer_types, string_types
+from .utils.compatibility import PY2, integer_types, native_string, string_types
 from .utils.immutabledict import ImmutableDict
 
 #----------------------------------------------------------------------------------------------------------------------------------
@@ -53,7 +53,7 @@ class RecordMetaClass(RecordRegistryMetaClass):
         return cls
 
 Record = RecordMetaClass(
-    str('Record'), # NB specifically want "native string" on PY2+3, even with unicode_literals enabled
+    native_string('Record'),
     (object,),
     {}
 )

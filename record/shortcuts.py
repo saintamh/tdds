@@ -19,7 +19,7 @@ import re
 # this module
 from .record import Field, compile_field_def
 from .utils.codegen import SourceCodeTemplate
-from .utils.compatibility import text_type
+from .utils.compatibility import bytes_type, native_string, text_type
 
 #----------------------------------------------------------------------------------------------------------------------------------
 
@@ -29,7 +29,7 @@ def value_check(name, check):
         if fdef.check is not None:
             raise Exception("I haven't figured out how to chain value checks yet")
         return fdef.derive(check=check)
-    func.__name__ = str(name) # NB "native string" in PY2+3
+    func.__name__ = native_string(name)
     return func
 
 nonempty = value_check('nonempty', 'len({}) > 0')
@@ -47,7 +47,7 @@ def regex_check(name, char_def):
             check = "$re.search(r'^[%s]%s$',{})" % (char_def, multiplier),
         )
         return fdef
-    func.__name__ = str(name) # NB "native string" in PY2+3
+    func.__name__ = native_string(name)
     return func
 
 uppercase_letters = regex_check('uppercase_letters', 'A-Z')
@@ -61,9 +61,9 @@ lowercase_hex     = regex_check('lowercase_hex', '0-9a-f')
 digits_str        = regex_check('digits_str', '0-9')
 
 absolute_http_url = Field(
-    type = str,
+    type = bytes_type,
     check = SourceCodeTemplate(
-        "$re.search(r'^https?://.{{1,2000}}$',{})",
+        "$re.search(r'^https?://.{{1,2000}}$', {})",
         re = re,
     ),
 )

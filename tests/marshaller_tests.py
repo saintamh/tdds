@@ -19,7 +19,7 @@ from datetime import datetime
 
 # record
 from record.marshaller import Marshaller, lookup_marshaller_for_type, temporary_marshaller_registration
-from record.utils.compatibility import bytes_type, integer_types
+from record.utils.compatibility import bytes_type, integer_types, text_type
 
 # this module
 from .plumbing import *
@@ -73,7 +73,7 @@ def _(value, marshalled_bytes):
 def _():
     Point = namedtuple('Point', ('x','y'))
     assert_none(lookup_marshaller_for_type(Point))
-    bogus_marshaller = Marshaller(str, lambda v: None)
+    bogus_marshaller = Marshaller(lambda value: text_type(value).encode('UTF-8'), lambda v: None)
     with temporary_marshaller_registration(Point,bogus_marshaller):
         assert_is(bogus_marshaller, lookup_marshaller_for_type(Point))
     assert_none(lookup_marshaller_for_type(Point))

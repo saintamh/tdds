@@ -47,7 +47,7 @@ from functools import wraps
 from .basics import RecursiveType
 from .marshaller import lookup_marshalling_code_for_type, lookup_unmarshalling_code_for_type, wrap_in_null_check
 from .utils.codegen import ExternalCodeInvocation, ExternalValue, Joiner, SourceCodeTemplate
-from .utils.compatibility import integer_types, string_types
+from .utils.compatibility import integer_types, string_types, text_type
 
 #----------------------------------------------------------------------------------------------------------------------------------
 
@@ -75,7 +75,7 @@ def serialization_exceptions_at_runtime(func):
                 return SourceCodeTemplate(
                     'raise $CannotBeSerializedToPods($mesg)',
                     CannotBeSerializedToPods = CannotBeSerializedToPods,
-                    mesg = ExternalValue(str(ex)),
+                    mesg = ExternalValue(text_type(ex)),
                 )
             else:
                 raise
