@@ -57,7 +57,7 @@ def _():
     class Person(Record):
         name = Name
         age = int
-    p = Person(name=Name(first=u"Robert",last=u"Smith"), age=100)
+    p = Person(name=Name(first="Robert",last="Smith"), age=100)
     d = p.record_pods()
     assert_eq(d, {
         "name": {
@@ -79,8 +79,8 @@ def _other_record():
     (cls_name, cls, val, nullable_or_not)
     for cls_name,cls,non_null_val in (
         ('bytes', bytes_type, b'\xE2\x9C\x93\'\\\"\xE2\x9C\x93'),
-        ('text', text_type, u'Herv\u00E9\'\\\"Herv\u00E9'),
-        ('ascii-only text', text_type, u'ASCII'),
+        ('text', text_type, 'Herv\u00E9\'\\\"Herv\u00E9'),
+        ('ascii-only text', text_type, 'ASCII'),
     ) + tuple(
         (t.__name__, t, t(42))
         for t in integer_types
@@ -149,7 +149,7 @@ def _():
     class Person(Record):
         name = Name
         age = int
-    p = Person(name=Name(first=u"Robert",last=u"Smith"), age=100)
+    p = Person(name=Name(first="Robert",last="Smith"), age=100)
     d = p.record_pods()
     assert_eq(d, {
         "name": ["Robert", "Smith"],

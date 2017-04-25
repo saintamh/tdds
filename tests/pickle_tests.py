@@ -35,7 +35,7 @@ for protocol in (0,1,2,-1):
         class R(Record):
             id = int
             label = text_type
-        r1 = R(id=1, label=u"uno")
+        r1 = R(id=1, label="uno")
         r2 = pickle.loads(pickle.dumps(r1, protocol=protocol))
         assert_eq(r2, r1)
 

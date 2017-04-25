@@ -33,7 +33,7 @@ ALL_TESTS,test = build_test_registry()
 
 @foreach((
     (b'abc \x01\x02\x03\x04', b'abc \x01\x02\x03\x04'),
-    (u'R\u00E9sum\u00E9', b'R\xc3\xa9sum\xc3\xa9'),
+    ('R\u00E9sum\u00E9', b'R\xc3\xa9sum\xc3\xa9'),
 ) + tuple(
     (t(42), repr(t(42)).encode('UTF-8'))
     for t in integer_types

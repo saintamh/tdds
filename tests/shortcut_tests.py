@@ -175,7 +175,7 @@ def _():
 
 @foreach((
     (bytes_type, "byte strings", b''),
-    (text_type, 'text strings', u''),
+    (text_type, 'text strings', ''),
     (seq_of(int), 'seqeuence fields', ()),
     (set_of(int), 'set fields', ()),
     (dict_of(int,int), 'dict fields', {}),

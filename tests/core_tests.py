@@ -321,15 +321,15 @@ def _():
         last = text_type
     assert_eq(
         sorted((
-            Name(first=u"Jesus", middle=u"H.", last=u"Christ"),
-            Name(first=u"Jesus", middle=u"de", last=u"Nazareth"),
-            Name(first=u"King", middle=u"of", last=u"Jews"),
+            Name(first="Jesus", middle="H.", last="Christ"),
+            Name(first="Jesus", middle="de", last="Nazareth"),
+            Name(first="King", middle="of", last="Jews"),
         )),
         [
             # 'last' comes before 'middle'
-            Name(first=u"Jesus", middle=u"H.", last=u"Christ"),
-            Name(first=u"Jesus", middle=u"de", last=u"Nazareth"),
-            Name(first=u"King", middle=u"of", last=u"Jews"),
+            Name(first="Jesus", middle="H.", last="Christ"),
+            Name(first="Jesus", middle="de", last="Nazareth"),
+            Name(first="King", middle="of", last="Jews"),
         ]
     )
 
@@ -343,14 +343,14 @@ def _():
             return (self.last, self.first, self.middle)
     assert_eq(
         sorted((
-            Name(first=u"Jesus", middle=u"H.", last=u"Christ"),
-            Name(first=u"Jesus", middle=u"de", last=u"Nazareth"),
-            Name(first=u"King", middle=u"of", last=u"Jews"),
+            Name(first="Jesus", middle="H.", last="Christ"),
+            Name(first="Jesus", middle="de", last="Nazareth"),
+            Name(first="King", middle="of", last="Jews"),
         )),
         [
-            Name(first=u"Jesus", middle=u"H.", last=u"Christ"),
-            Name(first=u"King", middle=u"of", last=u"Jews"),
-            Name(first=u"Jesus", middle=u"de", last=u"Nazareth"),
+            Name(first="Jesus", middle="H.", last="Christ"),
+            Name(first="King", middle="of", last="Jews"),
+            Name(first="Jesus", middle="de", last="Nazareth"),
         ]
     )
 

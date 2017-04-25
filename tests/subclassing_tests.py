@@ -46,7 +46,7 @@ def _():
     class Child(Parent):
         def greet(self):
             return 'Hello, {}'.format(self.name)
-    assert_eq(Child(u'Pearl').greet(), u'Hello, Pearl')
+    assert_eq(Child('Pearl').greet(), 'Hello, Pearl')
 
 @test("non-record subclasses just need to pass up constructor kwards")
 def _():
@@ -59,8 +59,8 @@ def _():
                 name = name,
                 animate = True,
             )
-    pearl = Child(u'Pearl')
-    assert_eq(pearl.name, u'Pearl')
+    pearl = Child('Pearl')
+    assert_eq(pearl.name, 'Pearl')
     assert_is(pearl.animate, True)
 
 @test("non-record subclasses are still immutable, though")
@@ -76,7 +76,7 @@ def _():
                 animate = True,
             )
     with expected_error(RecordsAreImmutable):
-        Child(u'Pearl', 'red')
+        Child('Pearl', 'red')
 
 #----------------------------------------------------------------------------------------------------------------------------------
 
