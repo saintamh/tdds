@@ -256,7 +256,7 @@ class RecordClassTemplate(SourceCodeTemplate):
         '''
         yield '__hash__', '''
             def __hash__(self):
-                return $hash_expr
+                return hash(self.__key__())
         '''
         yield '__reduce__', '''
             def __reduce__(self):
@@ -285,13 +285,6 @@ class RecordClassTemplate(SourceCodeTemplate):
     @field_joiner_property(', ', include_super=True)
     def repr_str(self, findex, fname, fdef):
         return '{}=%r'.format(fname)
-
-    @field_joiner_property(' + ', include_super=True)
-    def hash_expr(self, findex, fname, fdef):
-        return 'hash(self.{fname})*{mul}'.format(
-            fname = fname,
-            mul = 7**findex,
-        )
 
 #----------------------------------------------------------------------------------------------------------------------------------
 

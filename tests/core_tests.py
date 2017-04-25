@@ -382,4 +382,18 @@ def _():
             hash_impl(x, y),
         )
 
+@test("the default __hash__ uses __key__")
+def _():
+    class Point(Record):
+        x = int
+        y = int
+        def __key__(self):
+            return (self.x,)
+    for _ in range(1000):
+        x = randrange(1000)
+        assert_eq(
+            hash(Point(x,randrange(1000))),
+            hash(Point(x,randrange(1000))),
+        )
+
 #----------------------------------------------------------------------------------------------------------------------------------
