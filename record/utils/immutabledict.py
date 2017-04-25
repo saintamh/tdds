@@ -2,7 +2,6 @@
 # -*- coding: utf-8 -*-
 
 """
-$Id: coll.py 3161 2017-03-03 20:42:29Z herve $
 Herve Saint-Amand
 Edinburgh
 """
