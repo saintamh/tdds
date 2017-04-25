@@ -13,8 +13,10 @@ Edinburgh
 # standards
 from random import randrange
 
+# record
+from record import *
+
 # this module
-from .. import *
 from .plumbing import *
 
 #----------------------------------------------------------------------------------------------------------------------------------

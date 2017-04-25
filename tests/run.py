@@ -19,7 +19,7 @@ from sys import argv
 from . import (
     check_tests,
     coercion_tests,
-    coll_tests,
+    collection_tests,
     core_tests,
     pickle_tests,
     pods_tests,
@@ -34,7 +34,7 @@ from . import (
 ALL_TEST_MODS = (
     check_tests,
     coercion_tests,
-    coll_tests,
+    collection_tests,
     core_tests,
     pods_tests,
     marshaller_tests,

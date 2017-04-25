@@ -3,7 +3,7 @@
 
 """
 $Id$
-NCR Corporation
+Herve Saint-Amand
 Edinburgh
 """
 
@@ -35,7 +35,13 @@ from .marshaller import \
     CannotMarshalType, Marshaller, \
     register_marshaller, unregister_marshaller, temporary_marshaller_registration
 
-from .utils import \
+from .utils.builder import \
     builder
+
+from .utils.codegen import \
+    SourceCodeTemplate
+
+from .utils.immutabledict import \
+    ImmutableDict
 
 #----------------------------------------------------------------------------------------------------------------------------------

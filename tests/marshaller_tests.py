@@ -14,9 +14,11 @@ Edinburgh
 from collections import namedtuple
 from datetime import datetime
 
+# record
+from record.marshaller import Marshaller, lookup_marshaller_for_type, temporary_marshaller_registration
+
 # this module
 from .plumbing import *
-from ..marshaller import Marshaller, lookup_marshaller_for_type, temporary_marshaller_registration
 
 #----------------------------------------------------------------------------------------------------------------------------------
 # init

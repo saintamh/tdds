@@ -15,8 +15,10 @@ from collections import namedtuple
 from datetime import datetime, timedelta
 from decimal import Decimal
 
+# record
+from record import *
+
 # this module
-from .. import *
 from .plumbing import *
 
 #----------------------------------------------------------------------------------------------------------------------------------
