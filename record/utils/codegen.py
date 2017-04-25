@@ -12,9 +12,24 @@ A toolset for building and evaluating strings of Python code.
 #----------------------------------------------------------------------------------------------------------------------------------
 # includes
 
+# 2+3 compat
+from __future__ import absolute_import, division, print_function, unicode_literals
+
 # standards
-import __builtin__ as python_builtins
+from itertools import count
+import logging
 import re
+from sys import version_info
+
+PY2 = (version_info[0] == 2)
+if PY2:
+    import __builtin__ as python_builtins
+    text_type = unicode
+    string_types = (str, unicode)
+else:
+    import builtins as python_builtins
+    text_type = str
+    string_types = (bytes, str)
 
 #----------------------------------------------------------------------------------------------------------------------------------
 
@@ -29,8 +44,8 @@ class SourceCodeGenerator(object):
     def code_string(self, ns, value):
         if value is None:
             subst_str = ''
-        elif isinstance(value, str):
-            # 2015-11-11 - assuming no unicode for now, see confusion in the comment above
+        elif isinstance(value, string_types):
+            # 2015-11-11 - see confusion in the comment above
             subst_str = value
         else:
             if not isinstance(value, SourceCodeGenerator):
@@ -67,7 +82,7 @@ class SourceCodeTemplate(SourceCodeGenerator):
     def __init__(self, template=None, **vars):
         if template is not None:
             self.template = template
-        for k,v in vars.iteritems():
+        for k,v in vars.items():
             setattr(self, k, v)
 
     def lookup(self, var_name, ns):
@@ -94,8 +109,12 @@ class SourceCodeTemplate(SourceCodeGenerator):
             else:
                 return '$' + var_name
         return re.sub(
-            r'(?<![^\n])(\ *)\$(\w+)\ *($|\n)',
-            lambda m: whole_line_subst(*m.groups()),
+            r'(?<![^\n])(\ *)\$(?:(\w+)|\{(\w+)\})\ *($|\n)',
+            lambda m: whole_line_subst(
+                m.group(1),
+                m.group(2) or m.group(3),
+                m.group(4),
+            ),
             src
         )
 
@@ -109,8 +128,8 @@ class SourceCodeTemplate(SourceCodeGenerator):
             else:
                 return '$' + var_name
         return re.sub(
-            r'\$(\w+)',
-            lambda m: simple_subst(*m.groups()),
+            r'\$(?:(\w+)|\{(\w+)\})',
+            lambda m: simple_subst(m.group(1) or m.group(2)),
             src,
         )
 
@@ -145,14 +164,14 @@ class ClassDefEvaluationNamespace(object):
             if not re.search(r'^(?!\d)\w+$', basename):
                 basename = 'obj'
             basename = 'intern___' + basename
-            for i in xrange(1000000):
+            for i in count():
                 name = '{:s}_{:d}'.format(basename, i)
                 if name not in self.value_by_name:
                     self.name_by_value_id[value_id] = name
                     self.value_by_name[name] = value
                     break
-            else:
-                raise Exception('wat')
+                if i > 1000000:
+                    raise Exception('wat')
         return name
 
     def as_dict(self):
@@ -161,16 +180,20 @@ class ClassDefEvaluationNamespace(object):
 #----------------------------------------------------------------------------------------------------------------------------------
 # compilation functions
 
-def compile(template, verbose=False):
+def compile_template(template, verbose=False):
     ns = ClassDefEvaluationNamespace()
     src_code_str = template.expand(ns)
     if verbose:
-        print src_code_str + '\n'
+        logging.debug("\n" + src_code_str)
     ns_dict = ns.as_dict()
     try:
-        exec src_code_str in ns_dict
+        eval(
+            compile(src_code_str, '<string>', 'exec'),
+            ns_dict,
+            ns_dict,
+        )
     except SyntaxError:
-        print src_code_str
+        logging.error(src_code_str)
         raise
     return ns_dict
 
@@ -180,7 +203,7 @@ def compile_expr(template, expr_name=None, verbose=False):
         if m is None:
             raise ValueError("expr_name not specified and not found in template")
         expr_name = m.group(1)
-    ns_dict = compile(template, verbose=verbose)
+    ns_dict = compile_template(template, verbose=verbose)
     return ns_dict[expr_name]
 
 #----------------------------------------------------------------------------------------------------------------------------------
@@ -202,7 +225,7 @@ def shift_left(src):
         elif re.search(r'^\s*$', line):
             parts.append(line)
         else:
-            print src
+            logging.error(src)
             raise ValueError("code block must start with top-level indent (%r)" % line)
     return '\n'.join(parts)
 
@@ -236,7 +259,7 @@ class ExternalCodeInvocation(SourceCodeGenerator):
         code_ref = self.code_ref
         if isinstance(code_ref, SourceCodeGenerator):
             code_ref = code_ref.expand(ns)
-        if isinstance(code_ref, basestring):
+        if isinstance(code_ref, string_types):
             if not re.search(
                     # Avert your eyes. This checks that there is one and only one '{}' in the string. Escaped {{ and }} are allowed
                     r'^(?:[^\{\}]|\{\{|\}\})*\{\}(?:[^\{\}]|\{\{|\}\})*$',
@@ -264,7 +287,7 @@ class Joiner(SourceCodeGenerator):
         return '{prefix}{body}{suffix}'.format(
             prefix = self.prefix,
             suffix = self.suffix,
-            body = self.sep.join(self.code_string(ns,v) for v in self.values),
+            body = self.sep.join(shift_left(self.code_string(ns,v)) for v in self.values),
         )
 
 #----------------------------------------------------------------------------------------------------------------------------------

@@ -27,7 +27,7 @@ JSON specifically, the PODS should be immediately serializable to strings using 
 # (say, a URL) that contains a byte with a high first bit, and suddenly your JSON serialization fails. You can avoid that problem
 # by asking the `json' module to use "\uXXXX" escapes for those values:
 
-#     >>> print json.dumps({"x": "\xFF"}, encoding='raw_unicode_escape')
+#     >>> print(json.dumps({"x": "\xFF"}, encoding='raw_unicode_escape'))
 #     {"x": "\u00ff"}
 
 # That's wrong, in a sense: "\u00FF" doesn't stand for "a byte with all 1's", it stands for "latin small letter y with diaeresis".
@@ -37,6 +37,9 @@ JSON specifically, the PODS should be immediately serializable to strings using 
 #----------------------------------------------------------------------------------------------------------------------------------
 # includes
 
+# 2+3 compat
+from __future__ import absolute_import, division, print_function, unicode_literals
+
 # standards
 from functools import wraps
 
@@ -44,14 +47,15 @@ from functools import wraps
 from .basics import RecursiveType
 from .marshaller import lookup_marshalling_code_for_type, lookup_unmarshalling_code_for_type, wrap_in_null_check
 from .utils.codegen import ExternalCodeInvocation, ExternalValue, Joiner, SourceCodeTemplate
+from .utils.compatibility import integer_types, string_types
 
 #----------------------------------------------------------------------------------------------------------------------------------
 
-PODS_TYPES = frozenset((
-    str, unicode, # NB see long comment above about str's
-    int, long, float,
-    bool,
-))
+PODS_TYPES = frozenset(
+    string_types
+    + integer_types
+    + (float, bool)
+)
 
 class CannotBeSerializedToPods(TypeError):
     pass
@@ -172,7 +176,7 @@ class PodsMethodsForRecordTemplate(PodsMethodsTemplate):
                     needs_null_check = False,
                 ),
             )
-            for fname,fdef in sorted(self.field_defs.iteritems())
+            for fname,fdef in sorted(self.field_defs.items())
         ))
 
     @property
@@ -187,7 +191,7 @@ class PodsMethodsForRecordTemplate(PodsMethodsTemplate):
                     fdef,
                 ),
             )
-            for fname,fdef in self.field_defs.iteritems()
+            for fname,fdef in self.field_defs.items()
         ))
 
 #----------------------------------------------------------------------------------------------------------------------------------
@@ -225,7 +229,7 @@ class PodsMethodsForDictTemplate(PodsMethodsTemplate):
     @serialization_exceptions_at_runtime
     def record_pods_impl(self):
         return SourceCodeTemplate(
-            'return { $code_for_key:$code_for_val for key,val in self.iteritems() }',
+            'return { $code_for_key:$code_for_val for key,val in self.items() }',
             code_for_key = self.value_to_pods('key', self.key_fdef),
             code_for_val = self.value_to_pods('val', self.val_fdef),
         )
@@ -234,7 +238,7 @@ class PodsMethodsForDictTemplate(PodsMethodsTemplate):
     @serialization_exceptions_at_runtime
     def from_pods_impl(self):
         return SourceCodeTemplate(
-            'return { $code_for_key:$code_for_val for key,val in pods.iteritems() }',
+            'return { $code_for_key:$code_for_val for key,val in pods.items() }',
             code_for_key = self.pods_to_value('key', self.key_fdef),
             code_for_val = self.pods_to_value('val', self.val_fdef),
         )

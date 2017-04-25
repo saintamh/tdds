@@ -10,6 +10,9 @@ Edinburgh
 #----------------------------------------------------------------------------------------------------------------------------------
 # includes
 
+# 2+3 compat
+from __future__ import absolute_import, division, print_function, unicode_literals
+
 # standards
 from collections import namedtuple
 from datetime import datetime, timedelta
@@ -17,6 +20,7 @@ from decimal import Decimal
 
 # record
 from record import *
+from record.utils.compatibility import bytes_type, integer_types, text_type
 
 # this module
 from .plumbing import *
@@ -32,11 +36,11 @@ ALL_TESTS,test = build_test_registry()
 @test("scalar fields are directly rendered to a PODS")
 def _():
     class R(Record):
-        id = str
-        label = unicode
+        id = text_type
+        label = text_type
         age = int
         salary = float
-    r = R(id='robert', label=u"Robert Smith", age=42, salary=12.70)
+    r = R(id='robert', label="Robert Smith", age=42, salary=12.70)
     d = r.record_pods()
     assert_eq(d, {
         "id": "robert",
@@ -48,8 +52,8 @@ def _():
 @test("nested records are rendered to a PODS as nested objects")
 def _():
     class Name(Record):
-        first = unicode
-        last = unicode
+        first = text_type
+        last = text_type
     class Person(Record):
         name = Name
         age = int
@@ -74,19 +78,22 @@ def _other_record():
 @foreach(
     (cls_name, cls, val, nullable_or_not)
     for cls_name,cls,non_null_val in (
-        ('str', str, '\xE2\x9C\x93\'\\\"\xE2\x9C\x93'),
-        ('unicode', unicode, u'Herv\u00E9\'\\\"Herv\u00E9'),
-        ('ascii-only unicode', unicode, u'ASCII'),
-        ('int', int, 42),
-        ('long', long, 42L),
+        ('bytes', bytes_type, b'\xE2\x9C\x93\'\\\"\xE2\x9C\x93'),
+        ('text', text_type, u'Herv\u00E9\'\\\"Herv\u00E9'),
+        ('ascii-only text', text_type, u'ASCII'),
+    ) + tuple(
+        (t.__name__, t, t(42))
+        for t in integer_types
+    ) + (
         ('float', float, 0.3),
+        ('bool', bool, True),
         ('sequence (nonempty)', seq_of(int), (1,2,3)),
         ('sequence (empty)', seq_of(int), []),
         ('set (nonempty)', set_of(int), (1,2,3)),
         ('set (empty)', set_of(int), []),
-        ('dict (nonempty)', dict_of(str,int), {'one':1,'two':2}),
-        ('dict (empty)', dict_of(str,int), []),
-        ('datetime', datetime, datetime(2016, 4, 15, 10, 01, 59)),
+        ('dict (nonempty)', dict_of(text_type,int), {'one':1,'two':2}),
+        ('dict (empty)', dict_of(text_type,int), []),
+        ('datetime', datetime, datetime(2016, 4, 15, 10, 1, 59)),
         ('timedelta', timedelta, timedelta(days=1, hours=2, minutes=3, seconds=4)),
         (lambda R2: ('other record', R2, R2(2)))(_other_record()),
     )
@@ -109,19 +116,14 @@ def _(cls_name, cls, val, nullable_or_not):
         r1 = R(field=val)
         d = r1.record_pods()
         assert_isinstance(d, dict)
-        try:
-            r2 = R.from_pods(d)
-            assert_eq(r1.field, r2.field)
-        except Exception:
-            print
-            print "PODS: %r" % d
-            raise
+        r2 = R.from_pods(d)
+        assert_eq(r1.field, r2.field)
 
 # @test("2016-04-15 - weird bug with serializing null values?")
 # def _():
 #     Item = record (
 #         'Item',
-#         one = nullable(unicode),
+#         one = nullable(text_type),
 #         two = seq_of(int),
 #     )
 #     Collection = record ('Collection', items=seq_of(Item))
@@ -175,8 +177,10 @@ def _():
         @classmethod
         def from_pods(cls, data):
             return cls(*data.split('/'))
-        def __cmp__(self, other):
-            return cmp(self.last, other.last) and cmp(self.first, other.first)
+        def __eq__(self, other):
+            return self.first == other.first and self.last == other.last
+        def __repr__(self):
+            return 'Name(%r, %r)' % (self.first, self.last)
     class R(Record):
         name = Name
     assert_eq(
@@ -233,7 +237,7 @@ def _():
 @test("dict_of fields get serialized to plain dicts")
 def _():
     class R(Record):
-        elems = dict_of(str,int)
+        elems = dict_of(text_type,int)
     r = R(elems={'uno':1,'zwei':2})
     assert_eq(r.record_pods(), {
         "elems": {'uno':1,'zwei':2},
@@ -242,7 +246,7 @@ def _():
 @test("an empty dict gets serialized to '{}'")
 def _():
     class R(Record):
-        v = dict_of(str,str)
+        v = dict_of(text_type,text_type)
     assert_eq(R({}).record_pods(), {
         'v': {},
     })
@@ -291,10 +295,10 @@ def _():
 # built-in marshallers
 
 @foreach((
-    (datetime(2009,10,28,8,53,2), "2009-10-28T08:53:02"),
-    (Decimal('10.3'), "10.3"),
+    (datetime(2009,10,28,8,53,2), b"2009-10-28T08:53:02"),
+    (Decimal('10.3'), b"10.3"),
 ))
-def _(obj, marshalled_str):
+def _(obj, marshalled_bytes):
 
     @test("{} objects automatically get marshalled and unmarshalled as expected".format(obj.__class__.__name__))
     def _():
@@ -302,7 +306,7 @@ def _(obj, marshalled_str):
             fobj = obj.__class__
         r1 = R(obj)
         d = r1.record_pods()
-        assert_eq(d, {"fobj": marshalled_str})
+        assert_eq(d, {"fobj": marshalled_bytes})
         assert_eq(r1, R.from_pods(d))
 
 #----------------------------------------------------------------------------------------------------------------------------------

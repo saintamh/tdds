@@ -10,6 +10,9 @@ Edinburgh
 #----------------------------------------------------------------------------------------------------------------------------------
 # includes
 
+# 2+3 compat
+from __future__ import absolute_import, division, print_function, unicode_literals
+
 # record
 from .basics import Field, FieldValueError, compile_field_def
 from .pods import PodsMethodsForSeqTemplate, PodsMethodsForDictTemplate
@@ -25,24 +28,23 @@ from .utils.immutabledict import ImmutableDict
 class CollectionTypeCodeTemplate(SourceCodeTemplate):
 
     template = '''
-        class $cls_name ($superclass):
-            __metaclass__ = $RecordRegistryMetaClass
+        class $cls_name($superclass, $RecordRegistryMetaClass(str('Registry'), (object,), {})):
 
-            def $constructor (cls_or_self, iter_elems):
-                return $superclass.$constructor (cls_or_self, $cls_name.check_elems(iter_elems))
+            def $constructor(cls_or_self, iter_elems):
+                return $superclass.$constructor(cls_or_self, $cls_name.check_elems(iter_elems))
 
             $cls_fields
 
             @staticmethod
-            def check_elems (iter_elems):
+            def check_elems(iter_elems):
                 $check_elems_body
 
             $pods_methods
 
             $core_methods
 
-            def __reduce__ (self):
-                return ($RecordUnpickler("$cls_name"), ($superclass(self),))
+            def __reduce__(self):
+                return($RecordUnpickler("$cls_name"), ($superclass(self),))
     '''
 
     RecordRegistryMetaClass = RecordRegistryMetaClass
@@ -86,19 +88,19 @@ class PairCollCodeTemplate(SequenceCollCodeTemplate):
         num_elems = 0
         for i,elem in enumerate(iter_elems):
             if i > 1:
-                raise $FieldValueError ("A pair cannot have more than two elements")
+                raise $FieldValueError("A pair cannot have more than two elements")
             num_elems = i+1
             $elem_check_impl
             yield elem
         if num_elems != 2:
-            raise $FieldValueError ("A pair must have two elements, not %d" % num_elems)        
+            raise $FieldValueError("A pair must have two elements, not %d" % num_elems)        
     '''
 
 class SetCollCodeTemplate(SequenceCollCodeTemplate):
     superclass = frozenset
     cls_name_suffix = 'Set'
     core_methods = '''
-        def __cmp__ (self, other):
+        def __cmp__(self, other):
             return cmp(sorted(self), sorted(other))
     '''
 
@@ -124,7 +126,7 @@ class DictCollCodeTemplate(CollectionTypeCodeTemplate):
         )
 
     check_elems_body = '''
-        for key,val in getattr (iter_elems, "iteritems", iter_elems.__iter__)():
+        for key,val in getattr(iter_elems, "items", iter_elems.__iter__)():
             $key_handling_stmts
             $val_handling_stmts
             yield key,val

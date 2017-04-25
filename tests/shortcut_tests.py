@@ -10,8 +10,15 @@ Edinburgh
 #----------------------------------------------------------------------------------------------------------------------------------
 # includes
 
+# 2+3 compat
+from __future__ import absolute_import, division, print_function, unicode_literals
+
+# standards
+from functools import total_ordering
+
 # record
 from record import *
+from record.utils.compatibility import bytes_type, text_type
 
 # this module
 from .plumbing import *
@@ -140,11 +147,14 @@ def _():
     
 @test("one_of compares values based on == rather than `is'")
 def _():
+    @total_ordering
     class C(object):
         def __init__(self, value):
             self.value = value
-        def __cmp__(self, other):
-            return cmp(self.value[0], other.value[0])
+        def __eq__(self, other):
+            return self.value[0] == other.value[0]
+        def __lt__(self, other):
+            return self.value[0] < other.value[0]
         def __hash__(self):
             return hash(self.value[0])
     c1 = C(['a','bcde'])
@@ -164,8 +174,8 @@ def _():
 # nonempty
 
 @foreach((
-    (str, "str's", ''),
-    (unicode, 'unicode strings', u''),
+    (bytes_type, "byte strings", b''),
+    (text_type, 'text strings', u''),
     (seq_of(int), 'seqeuence fields', ()),
     (set_of(int), 'set fields', ()),
     (dict_of(int,int), 'dict fields', {}),

@@ -10,12 +10,16 @@ Edinburgh
 #----------------------------------------------------------------------------------------------------------------------------------
 # includes
 
+# 2+3 compat
+from __future__ import absolute_import, division, print_function, unicode_literals
+
 # standards
 import re
 
 # this module
 from .record import Field, compile_field_def
 from .utils.codegen import SourceCodeTemplate
+from .utils.compatibility import text_type
 
 #----------------------------------------------------------------------------------------------------------------------------------
 
@@ -25,7 +29,7 @@ def value_check(name, check):
         if fdef.check is not None:
             raise Exception("I haven't figured out how to chain value checks yet")
         return fdef.derive(check=check)
-    func.__name__ = name
+    func.__name__ = str(name) # NB "native string" in PY2+3
     return func
 
 nonempty = value_check('nonempty', 'len({}) > 0')
@@ -39,11 +43,11 @@ def regex_check(name, char_def):
     def func(n=None):
         multiplier = ('{{%d}}' % n) if n is not None else '*'
         fdef = Field(
-            type = str,
+            type = text_type,
             check = "$re.search(r'^[%s]%s$',{})" % (char_def, multiplier),
         )
         return fdef
-    func.__name__ = name
+    func.__name__ = str(name) # NB "native string" in PY2+3
     return func
 
 uppercase_letters = regex_check('uppercase_letters', 'A-Z')

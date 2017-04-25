@@ -10,9 +10,15 @@ Edinburgh
 #----------------------------------------------------------------------------------------------------------------------------------
 # includes
 
+# 2+3 compat
+from __future__ import absolute_import, division, print_function, unicode_literals
+
 # standards
 import re
 from traceback import print_exc
+
+# record
+from record.utils.compatibility import string_types
 
 #----------------------------------------------------------------------------------------------------------------------------------
 
@@ -73,7 +79,7 @@ def assert_none(v):
         raise AssertionError("Expected None, got %r" % (v,))
 
 def assert_matches(regex, text):
-    if isinstance(regex, basestring):
+    if isinstance(regex, string_types):
         regex = re.compile(regex)
     if not regex.search(text):
         raise AssertionError("%r does not match /%s/" % (text, regex.pattern))

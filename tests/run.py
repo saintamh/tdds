@@ -10,6 +10,9 @@ Edinburgh
 #----------------------------------------------------------------------------------------------------------------------------------
 # includes
 
+# 2+3 compat
+from __future__ import absolute_import, division, print_function, unicode_literals
+
 # standards
 from collections import Counter
 import re
@@ -21,9 +24,9 @@ from . import (
     coercion_tests,
     collection_tests,
     core_tests,
+    marshaller_tests,
     pickle_tests,
     pods_tests,
-    marshaller_tests,
     recursive_types_tests,
     shortcut_tests,
     subclassing_tests,
@@ -36,9 +39,9 @@ ALL_TEST_MODS = (
     coercion_tests,
     collection_tests,
     core_tests,
-    pods_tests,
     marshaller_tests,
     pickle_tests,
+    pods_tests,
     recursive_types_tests,
     shortcut_tests,
     subclassing_tests,
@@ -70,19 +73,19 @@ def main(selected_mod_name=None):
     result_fmt = "[{:^4}] {}"
     for test_id,test_func in all_tests:
         tally['total'] += 1
-        print test_id_fmt.format(test_id+' '),
+        print(test_id_fmt.format(test_id+' '), end='')
         try:
             test_func()
-        except Exception, ex:
+        except Exception as ex:
             raise
-            print result_fmt.format('FAIL', '{}: {}'.format(ex.__class__.__name__, ex))
+            print(result_fmt.format('FAIL', '{}: {}'.format(ex.__class__.__name__, ex)))
             tally['failed'] += 1
         else:
-            print result_fmt.format('OK', '')
+            print(result_fmt.format('OK', ''))
             tally['passed'] += 1
-    print
+    print()
     for item in sorted(tally.items()):
-        print "{}: {}".format(*item)
+        print("{}: {}".format(*item))
 
 if __name__ == '__main__':
     main(*argv[1:])

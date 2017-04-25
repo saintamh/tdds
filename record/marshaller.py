@@ -10,6 +10,9 @@ Edinburgh
 #----------------------------------------------------------------------------------------------------------------------------------
 # includes
 
+# 2+3 compat
+from __future__ import absolute_import, division, print_function, unicode_literals
+
 # standards
 from contextlib import contextmanager
 from datetime import date, datetime, timedelta
@@ -17,6 +20,7 @@ from decimal import Decimal
 
 # this module
 from .utils.codegen import ExternalCodeInvocation, ExternalValue, SourceCodeTemplate, compile_expr
+from .utils.compatibility import bytes_type, integer_types, text_type
 
 #----------------------------------------------------------------------------------------------------------------------------------
 # constants, config
@@ -32,11 +36,9 @@ class Marshaller(object):
         # These can be either strings for code with exactly one '{}' in them, or SourceCodeGenerator objects that generate such a
         # string, or callable objects. They'll be made into ExternalCodeInvocation instances for insertion into the generated code.
         # 
-        # `marshal' must return a `str' object, not unicode. That way it can be written to raw streams for serialization. I
-        # considered allowing objects to be marshalled to `unicode' objects as well, because that's what the JSON encoder needs
-        # (because unicode strings are serialized with \uXXXX escapes, rather than as UTF-8 bytes). But that made the code quite
-        # thick and messy, so I dropped that, and the JSON encoder special-cases unicode objects. Any other custom scalar types
-        # will have to marshal to `str'
+        # `marshal' must return bytes, not text. That way it can be written to raw streams for serialization. I considered allowing
+        # objects to be marshalled to text objects as well, because e.g. that's what the JSON encoder needs. But that made the code
+        # quite thick and messy, so I dropped that. Any other custom scalar types will have to marshal to bytes
         # 
         self.marshalling_code = marshalling_code
         self.unmarshalling_code = unmarshalling_code
@@ -57,40 +59,45 @@ class Marshaller(object):
 #----------------------------------------------------------------------------------------------------------------------------------
 # global vars
 
+_repr_to_bytes = lambda value: repr(value).encode('UTF-8')
+
 STANDARD_MARSHALLERS = {
 
-    str: Marshaller('{}', '{}'),
-    unicode: Marshaller(
+    bytes_type: Marshaller('{}', '{}'),
+    text_type: Marshaller(
         '{}.encode("UTF-8")',
         '{}.decode("UTF-8")',
     ),
 
-    int: Marshaller(repr, int),
-    long: Marshaller(repr, long),
-    float: Marshaller(repr, float),
-    bool: Marshaller(repr, bool),
-    Decimal: Marshaller(str, Decimal),
+    # NB integer types handled below
+    float: Marshaller(_repr_to_bytes, float),
+    bool: Marshaller(_repr_to_bytes, bool),
+
+    Decimal: Marshaller(
+        lambda value: text_type(value).encode('UTF-8'),
+        lambda value: Decimal(value.decode('UTF-8')),
+    ),
 
     datetime: Marshaller(
-        '{}.strftime(%r)' % DATETIME_FORMAT,
+        '{}.strftime(%r).encode("UTF-8")' % DATETIME_FORMAT,
         SourceCodeTemplate(
-            '$datetime.strptime ({}, $fmt)',
+            '$datetime.strptime({}.decode("UTF-8"), $fmt)',
             datetime = datetime,
             fmt = ExternalValue(DATETIME_FORMAT),
         ),
     ),
 
     date: Marshaller(
-        '{}.strftime(%r)' % DATE_FORMAT,
+        '{}.strftime(%r).encode("UTF-8")' % DATE_FORMAT,
         SourceCodeTemplate(
-            '$datetime.strptime({}, $fmt).date()',
+            '$datetime.strptime({}.decode("UTF-8"), $fmt).date()',
             datetime = datetime,
             fmt = ExternalValue(DATE_FORMAT),
         ),
     ),
 
     timedelta: Marshaller(
-        'str({}.total_seconds())',
+        'repr({}.total_seconds()).encode("UTF-8")',
         SourceCodeTemplate(
             '$timedelta(seconds=float({}))',
             timedelta = timedelta,
@@ -98,6 +105,11 @@ STANDARD_MARSHALLERS = {
     ),
 
 }
+
+STANDARD_MARSHALLERS.update(
+    (t, Marshaller(_repr_to_bytes, t))
+    for t in integer_types
+)
 
 CUSTOM_MARSHALLERS = {}
 

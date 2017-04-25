@@ -10,8 +10,12 @@ Edinburgh
 #----------------------------------------------------------------------------------------------------------------------------------
 # includes
 
+# 2+3 compat
+from __future__ import absolute_import, division, print_function, unicode_literals
+
 # standards
 from itertools import chain
+import operator
 import re
 
 # this module
@@ -20,15 +24,22 @@ from .basics import Field, FieldError, FieldValueError, FieldTypeError, FieldNot
 from .pods import PodsMethodsForRecordTemplate
 from .unpickler import RecordRegistryMetaClass, RecordUnpickler
 from .utils.codegen import ExternalCodeInvocation, ExternalValue, Joiner, SourceCodeTemplate, compile_expr
+from .utils.compatibility import PY2, integer_types, string_types
 from .utils.immutabledict import ImmutableDict
 
 #----------------------------------------------------------------------------------------------------------------------------------
 # the `Record' class is the main export of this module.
 
+if PY2:
+    builtin_module = '__builtin__'
+else:
+    builtin_module = 'builtins'
+
 class RecordMetaClass(RecordRegistryMetaClass):
     def __new__(mcls, cls_name, bases, attrib):
+        attrib.pop('__qualname__', None)
         module = attrib.pop('__module__', None)
-        is_codegen = (module == '__builtin__')
+        is_codegen = (module == builtin_module)
         if bases == (object,) or is_codegen or Record not in bases:
             return type.__new__(mcls, cls_name, bases, attrib)
         verbose = attrib.pop('_%s__verbose' % cls_name, False)
@@ -37,12 +48,15 @@ class RecordMetaClass(RecordRegistryMetaClass):
         if module is not None:
             setattr(cls, '__module__', module)
         mcls.register(cls_name, cls)
-        for fname,fdef in cls.record_fields.iteritems():
+        for fname,fdef in cls.record_fields.items():
             fdef.set_recursive_type(cls)
         return cls
 
-class Record(object):
-    __metaclass__ = RecordMetaClass
+Record = RecordMetaClass(
+    str('Record'), # NB specifically want "native string" on PY2+3, even with unicode_literals enabled
+    (object,),
+    {}
+)
 
 #----------------------------------------------------------------------------------------------------------------------------------
 
@@ -61,10 +75,10 @@ class Record(object):
 class RecordClassTemplate(SourceCodeTemplate):
 
     template = '''
-        class $cls_name ($superclasses):
+        class $cls_name($superclasses):
             __slots__ = $slots
 
-            def __init__ (self, $init_params):
+            def __init__(self, $init_params):
                 $super_call
                 $field_checks
                 $set_fields
@@ -74,18 +88,18 @@ class RecordClassTemplate(SourceCodeTemplate):
             $staticmethods
             $instancemethods
 
-            def __setattr__ (self, attr, value):
-                raise $RecordsAreImmutable ("$cls_name objects are immutable")
-            def __delattr__ (self, attr):
-                raise $RecordsAreImmutable ("$cls_name objects are immutable")
+            def __setattr__(self, attr, value):
+                raise $RecordsAreImmutable("$cls_name objects are immutable")
+            def __delattr__(self, attr):
+                raise $RecordsAreImmutable("$cls_name objects are immutable")
 
             $pods_methods
 
             record_fields = $record_fields
 
-            def record_derive (self, **kwargs):
-                return self.__class__ (**{
-                    fname: kwargs.get (fname, getattr(self, fname))
+            def record_derive(self, **kwargs):
+                return self.__class__(**{
+                    fname: kwargs.get(fname, getattr(self, fname))
                     for fname in $field_defs_incl_super
                 })
 
@@ -103,14 +117,14 @@ class RecordClassTemplate(SourceCodeTemplate):
         self.prop_defs, self.classmethod_defs, self.staticmethod_defs = (
             {
                 fname: field_defs.pop(fname)
-                for fname,fdef in field_defs.items()
+                for fname,fdef in tuple(field_defs.items())
                 if fdef.__class__ is special_type
             }
             for special_type in (property, classmethod, staticmethod)
         )
         self.instancemethod_defs = {
             fname: field_defs.pop(fname)
-            for fname,fdef in field_defs.items()
+            for fname,fdef in tuple(field_defs.items())
             if callable(fdef)
             and not isinstance(fdef, (type, Field))
         }
@@ -136,17 +150,20 @@ class RecordClassTemplate(SourceCodeTemplate):
                 super_field_defs[fname] = fdef
         return super_field_defs
 
+    def _iter_fields_in_fixed_order(self, include_super=False):
+        return sorted(
+            dict.items(
+                self.field_defs_incl_super if include_super
+                else self.field_defs
+            ),
+            key = lambda item: (item[1].nullable, item[0]),
+        )
+
     def field_joiner_property(sep, prefix='', suffix='', include_super=False):
         return lambda raw_meth: property(
             lambda self: Joiner(sep, prefix, suffix, (
                 raw_meth(self, findex, fname, fdef)
-                for findex,(fname,fdef) in enumerate(sorted(
-                    dict.items(
-                        self.field_defs_incl_super if include_super
-                        else self.field_defs
-                    ),
-                    key = lambda (fname, fdef): (fdef.nullable, fname),
-                ))
+                for findex,(fname,fdef) in enumerate(self._iter_fields_in_fixed_order(include_super))
             ))
         )
 
@@ -189,7 +206,7 @@ class RecordClassTemplate(SourceCodeTemplate):
     @field_joiner_property('\n')
     def set_fields(self, findex, fname, fdef):
         # you can cheat past our fake immutability by using object.__setattr__, but don't tell anyone
-        return 'object.__setattr__ (self, "{0}", {0})'.format(fname)
+        return 'object.__setattr__(self, "{0}", {0})'.format(fname)
 
     @property
     def properties(self):
@@ -227,37 +244,48 @@ class RecordClassTemplate(SourceCodeTemplate):
 
     @property
     def core_methods(self):
-        return ''.join(
+        return Joiner('\n\n', values=(
             code
-            for code in self.iter_core_methods()
-            if re.search(r'def (\w+)', code).group(1) not in self.instancemethod_defs
-        )
+            for name, code in self.iter_core_methods()
+            if name not in self.instancemethod_defs
+        ))
 
     def iter_core_methods(self):
-        yield '''
-            def __repr__ (self):
+        yield '__repr__', '''
+            def __repr__(self):
                 return "$cls_name($repr_str)" % $values_as_tuple
         '''
-        yield '''
-            def __cmp__ (self, other):
-                return $cmp_stmt
-        '''
-        yield '''
-            def __hash__ (self):
+        yield '__hash__', '''
+            def __hash__(self):
                 return $hash_expr
         '''
-        yield '''
-            def __reduce__ (self):
+        yield '__reduce__', '''
+            def __reduce__(self):
                 return ($RecordUnpickler(self.__class__.__name__), $values_as_tuple)
         '''
+        yield '__key__', SourceCodeTemplate(
+            '''
+                def __key__(self):
+                    return ($key)
+            ''',
+            key = Joiner(' ', values=(
+                'self.{},'.format(fname)
+                for fname, _ in self._iter_fields_in_fixed_order(include_super=True)
+            )),
+        )
+        for op in ('eq', 'ne', 'lt', 'le', 'gt', 'ge'):
+            yield '__%s__' % op, SourceCodeTemplate(
+                '''
+                    def __${op}__(self, other):
+                        return $opfunc(self.__key__(), getattr(other, '__key__', tuple)())
+                ''',
+                op = op,
+                opfunc = getattr(operator, op),
+            )
 
     @field_joiner_property(', ', include_super=True)
     def repr_str(self, findex, fname, fdef):
         return '{}=%r'.format(fname)
-
-    @field_joiner_property(' or ', prefix='1 if other is None else (', suffix=')', include_super=True)
-    def cmp_stmt(self, findex, fname, fdef):
-        return 'cmp(self.{0},getattr(other,{0!r},None))'.format(fname)
 
     @field_joiner_property(' + ', include_super=True)
     def hash_expr(self, findex, fname, fdef):
@@ -275,11 +303,11 @@ class FieldHandlingStmtsTemplate(SourceCodeTemplate):
     types (seq_of etc), which also must check the value and type of their elements.
     """
 
-    KNOWN_COERCE_FUNCTIONS_THAT_NEVER_RETURN_NONE = frozenset((
-        int, long, float,
-        str, unicode,
-        bool,
-    ))
+    KNOWN_COERCE_FUNCTIONS_THAT_NEVER_RETURN_NONE = frozenset(
+        string_types
+        + integer_types
+        + (float, bool)
+    )
 
     template = '''
         $default_value
@@ -328,7 +356,7 @@ class FieldHandlingStmtsTemplate(SourceCodeTemplate):
         if not self.fdef.nullable and self.fdef.coerce not in self.KNOWN_COERCE_FUNCTIONS_THAT_NEVER_RETURN_NONE:
             return '''
                 if $var_name is None:
-                    raise $FieldNotNullable ("$expr_descr cannot be None")
+                    raise $FieldNotNullable("$expr_descr cannot be None")
             '''
 
     @property
@@ -348,7 +376,7 @@ class FieldHandlingStmtsTemplate(SourceCodeTemplate):
         if self.fdef.coerce is not self.fdef.type:
             return '''
                 if $not_null_and not $type_check_expr:
-                    raise $FieldTypeError ("$expr_descr should be of type $fdef_type_name, not %s (%r)" % (
+                    raise $FieldTypeError("$expr_descr should be of type $fdef_type_name, not %s (%r)" % (
                         $var_name.__class__.__name__,
                         $var_name,
                     ))
@@ -363,7 +391,7 @@ class FieldHandlingStmtsTemplate(SourceCodeTemplate):
                 '$var_name',
             )
         else:
-            return 'isinstance ($var_name, $fdef_type)'
+            return 'isinstance($var_name, $fdef_type)'
 
     @property
     def not_null_and(self):

@@ -10,8 +10,12 @@ Edinburgh
 #----------------------------------------------------------------------------------------------------------------------------------
 # includes
 
+# 2+3 compat
+from __future__ import absolute_import, division, print_function, unicode_literals
+
 # record
 from record import *
+from record.utils.compatibility import text_type
 
 # this module
 from .plumbing import *
@@ -28,7 +32,7 @@ ALL_TESTS,test = build_test_registry()
 def _():
     class R(Record):
         id = Field(
-            type = str,
+            type = text_type,
             coerce = lambda s: s.upper(),
         )
     r = R('a')
@@ -41,7 +45,7 @@ def _():
             return s.upper()
     class R(Record):
         id = Field(
-            type = str,
+            type = text_type,
             coerce = Upper(),
         )
     r = R('a')
@@ -54,7 +58,7 @@ def _():
 def _():
     class R(Record):
         id = Field(
-            type = str,
+            type = text_type,
             coerce = '{}.upper()',
         )
     r = R('a')
@@ -65,7 +69,7 @@ def _():
     with expected_error(ValueError):
         class R(Record):
             id = Field(
-                type = str,
+                type = text_type,
                 coerce = '%s.upper()',
             )
 
@@ -74,7 +78,7 @@ def _():
     with expected_error(ValueError):
         class R(Record):
             id = Field(
-                type = str,
+                type = text_type,
                 coerce = '{0}.upper()',
             )
 
@@ -83,7 +87,7 @@ def _():
     with expected_error(ValueError):
         class R(Record):
             id = Field(
-                type = str,
+                type = text_type,
                 coerce = '{}.upper({})',
             )
 
@@ -94,7 +98,7 @@ def _():
 def _():
     class R(Record):
         id = Field(
-            type = str,
+            type = text_type,
             coerce = SourceCodeTemplate(
                 '$upper({})',
                 upper = lambda s: s.upper(),
@@ -107,7 +111,7 @@ def _():
     with expected_error(ValueError):
         class R(Record):
             id = Field(
-                type = str,
+                type = text_type,
                 coerce = SourceCodeTemplate(
                     '$upper(%s)',
                     upper = lambda s: s.upper(),
@@ -119,7 +123,7 @@ def _():
     with expected_error(ValueError):
         class R(Record):
             id = Field(
-                type = str,
+                type = text_type,
                 coerce = SourceCodeTemplate(
                     '$upper({0})',
                     upper = lambda s: s.upper(),
@@ -131,7 +135,7 @@ def _():
     with expected_error(ValueError):
         class R(Record):
             id = Field(
-                type = str,
+                type = text_type,
                 coerce = SourceCodeTemplate(
                     '$upper({},{})',
                     upper = lambda s: s.upper(),
@@ -145,8 +149,8 @@ def _():
 def _():
     class R(Record):
         id = Field(
-            type = str,
-            coerce = str,
+            type = text_type,
+            coerce = text_type,
         )
     r = R(None)
     assert_eq(r.id, 'None')
@@ -155,7 +159,7 @@ def _():
 def _():
     class R(Record):
         id = Field(
-            type = str,
+            type = text_type,
             nullable = True,
             default = 'lower',
             coerce = lambda v: v.upper(),
@@ -170,7 +174,7 @@ def _():
 def _():
     class R(Record):
         id = Field(
-            type = str,
+            type = text_type,
             coerce = lambda s: None,
         )
     with expected_error(FieldNotNullable):
@@ -180,7 +184,7 @@ def _():
 def _():
     class R(Record):
         id = Field(
-            type = str,
+            type = text_type,
             coerce = lambda s: None,
             nullable = True,
         )
@@ -191,7 +195,7 @@ def _():
 def _():
     class R(Record):
         id = Field(
-            type = str,
+            type = text_type,
             coerce = lambda v: 10,
         )
     with expected_error(FieldTypeError):
@@ -201,7 +205,7 @@ def _():
 def _():
     class R(Record):
         id = Field(
-            type = str,
+            type = text_type,
             coerce = lambda v: None,
         )
     with expected_error(FieldNotNullable):
@@ -229,7 +233,7 @@ def _():
     with expected_error(TypeError):
         class R(Record):
             id = Field(
-                type = str,
+                type = text_type,
                 coerce = 0,
             )
 

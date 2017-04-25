@@ -10,11 +10,15 @@ Edinburgh
 #----------------------------------------------------------------------------------------------------------------------------------
 # includes
 
+# 2+3 compat
+from __future__ import absolute_import, division, print_function, unicode_literals
+
 # standards
 import re
 
 # record
 from record import *
+from record.utils.compatibility import text_type
 
 # this module
 from .plumbing import *
@@ -34,7 +38,7 @@ def _():
             return s == 'valid'
     class R(Record):
         id = Field(
-            type = str,
+            type = text_type,
             check = Upper(),
         )
     assert_eq(R('valid').id, 'valid')
@@ -48,7 +52,7 @@ def _():
 def _():
     class R(Record):
         id = Field(
-            type = str,
+            type = text_type,
             check = '{} == "valid"',
         )
     assert_eq(R('valid').id, 'valid')
@@ -60,7 +64,7 @@ def _():
     with expected_error(ValueError):
         class R(Record):
             id = Field(
-                type = str,
+                type = text_type,
                 check = 'len(%s) == 3',
             )
 
@@ -69,7 +73,7 @@ def _():
     with expected_error(ValueError):
         class R(Record):
             id = Field(
-                type = str,
+                type = text_type,
                 check = 'len({0}) == 3',
             )
 
@@ -78,7 +82,7 @@ def _():
     with expected_error(ValueError):
         class R(Record):
             id = Field(
-                type = str,
+                type = text_type,
                 check = '{} == {}.upper()',
             )
 
@@ -89,7 +93,7 @@ def _():
 def _():
     class R(Record):
         id = Field(
-            type = str,
+            type = text_type,
             check = SourceCodeTemplate(
                 '$isupper({})',
                 isupper = lambda s: s == s.upper(),
@@ -104,7 +108,7 @@ def _():
     with expected_error(ValueError):
         class R(Record):
             id = Field(
-                type = str,
+                type = text_type,
                 check = SourceCodeTemplate(
                     '$isupper(%s)',
                     isupper = lambda s: s == s.upper(),
@@ -116,7 +120,7 @@ def _():
     with expected_error(ValueError):
         class R(Record):
             id = Field(
-                type = str,
+                type = text_type,
                 check = SourceCodeTemplate(
                     '$isupper({0})',
                     isupper = lambda s: s == s.upper(),
@@ -128,7 +132,7 @@ def _():
     with expected_error(ValueError):
         class R(Record):
             id = Field(
-                type = str,
+                type = text_type,
                 check = SourceCodeTemplate(
                     '$isupper({},{})',
                     isupper = lambda s: s == s.upper(),
@@ -147,7 +151,7 @@ def _():
             raise SpecificError()
     class R(Record):
         id = Field(
-            type = str,
+            type = text_type,
             check = not_none,
         )
     with expected_error(FieldNotNullable):
@@ -162,7 +166,7 @@ def _():
             raise SpecificError()
     class R(Record):
         id = Field(
-            type = str,
+            type = text_type,
             nullable = True,
             check = not_none,
         )
@@ -172,7 +176,7 @@ def _():
 def _():
     class R(Record):
         id = Field(
-            type = str,
+            type = text_type,
             nullable = True,
             default = 'abra',
             check = lambda s: value == 'cadabra',
@@ -185,7 +189,7 @@ def _():
 def _():
     class R(Record):
         id = Field(
-            type = str,
+            type = text_type,
             check = lambda s: s == 'valid',
         )
     with expected_error(FieldValueError):
@@ -195,7 +199,7 @@ def _():
 def _():
     class R(Record):
         id = Field(
-            type = str,
+            type = text_type,
             check = lambda s: s == 'valid',
         )
     r = R('valid')
@@ -204,7 +208,7 @@ def _():
 def _():
     class R(Record):
         id = Field(
-            type = str,
+            type = text_type,
             check = re.compile(r'brac').search,
         )
     assert_eq(R('abracadabra').id, 'abracadabra')
@@ -213,7 +217,7 @@ def _():
 def _():
     class R(Record):
         id = Field(
-            type = str,
+            type = text_type,
             check = re.compile(r'brac').search,
         )
     with expected_error(FieldValueError):
@@ -225,7 +229,7 @@ def _():
         raise BufferError('boom')
     class R(Record):
         id = Field(
-            type = str,
+            type = text_type,
             check = boom,
         )
     with expected_error(BufferError):
@@ -235,7 +239,7 @@ def _():
 def _():
     class R(Record):
         id = Field(
-            type = str,
+            type = text_type,
             coerce = lambda s: s.upper(),
             check = lambda s: s == s.upper(),
         )
@@ -246,7 +250,7 @@ def _():
 def _():
     class R(Record):
         id = Field(
-            type = str,
+            type = text_type,
             coerce = lambda s: s.lower(),
             check = lambda s: s == s.upper(),
         )
@@ -287,7 +291,7 @@ def _():
     with expected_error(TypeError):
         class R(Record):
             id = Field(
-                type = str,
+                type = text_type,
                 check = 0,
             )
 

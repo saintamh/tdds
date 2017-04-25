@@ -8,6 +8,12 @@ Edinburgh
 """
 
 #----------------------------------------------------------------------------------------------------------------------------------
+# includes
+
+# 2+3 compat
+from __future__ import absolute_import, division, print_function, unicode_literals
+
+#----------------------------------------------------------------------------------------------------------------------------------
 
 # Because Records are dynamically created classes that are compiled within a function, 'pickle' cannot find the class definition by
 # name alone. For this reason we need to keep a register here of all Record classes that have been created, indexed by name.

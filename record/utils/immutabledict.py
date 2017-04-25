@@ -50,14 +50,30 @@ class ImmutableDict(object):
 
     def __hash__(self, _cache=[]):
         if not _cache:
-            _cache.append(hash(tuple(sorted(self.__impl.iteritems()))))
+            _cache.append(hash(tuple(sorted(self.__impl.items()))))
         return _cache[0]
 
-    def __cmp__(self, other):
+    @staticmethod
+    def __key__(obj):
         # TODO sth more efficient?
-        return cmp(
-            tuple(sorted(self.__impl.iteritems())),
-            tuple(sorted(other.iteritems())),
-        )
+        return sorted(obj.items())
+
+    def __eq__(self, other):
+        return self.__key__(self) == self.__key__(other)
+
+    def __ne__(self, other):
+        return self.__key__(self) != self.__key__(other)
+
+    def __lt__(self, other):
+        return self.__key__(self) < self.__key__(other)
+
+    def __le__(self, other):
+        return self.__key__(self) <= self.__key__(other)
+
+    def __gt__(self, other):
+        return self.__key__(self) > self.__key__(other)
+
+    def __ge__(self, other):
+        return self.__key__(self) >= self.__key__(other)
 
 #----------------------------------------------------------------------------------------------------------------------------------

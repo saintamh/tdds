@@ -8,6 +8,10 @@
 
 cd $(dirname $0)
 
-python2 -m tests.run $*
+for v in 2 3; do
+    (python$v -m tests.run $* || exit $?) \
+        | sed "s/^/PY$v: /"
+    echo
+done
 
 #------------------------------------------------------------------------------

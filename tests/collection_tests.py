@@ -10,8 +10,12 @@ Edinburgh
 #----------------------------------------------------------------------------------------------------------------------------------
 # includes
 
+# 2+3 compat
+from __future__ import absolute_import, division, print_function, unicode_literals
+
 # record
 from record import *
+from record.utils.compatibility import text_type
 
 # this module
 from .plumbing import *
@@ -73,8 +77,9 @@ def _():
 
 @test("Two sequences can use types of the same name, they won't clash")
 def _():
-    C1 = type('Element', (object,), {})
-    C2 = type('Element', (object,), {})
+    # NB deliberate use of "native strings" in PY2+3
+    C1 = type(str('Element'), (object,), {})
+    C2 = type(str('Element'), (object,), {})
     class R1(Record):
         elems = seq_of(C1)
     class R2(Record):
@@ -87,8 +92,9 @@ def _():
 
 @test("If two sequences use types of the same name, you still can't put one's elems in the other")
 def _():
-    C1 = type('Element', (object,), {})
-    C2 = type('Element', (object,), {})
+    # NB deliberate use of "native strings" in PY2+3
+    C1 = type(str('Element'), (object,), {})
+    C2 = type(str('Element'), (object,), {})
     class R1(Record):
         elems = seq_of(C1)
     class R2(Record):
@@ -215,8 +221,9 @@ def _():
 
 @test("Two pairs can use types of the same name, they won't clash")
 def _():
-    C1 = type('Element', (object,), {})
-    C2 = type('Element', (object,), {})
+    # NB deliberate use of "native strings" in PY2+3
+    C1 = type(str('Element'), (object,), {})
+    C2 = type(str('Element'), (object,), {})
     class R1(Record):
         elems = pair_of(C1)
     class R2(Record):
@@ -229,8 +236,9 @@ def _():
 
 @test("If two pairs use types of the same name, you still can't put one's elems in the other")
 def _():
-    C1 = type('Element', (object,), {})
-    C2 = type('Element', (object,), {})
+    # NB deliberate use of "native strings" in PY2+3
+    C1 = type(str('Element'), (object,), {})
+    C2 = type(str('Element'), (object,), {})
     class R1(Record):
         elems = pair_of(C1)
     class R2(Record):
@@ -325,8 +333,9 @@ def _():
 
 @test("Two sets can use types of the same name, they won't clash")
 def _():
-    C1 = type('Element', (object,), {})
-    C2 = type('Element', (object,), {})
+    # NB deliberate use of "native strings" in PY2+3
+    C1 = type(str('Element'), (object,), {})
+    C2 = type(str('Element'), (object,), {})
     class R1(Record):
         elems = set_of(C1)
     class R2(Record):
@@ -339,8 +348,9 @@ def _():
 
 @test("If two sets use types of the same name, you still can't put one's elems in the other")
 def _():
-    C1 = type('Element', (object,), {})
-    C2 = type('Element', (object,), {})
+    # NB deliberate use of "native strings" in PY2+3
+    C1 = type(str('Element'), (object,), {})
+    C2 = type(str('Element'), (object,), {})
     class R1(Record):
         elems = set_of(C1)
     class R2(Record):
@@ -411,42 +421,43 @@ def _():
 @test("dict_of fields can be defined using a dict")
 def _():
     class R(Record):
-        elems = dict_of(int,str)
+        elems = dict_of(int, text_type)
     r = R(elems={1:'uno',2:'zwei'})
-    assert_eq(r.elems, {1:'uno',2:'zwei'})
+    assert_eq(r.elems, {1:'uno', 2:'zwei'})
 
 @test("dict_of fields can be defined using an iterator of key/value pairs")
 def _():
     class R(Record):
-        elems = dict_of(int,str)
+        elems = dict_of(int,text_type)
     r = R(elems=(iter([[1,'uno'],[2,'zwei']])))
     assert_eq(r.elems, {1:'uno',2:'zwei'})
 
 @test("keys of the dict must be of the correct type")
 def _():
     class R(Record):
-        elems = dict_of(int,str)
+        elems = dict_of(int,text_type)
     with expected_error(FieldTypeError):
         R(elems={'1':'uno'})
 
 @test("values of the dict must be of the correct type")
 def _():
     class R(Record):
-        elems = dict_of(int,str)
+        elems = dict_of(int,text_type)
     with expected_error(FieldTypeError):
         R(elems={1:1})
 
 @test("dict_of fields are ImmutableDict instances, and therefore immutable")
 def _():
     class R(Record):
-        elems = dict_of(int,str)
+        elems = dict_of(int,text_type)
     r = R(elems={1:'uno',2:'zwei'})
     assert isinstance(r.elems, ImmutableDict)
 
 @test("Two dicts can use types of the same name, they won't clash")
 def _():
-    C1 = type('Element', (object,), {})
-    C2 = type('Element', (object,), {})
+    # NB deliberate use of "native strings" in PY2+3
+    C1 = type(str('Element'), (object,), {})
+    C2 = type(str('Element'), (object,), {})
     class R1(Record):
         elems = dict_of(int,C1)
     class R2(Record):
@@ -459,8 +470,9 @@ def _():
 
 @test("If two dicts use types of the same name, you still can't put one's elems in the other")
 def _():
-    C1 = type('Element', (object,), {})
-    C2 = type('Element', (object,), {})
+    # NB deliberate use of "native strings" in PY2+3
+    C1 = type(str('Element'), (object,), {})
+    C2 = type(str('Element'), (object,), {})
     class R1(Record):
         elems = dict_of(int,C1)
     class R2(Record):
@@ -472,7 +484,7 @@ def _():
 def _():
     class R(Record):
         elems = dict_of(
-            str,
+            text_type,
             pair_of(int),
         )
     with expected_error(FieldTypeError):

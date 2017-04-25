@@ -10,8 +10,12 @@ Edinburgh
 #----------------------------------------------------------------------------------------------------------------------------------
 # includes
 
+# 2+3 compat
+from __future__ import absolute_import, division, print_function, unicode_literals
+
 # record
 from record import *
+from record.utils.compatibility import text_type
 
 # this module
 from .plumbing import *
@@ -30,7 +34,7 @@ for protocol in (0,1,2,-1):
         import pickle
         class R(Record):
             id = int
-            label = unicode
+            label = text_type
         r1 = R(id=1, label=u"uno")
         r2 = pickle.loads(pickle.dumps(r1, protocol=protocol))
         assert_eq(r2, r1)
@@ -57,7 +61,7 @@ for protocol in (0,1,2,-1):
     def _():
         import pickle
         class R(Record):
-            elems = dict_of(str,str)
+            elems = dict_of(text_type,text_type)
         r1 = R(elems={'a':'alpha','b':'beta'})
         r2 = pickle.loads(pickle.dumps(r1, protocol=protocol))
         assert_eq(r2, r1)

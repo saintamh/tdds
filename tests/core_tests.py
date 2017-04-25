@@ -10,11 +10,15 @@ Edinburgh
 #----------------------------------------------------------------------------------------------------------------------------------
 # includes
 
+# 2+3 compat
+from __future__ import absolute_import, division, print_function, unicode_literals
+
 # standards
 from random import randrange
 
 # record
 from record import *
+from record.utils.compatibility import integer_types, string_types, text_type
 
 # this module
 from .plumbing import *
@@ -38,7 +42,7 @@ def _():
 #----------------------------------------------------------------------------------------------------------------------------------
 # scalar fields
 
-SCALAR_TYPES = (int,long,float,str,unicode)
+SCALAR_TYPES = string_types + integer_types + (float, bool)
 
 @foreach(SCALAR_TYPES)
 def val_type_tests(val_type):
@@ -180,7 +184,7 @@ def _():
     class R(Record):
         x = int
         square = property(lambda self: self.x*self.x)
-    assert_eq(R.record_fields.keys(), ['x'])
+    assert_eq(list(R.record_fields.keys()), ['x'])
 
 @test("the property cannot be passed in to the constructor")
 def _():
@@ -216,7 +220,7 @@ def _():
     class R(Record):
         x = int
         parse = classmethod(lambda cls, val: cls(int(val)))
-    assert_eq(R.record_fields.keys(), ['x'])
+    assert_eq(list(R.record_fields.keys()), ['x'])
 
 @test("the classmethod cannot be passed in to the constructor")
 def _():
@@ -252,7 +256,7 @@ def _():
     class R(Record):
         x = int
         square = staticmethod(lambda val: val*val)
-    assert_eq(R.record_fields.keys(), ['x'])
+    assert_eq(list(R.record_fields.keys()), ['x'])
 
 @test("the staticmethod cannot be passed in to the constructor")
 def _():
@@ -309,12 +313,12 @@ def _():
         'Point(5,6)',
     )
 
-@test("classes have a default __cmp__, which sorts by alphabetical field name")
+@test("classes have a default sort order, which sorts by alphabetical field name")
 def _():
     class Name(Record):
-        first = unicode
-        middle = unicode
-        last = unicode
+        first = text_type
+        middle = text_type
+        last = text_type
     assert_eq(
         sorted((
             Name(first=u"Jesus", middle=u"H.", last=u"Christ"),
@@ -329,16 +333,14 @@ def _():
         ]
     )
 
-@test("classes can define their own __cmp__")
+@test("classes can define their own __key__, which impacts the sort order")
 def _():
     class Name(Record):
-        first = unicode
-        middle = unicode
-        last = unicode
-        def __cmp__(self, other):
-            return cmp(self.last, other.last) \
-                or cmp(self.first, other.first) \
-                or cmp(self.middle, other.middle)
+        first = text_type
+        middle = text_type
+        last = text_type
+        def __key__(self):
+            return (self.last, self.first, self.middle)
     assert_eq(
         sorted((
             Name(first=u"Jesus", middle=u"H.", last=u"Christ"),
@@ -357,7 +359,7 @@ def _():
     class Point(Record):
         x = int
         y = int
-    for _ in xrange(1000):
+    for _ in range(1000):
         x = randrange(1000)
         y = randrange(1000)
         assert_eq(
@@ -373,7 +375,7 @@ def _():
         y = int
         def __hash__(self):
             return hash_impl(self.x, self.y)
-    for _ in xrange(1000):
+    for _ in range(1000):
         x = randrange(1000)
         y = randrange(1000)
         assert_eq(

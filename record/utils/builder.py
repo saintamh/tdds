@@ -10,6 +10,9 @@ Edinburgh
 #----------------------------------------------------------------------------------------------------------------------------------
 # includes
 
+# 2+3 compat
+from __future__ import absolute_import, division, print_function, unicode_literals
+
 # standards
 from functools import wraps
 
@@ -28,7 +31,7 @@ class BuilderMetaClass(type):
     @classmethod
     def _expand_multiple_field_methods(mcls, bases, attrib):
         record_cls = mcls._find_record_cls(bases)
-        for key, value in attrib.iteritems():
+        for key, value in attrib.items():
             if record_cls is not None \
                     and '_and_' in key \
                     and callable(value) \
@@ -89,7 +92,7 @@ class BuilderBase(object):
     def __call__(self):
         try:
             kwargs = {}
-            for fname,fdef in self.record_cls.record_fields.iteritems():
+            for fname,fdef in self.record_cls.record_fields.items():
                 value = getattr(self, fname, None)
                 if callable(value):
                     value = value()

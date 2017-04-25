@@ -10,8 +10,12 @@ Edinburgh
 #----------------------------------------------------------------------------------------------------------------------------------
 # includes
 
+# 2+3 compat
+from __future__ import absolute_import, division, print_function, unicode_literals
+
 # record
 from record import *
+from record.utils.compatibility import text_type
 
 # this module
 from .plumbing import *
@@ -42,7 +46,7 @@ def _():
 def _():
     class R(Record):
         nxt = nullable(RecursiveType)
-    SubR = type('SubR', (R,), {})
+    SubR = type(str('SubR'), (R,), {}) # NB name is native string in PY2+3
     r1 = SubR()
     r2 = R(r1)
     assert_is(r2.nxt, r1)
@@ -104,7 +108,7 @@ def _():
         children = set_of(RecursiveType)
     r1 = R([])
     r2 = R([r1])
-    assert_is (iter(r2.children).next(), r1)
+    assert_is (next(iter(r2.children)), r1)
 
 @test("RecursiveType doesn't allow set elems with other types")
 def _():
@@ -116,22 +120,22 @@ def _():
 @test("RecursiveType works with dict keys")
 def _():
     class R (Record):
-        children = dict_of(RecursiveType, str)
+        children = dict_of(RecursiveType, text_type)
     r1 = R([])
     r2 = R({r1: '1'})
-    assert_is (iter(r2.children).next(), r1)
+    assert_is (next(iter(r2.children)), r1)
 
 @test("RecursiveType doesn't allow set dict keys with other types")
 def _():
     class R (Record):
-        children = dict_of(str, RecursiveType)
+        children = dict_of(text_type, RecursiveType)
     with expected_error(FieldTypeError):
         R({'1': "one"})
 
 @test("RecursiveType works with dict values")
 def _():
     class R (Record):
-        children = dict_of(str, RecursiveType)
+        children = dict_of(text_type, RecursiveType)
     r1 = R([])
     r2 = R({'1': r1})
     assert_is (r2.children['1'], r1)
@@ -139,7 +143,7 @@ def _():
 @test("RecursiveType doesn't allow set dict values with other types")
 def _():
     class R (Record):
-        children = dict_of(str, RecursiveType)
+        children = dict_of(text_type, RecursiveType)
     with expected_error(FieldTypeError):
         R({'1': "something else"})
 
