@@ -13,11 +13,12 @@ Edinburgh
 from __future__ import absolute_import, division, print_function, unicode_literals
 
 # standards
+from abc import ABCMeta
 from random import randrange
 
 # record
 from record import *
-from record.utils.compatibility import integer_types, string_types, text_type
+from record.utils.compatibility import integer_types, native_string, string_types, text_type
 
 # this module
 from .plumbing import *
@@ -395,5 +396,20 @@ def _():
             hash(Point(x,randrange(1000))),
             hash(Point(x,randrange(1000))),
         )
+
+#----------------------------------------------------------------------------------------------------------------------------------
+# abc's
+
+@test("type tests allow using ABC's")
+def _():
+    MyType = ABCMeta(
+        native_string('MyType'),
+        (object,),
+        {},
+    )
+    MyType.register(int)
+    class R(Record):
+        value = MyType
+    R(value=42)
 
 #----------------------------------------------------------------------------------------------------------------------------------
