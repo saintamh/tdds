@@ -75,4 +75,10 @@ class ImmutableDict(object):
     def __ge__(self, other):
         return self.__key__(self) >= self.__key__(other)
 
+    def __str__(self):
+        return str(self.__impl)
+
+    def __repr__(self):
+        return repr(self.__impl)
+
 #----------------------------------------------------------------------------------------------------------------------------------
