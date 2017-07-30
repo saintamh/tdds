@@ -15,7 +15,7 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 # standards
 from collections import Counter
 import re
-from sys import argv
+from sys import argv, exit
 
 # this module
 from . import (
@@ -85,6 +85,7 @@ def main(selected_mod_name=None):
     print()
     for item in sorted(tally.items()):
         print("{}: {}".format(*item))
+    exit(1 if tally.get('failed') else 0)
 
 if __name__ == '__main__':
     main(*argv[1:])
