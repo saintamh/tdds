@@ -20,6 +20,7 @@ from sys import argv, exit
 # this module
 from . import (
     check_tests,
+    cleaner_tests,
     coercion_tests,
     collection_tests,
     core_tests,
@@ -35,6 +36,7 @@ from . import (
 
 ALL_TEST_MODS = (
     check_tests,
+    cleaner_tests,
     coercion_tests,
     collection_tests,
     core_tests,
