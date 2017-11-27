@@ -14,7 +14,7 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 
 # standards
 from collections import namedtuple
-from datetime import datetime
+from datetime import date, datetime
 
 # record
 from record.marshaller import Marshaller, lookup_marshaller_for_type, temporary_marshaller_registration
@@ -31,16 +31,17 @@ ALL_TESTS,test = build_test_registry()
 #----------------------------------------------------------------------------------------------------------------------------------
 
 @foreach((
-    (b'abc \x01\x02\x03\x04', b'abc \x01\x02\x03\x04'),
-    ('R\u00E9sum\u00E9', b'R\xc3\xa9sum\xc3\xa9'),
+    #(b'abc \x01\x02\x03\x04', b'abc \x01\x02\x03\x04'),
+    ('R\u00E9sum\u00E9', 'R\u00E9sum\u00E9'),
 ) + tuple(
-    (t(42), repr(t(42)).encode('UTF-8'))
+    (t(42), text_type(t(42)))
     for t in integer_types
 ) + (
-    (41.0, b'41.0'),
-    (datetime(2010, 10, 24, 9, 5, 33), b'2010-10-24T09:05:33'),
+    (41.0, '41.0'),
+    (date(2010, 10, 24), '2010-10-24'),
+    (datetime(2010, 10, 24, 9, 5, 33), '2010-10-24T09:05:33'),
 ))
-def _(value, marshalled_bytes):
+def _(value, marshalled_text):
     cls = value.__class__
     cls_name = cls.__name__
     marshaller = lookup_marshaller_for_type(cls)
@@ -49,14 +50,14 @@ def _(value, marshalled_bytes):
     def _():
         assert_isinstance(
             marshaller.marshal(value),
-            bytes_type
+            text_type
         )
 
     @test("%s fields have the expected marshalled byte representation" % cls_name)
     def _():
         assert_eq(
             marshaller.marshal(value),
-            marshalled_bytes,
+            marshalled_text,
         )
 
     @test("%s fields marshalled to str can be unmarshalled" % cls_name)
@@ -72,7 +73,10 @@ def _(value, marshalled_bytes):
 def _():
     Point = namedtuple('Point', ('x','y'))
     assert_none(lookup_marshaller_for_type(Point))
-    bogus_marshaller = Marshaller(lambda value: text_type(value).encode('UTF-8'), lambda v: None)
+    bogus_marshaller = Marshaller(
+        lambda value: text_type(value),
+        lambda v: None,
+    )
     with temporary_marshaller_registration(Point,bogus_marshaller):
         assert_is(bogus_marshaller, lookup_marshaller_for_type(Point))
     assert_none(lookup_marshaller_for_type(Point))

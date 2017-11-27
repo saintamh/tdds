@@ -294,10 +294,10 @@ def _():
 # built-in marshallers
 
 @foreach((
-    (datetime(2009,10,28,8,53,2), b"2009-10-28T08:53:02"),
-    (Decimal('10.3'), b"10.3"),
+    (datetime(2009,10,28,8,53,2), "2009-10-28T08:53:02"),
+    (Decimal('10.3'), "10.3"),
 ))
-def _(obj, marshalled_bytes):
+def _(obj, marshalled_text):
 
     @test("{} objects automatically get marshalled and unmarshalled as expected".format(obj.__class__.__name__))
     def _():
@@ -305,7 +305,7 @@ def _(obj, marshalled_bytes):
             fobj = obj.__class__
         r1 = R(obj)
         d = r1.record_pods()
-        assert_eq(d, {"fobj": marshalled_bytes})
+        assert_eq(d, {"fobj": marshalled_text})
         assert_eq(r1, R.from_pods(d))
 
 #----------------------------------------------------------------------------------------------------------------------------------

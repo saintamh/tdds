@@ -35,9 +35,7 @@ class Marshaller(object):
         # These can be either strings for code with exactly one '{}' in them, or SourceCodeGenerator objects that generate such a
         # string, or callable objects. They'll be made into ExternalCodeInvocation instances for insertion into the generated code.
         # 
-        # `marshal' must return bytes, not text. That way it can be written to raw streams for serialization. I considered allowing
-        # objects to be marshalled to text objects as well, because e.g. that's what the JSON encoder needs. But that made the code
-        # quite thick and messy, so I dropped that. Any other custom scalar types will have to marshal to bytes
+        # `marshal' must return text, not bytes.
         # 
         self.marshalling_code = marshalling_code
         self.unmarshalling_code = unmarshalling_code
@@ -58,45 +56,48 @@ class Marshaller(object):
 #----------------------------------------------------------------------------------------------------------------------------------
 # global vars
 
-_repr_to_bytes = lambda value: repr(value).encode('UTF-8')
-
 STANDARD_MARSHALLERS = {
 
-    bytes_type: Marshaller('{}', '{}'),
-    text_type: Marshaller(
-        '{}.encode("UTF-8")',
-        '{}.decode("UTF-8")',
-    ),
+    #bytes_type: Marshaller('{}', '{}'),
+    text_type: Marshaller('{}', '{}'),
 
     # NB integer types handled below
-    float: Marshaller(_repr_to_bytes, float),
-    bool: Marshaller(_repr_to_bytes, bool),
+    float: Marshaller(text_type, float),
+    bool: Marshaller(text_type, bool),
 
     Decimal: Marshaller(
-        lambda value: text_type(value).encode('UTF-8'),
-        lambda value: Decimal(value.decode('UTF-8')),
+        lambda value: text_type(value),
+        lambda value: Decimal(value),
     ),
 
     datetime: Marshaller(
-        '{}.strftime(%r).encode("UTF-8")' % DATETIME_FORMAT,
         SourceCodeTemplate(
-            '$datetime.strptime({}.decode("UTF-8"), $fmt)',
+            '$text_type({}.strftime($fmt))',
+            text_type = text_type,
+            fmt = ExternalValue(DATETIME_FORMAT),
+        ),
+        SourceCodeTemplate(
+            '$datetime.strptime({}, $fmt)',
             datetime = datetime,
             fmt = ExternalValue(DATETIME_FORMAT),
         ),
     ),
 
     date: Marshaller(
-        '{}.strftime(%r).encode("UTF-8")' % DATE_FORMAT,
         SourceCodeTemplate(
-            '$datetime.strptime({}.decode("UTF-8"), $fmt).date()',
+            '$text_type({}.strftime($fmt))',
+            text_type = text_type,
+            fmt = ExternalValue(DATE_FORMAT),
+        ),
+        SourceCodeTemplate(
+            '$datetime.strptime({}, $fmt).date()',
             datetime = datetime,
             fmt = ExternalValue(DATE_FORMAT),
         ),
     ),
 
     timedelta: Marshaller(
-        'repr({}.total_seconds()).encode("UTF-8")',
+        'repr({}.total_seconds())',
         SourceCodeTemplate(
             '$timedelta(seconds=float({}))',
             timedelta = timedelta,
@@ -106,7 +107,7 @@ STANDARD_MARSHALLERS = {
 }
 
 STANDARD_MARSHALLERS.update(
-    (t, Marshaller(_repr_to_bytes, t))
+    (t, Marshaller(text_type, t))
     for t in integer_types
 )
 
@@ -132,8 +133,8 @@ def lookup_marshaller_for_type(cls):
     if marshaller is None:
         marshaller = STANDARD_MARSHALLERS.get(cls)
         if marshaller is None:
-            if hasattr(getattr(cls,'marshall_to_str',None), '__call__') \
-                    and hasattr(getattr(cls,'unmarshall_from_str',None), '__call__'):
+            if hasattr(getattr(cls,'marshall_to_text',None), '__call__') \
+                    and hasattr(getattr(cls,'unmarshall_from_text',None), '__call__'):
                 marshaller = DuckTypedMarshaller(cls)
     return marshaller
 
