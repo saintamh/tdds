@@ -12,28 +12,6 @@ JSON specifically, the PODS should be immediately serializable to strings using 
 """
 
 #----------------------------------------------------------------------------------------------------------------------------------
-# 2017-02-06 - on serializing `str' values to JSON
-
-# This module will sometimes create data structures that cannot be serialized to JSON. This happens if you have `str' objects that
-# contain bytes between 0x80 and 0xFF. Those values can't be directly serialized to JSON:
-
-#     >>> json.dump({"x": "\xFF"})
-#     Traceback (most recent call last):
-#       ...
-#     UnicodeDecodeError: 'utf8' codec can't decode byte 0xff in position 0: invalid start byte
-
-# This can create nasty bugs where your program runs fine for a while, and then one day you pick up somewhere in the wild a value
-# (say, a URL) that contains a byte with a high first bit, and suddenly your JSON serialization fails. You can avoid that problem
-# by asking the `json' module to use "\uXXXX" escapes for those values:
-
-#     >>> print(json.dumps({"x": "\xFF"}, encoding='raw_unicode_escape'))
-#     {"x": "\u00ff"}
-
-# That's wrong, in a sense: "\u00FF" doesn't stand for "a byte with all 1's", it stands for "latin small letter y with diaeresis".
-# The JSON that this produces is not what most programs expect. All consumers of data escaped in this way will need to be made
-# aware of which strings are to be interpreted as bytes rather than unicode.
-
-#----------------------------------------------------------------------------------------------------------------------------------
 # includes
 
 # 2+3 compat
