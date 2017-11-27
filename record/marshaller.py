@@ -42,7 +42,7 @@ class Marshaller(object):
 
         # These are here for tests and debugging, since normally you don't call the code directly, you insert it in a code template
         # 
-        self.marshal,self.unmarshal = (
+        self.marshal, self.unmarshal = (
             compile_expr(
                 SourceCodeTemplate(
                     'f = lambda v: $code',
@@ -50,7 +50,7 @@ class Marshaller(object):
                 ),
                 'f',
             )
-            for code in (self.marshalling_code,self.unmarshalling_code)
+            for code in (self.marshalling_code, self.unmarshalling_code)
         )
 
 #----------------------------------------------------------------------------------------------------------------------------------
@@ -133,8 +133,8 @@ def lookup_marshaller_for_type(cls):
     if marshaller is None:
         marshaller = STANDARD_MARSHALLERS.get(cls)
         if marshaller is None:
-            if hasattr(getattr(cls,'marshall_to_text',None), '__call__') \
-                    and hasattr(getattr(cls,'unmarshall_from_text',None), '__call__'):
+            if hasattr(getattr(cls,'marshall_to_text', None), '__call__') \
+                    and hasattr(getattr(cls,'unmarshall_from_text', None), '__call__'):
                 marshaller = DuckTypedMarshaller(cls)
     return marshaller
 

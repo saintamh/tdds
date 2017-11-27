@@ -36,7 +36,7 @@ class BuilderMetaClass(type):
                     and callable(value) \
                     and all(f in record_cls.record_fields for f in key.split('_and_')):
                 memoized_method = mcls._memoize(key, value)
-                for i,f in enumerate(key.split('_and_')):
+                for i, f in enumerate(key.split('_and_')):
                     if f in attrib:
                         raise Exception("Can't have both %r and %r" % (key, f))
                     yield f, mcls._single_field_method(memoized_method, i)
@@ -91,11 +91,11 @@ class BuilderBase(object):
     def __call__(self):
         try:
             kwargs = {}
-            for fname,fdef in self.record_cls.record_fields.items():
-                value = getattr(self, fname, None)
+            for field_id, field in self.record_cls.record_fields.items():
+                value = getattr(self, field_id, None)
                 if callable(value):
                     value = value()
-                kwargs[fname] = value
+                kwargs[field_id] = value
             return self.record_cls(**kwargs)
         except Exception as ex:
             self._on_error(ex)

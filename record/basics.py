@@ -85,14 +85,14 @@ class RecursiveType(object):
 
 #----------------------------------------------------------------------------------------------------------------------------------
 
-def compile_field_def(fdef, **kwargs):
-    if isinstance(fdef,Field):
+def compile_field(field, **kwargs):
+    if isinstance(field, Field):
         if kwargs:
-            return fdef.derive(**kwargs)
+            return field.derive(**kwargs)
         else:
-            return fdef
+            return field
     else:
-        assert not kwargs, (fdef, kwargs)
-        return Field(fdef)
+        assert not kwargs, (field, kwargs)
+        return Field(field)
 
 #----------------------------------------------------------------------------------------------------------------------------------

@@ -19,7 +19,7 @@ import re
 
 # this module
 from .basics import Field, FieldError, FieldValueError, FieldTypeError, FieldNotNullable, RecordsAreImmutable, \
-    RecursiveType, compile_field_def
+    RecursiveType, compile_field
 from .pods import PodsMethodsForRecordTemplate
 from .unpickler import RecordRegistryMetaClass, RecordUnpickler
 from .utils.codegen import ExternalCodeInvocation, ExternalValue, Joiner, SourceCodeTemplate, compile_expr
@@ -35,20 +35,20 @@ else:
     builtin_module = 'builtins'
 
 class RecordMetaClass(RecordRegistryMetaClass):
-    def __new__(mcls, cls_name, bases, attrib):
+    def __new__(mcls, class_name, bases, attrib):
         attrib.pop('__qualname__', None)
         module = attrib.pop('__module__', None)
         is_codegen = (module == builtin_module)
         if bases == (object,) or is_codegen or Record not in bases:
-            return type.__new__(mcls, cls_name, bases, attrib)
-        verbose = attrib.pop('_%s__verbose' % cls_name, False)
-        src_code_gen = RecordClassTemplate(cls_name, bases, **attrib)
-        cls = compile_expr(src_code_gen, cls_name, verbose=verbose)
+            return type.__new__(mcls, class_name, bases, attrib)
+        verbose = attrib.pop('_%s__verbose' % class_name, False)
+        src_code_gen = RecordClassTemplate(class_name, bases, **attrib)
+        cls = compile_expr(src_code_gen, class_name, verbose=verbose)
         if module is not None:
             setattr(cls, '__module__', module)
-        mcls.register(cls_name, cls)
-        for fname,fdef in cls.record_fields.items():
-            fdef.set_recursive_type(cls)
+        mcls.register(class_name, cls)
+        for field_id, field in cls.record_fields.items():
+            field.set_recursive_type(cls)
         return cls
 
 Record = RecordMetaClass(
@@ -74,7 +74,7 @@ Record = RecordMetaClass(
 class RecordClassTemplate(SourceCodeTemplate):
 
     template = '''
-        class $cls_name($superclasses):
+        class $class_name($superclasses):
             __slots__ = $slots
 
             def __init__(self, $init_params):
@@ -88,9 +88,9 @@ class RecordClassTemplate(SourceCodeTemplate):
             $instancemethods
 
             def __setattr__(self, attr, value):
-                raise $RecordsAreImmutable("$cls_name objects are immutable")
+                raise $RecordsAreImmutable("$class_name objects are immutable")
             def __delattr__(self, attr):
-                raise $RecordsAreImmutable("$cls_name objects are immutable")
+                raise $RecordsAreImmutable("$class_name objects are immutable")
 
             $pods_methods
 
@@ -98,8 +98,8 @@ class RecordClassTemplate(SourceCodeTemplate):
 
             def record_derive(self, **kwargs):
                 return self.__class__(**{
-                    fname: kwargs.get(fname, getattr(self, fname))
-                    for fname in $field_defs_incl_super
+                    field_id: kwargs.get(field_id, getattr(self, field_id))
+                    for field_id in $fields_including_super
                 })
 
             $core_methods
@@ -109,51 +109,51 @@ class RecordClassTemplate(SourceCodeTemplate):
     RecordsAreImmutable = RecordsAreImmutable
     RecordUnpickler = RecordUnpickler
 
-    def __init__(self, cls_name, bases, **field_defs):
-        self.cls_name = cls_name
+    def __init__(self, class_name, bases, **fields):
+        self.class_name = class_name
         self.super_records = tuple(spr for spr in bases if spr is not Record and issubclass(spr, Record))
-        self.super_field_defs = self._compile_super_field_defs(self.super_records, field_defs)
-        self.prop_defs, self.classmethod_defs, self.staticmethod_defs = (
+        self.super_fields = self._compile_super_fields(self.super_records, fields)
+        self.property_defs, self.classmethod_defs, self.staticmethod_defs = (
             {
-                fname: field_defs.pop(fname)
-                for fname,fdef in tuple(field_defs.items())
-                if fdef.__class__ is special_type
+                field_id: fields.pop(field_id)
+                for field_id, field in tuple(fields.items())
+                if field.__class__ is special_type
             }
             for special_type in (property, classmethod, staticmethod)
         )
         self.instancemethod_defs = {
-            fname: field_defs.pop(fname)
-            for fname,fdef in tuple(field_defs.items())
-            if callable(fdef)
-            and not isinstance(fdef, (type, Field))
+            field_id: fields.pop(field_id)
+            for field_id, field in tuple(fields.items())
+            if callable(field)
+            and not isinstance(field, (type, Field))
         }
-        self.field_defs = {
-            fname: compile_field_def(fdef)
-            for fname,fdef in field_defs.items()
+        self.fields = {
+            field_id: compile_field(field)
+            for field_id, field in fields.items()
         }
-        self.field_defs_incl_super = dict(chain(
-            self.field_defs.items(),
-            self.super_field_defs.items(),
+        self.fields_including_super = dict(chain(
+            self.fields.items(),
+            self.super_fields.items(),
         ))
-        self.pods_methods = PodsMethodsForRecordTemplate(self.cls_name, self.field_defs_incl_super)
+        self.pods_methods = PodsMethodsForRecordTemplate(self.class_name, self.fields_including_super)
 
     @staticmethod
-    def _compile_super_field_defs(super_records, field_defs):
-        super_field_defs = {}
+    def _compile_super_fields(super_records, fields):
+        super_fields = {}
         for spr in super_records:
-            for fname, fdef in spr.record_fields.items():
-                if fname in super_field_defs:
-                    raise TypeError("Multiple superclasses have a field called %r" % fname)
-                if fname in field_defs:
-                    raise TypeError("Can't override superclass field %r" % fname)
-                super_field_defs[fname] = fdef
-        return super_field_defs
+            for field_id, field in spr.record_fields.items():
+                if field_id in super_fields:
+                    raise TypeError("Multiple superclasses have a field called %r" % field_id)
+                if field_id in fields:
+                    raise TypeError("Can't override superclass field %r" % field_id)
+                super_fields[field_id] = field
+        return super_fields
 
     def _iter_fields_in_fixed_order(self, include_super=False):
         return sorted(
             dict.items(
-                self.field_defs_incl_super if include_super
-                else self.field_defs
+                self.fields_including_super if include_super
+                else self.fields
             ),
             key = lambda item: (item[1].nullable, item[0]),
         )
@@ -161,24 +161,24 @@ class RecordClassTemplate(SourceCodeTemplate):
     def field_joiner_property(sep, prefix='', suffix='', include_super=False):
         return lambda raw_meth: property(
             lambda self: Joiner(sep, prefix, suffix, (
-                raw_meth(self, findex, fname, fdef)
-                for findex,(fname,fdef) in enumerate(self._iter_fields_in_fixed_order(include_super))
+                raw_meth(self, findex, field_id, field)
+                for findex,(field_id, field) in enumerate(self._iter_fields_in_fixed_order(include_super))
             ))
         )
 
     @field_joiner_property('', prefix='(', suffix=')')
-    def slots(self, findex, fname, fdef):
-        # NB trailing comma to ensure single val still a tuple
-        return "{!r},".format(fname)
+    def slots(self, findex, field_id, field):
+        # NB trailing comma to ensure single value still a tuple
+        return "{!r},".format(field_id)
 
     @field_joiner_property('', prefix='(', suffix=')', include_super=True)
-    def values_as_tuple(self, findex, fname, fdef):
+    def values_as_tuple(self, findex, field_id, field):
         # NB trailing comma here too, for the same reason
-        return 'self.{},'.format(fname)
+        return 'self.{},'.format(field_id)
 
     @field_joiner_property(', ', include_super=True)
-    def init_params(self, findex, fname, fdef):
-        return '{}{}'.format(fname, '=None' if fdef.nullable else '')
+    def init_params(self, findex, field_id, field):
+        return '{}{}'.format(field_id, '=None' if field.nullable else '')
 
     @property
     def superclasses(self):
@@ -186,34 +186,34 @@ class RecordClassTemplate(SourceCodeTemplate):
 
     @property
     def super_call(self):
-        return 'super(%s,self).__init__(%s)' % (
-            self.cls_name,
+        return 'super(%s, self).__init__(%s)' % (
+            self.class_name,
             ', '.join(
-                '%s=%s' % (fname, fname)
-                for fname in sorted(self.super_field_defs)
+                '%s=%s' % (field_id, field_id)
+                for field_id in sorted(self.super_fields)
             ),
         )
 
     @field_joiner_property('\n')
-    def field_checks(self, findex, fname, fdef):
+    def field_checks(self, findex, field_id, field):
         return FieldHandlingStmtsTemplate(
-            fdef,
-            fname,
-            expr_descr='{}.{}'.format(self.cls_name,fname)
+            field,
+            field_id,
+            description='{}.{}'.format(self.class_name, field_id)
         )
 
     @field_joiner_property('\n')
-    def set_fields(self, findex, fname, fdef):
+    def set_fields(self, findex, field_id, field):
         # you can cheat past our fake immutability by using object.__setattr__, but don't tell anyone
-        return 'object.__setattr__(self, "{0}", {0})'.format(fname)
+        return 'object.__setattr__(self, "{0}", {0})'.format(field_id)
 
     @property
     def properties(self):
-        if any(prop.fset is not None for prop in self.prop_defs.values()):
+        if any(prop.fset is not None for prop in self.property_defs.values()):
             raise TypeError("record properties may not have an fset function")
-        if any(prop.fdel is not None for prop in self.prop_defs.values()):
-            raise TypeError("record properties may not have an fdef function")
-        return self._class_level_definitions(self.prop_defs)
+        if any(prop.fdel is not None for prop in self.property_defs.values()):
+            raise TypeError("record properties may not have an field function")
+        return self._class_level_definitions(self.property_defs)
 
     @property
     def classmethods(self):
@@ -230,16 +230,16 @@ class RecordClassTemplate(SourceCodeTemplate):
     def _class_level_definitions(self, defs):
         return Joiner(sep='\n', values=(
             SourceCodeTemplate(
-                '$fname = $value',
-                fname = fname,
+                '$field_id = $value',
+                field_id = field_id,
                 value = value,
             )
-            for fname, value in defs.items()
+            for field_id, value in defs.items()
         ))
 
     @property
     def record_fields(self):
-        return ImmutableDict(self.field_defs_incl_super)
+        return ImmutableDict(self.fields_including_super)
 
     @property
     def core_methods(self):
@@ -252,7 +252,7 @@ class RecordClassTemplate(SourceCodeTemplate):
     def iter_core_methods(self):
         yield '__repr__', '''
             def __repr__(self):
-                return "$cls_name($repr_str)" % $values_as_tuple
+                return "$class_name($repr_str)" % $values_as_tuple
         '''
         yield '__hash__', '''
             def __hash__(self):
@@ -268,8 +268,8 @@ class RecordClassTemplate(SourceCodeTemplate):
                     return ($key)
             ''',
             key = Joiner(' ', values=(
-                'self.{},'.format(fname)
-                for fname, _ in self._iter_fields_in_fixed_order(include_super=True)
+                'self.{},'.format(field_id)
+                for field_id, _ in self._iter_fields_in_fixed_order(include_super=True)
             )),
         )
         for op in ('eq', 'ne', 'lt', 'le', 'gt', 'ge'):
@@ -283,8 +283,8 @@ class RecordClassTemplate(SourceCodeTemplate):
             )
 
     @field_joiner_property(', ', include_super=True)
-    def repr_str(self, findex, fname, fdef):
-        return '{}=%r'.format(fname)
+    def repr_str(self, findex, field_id, field):
+        return '{}=%r'.format(field_id)
 
 #----------------------------------------------------------------------------------------------------------------------------------
 
@@ -315,79 +315,79 @@ class FieldHandlingStmtsTemplate(SourceCodeTemplate):
     FieldNotNullable = FieldNotNullable
     re = re
 
-    def __init__(self, fdef, var_name, expr_descr):
-        self.fdef = fdef
-        self.var_name = var_name
-        self.expr_descr = expr_descr
-        self.fdef_type = fdef.type
-        self.fdef_type_name = fdef.type.__name__
+    def __init__(self, field, variable_name, description):
+        self.field = field
+        self.variable_name = variable_name
+        self.description = description
+        self.field_type = field.type
+        self.field_type_name = field.type.__name__
 
     @property
     def default_value(self):
-        if self.fdef.nullable and self.fdef.default is not None:
+        if self.field.nullable and self.field.default is not None:
             return '''
-                if $var_name is None:
-                    $var_name = $default_expr
+                if $variable_name is None:
+                    $variable_name = $default_expr
             '''
 
     @property
     def default_expr(self):
-        return ExternalValue(self.fdef.default)
+        return ExternalValue(self.field.default)
 
     @property
     def coerce(self):
-        if self.fdef.coerce is not None:
-            return '$var_name = $coerce_invocation'
+        if self.field.coerce is not None:
+            return '$variable_name = $coerce_invocation'
 
     @property
     def coerce_invocation(self):
-        return ExternalCodeInvocation(self.fdef.coerce, self.var_name)
+        return ExternalCodeInvocation(self.field.coerce, self.variable_name)
 
     @property
     def null_check(self):
-        if not self.fdef.nullable and self.fdef.coerce not in self.KNOWN_COERCE_FUNCTIONS_THAT_NEVER_RETURN_NONE:
+        if not self.field.nullable and self.field.coerce not in self.KNOWN_COERCE_FUNCTIONS_THAT_NEVER_RETURN_NONE:
             return '''
-                if $var_name is None:
-                    raise $FieldNotNullable("$expr_descr cannot be None")
+                if $variable_name is None:
+                    raise $FieldNotNullable("$description cannot be None")
             '''
 
     @property
     def value_check(self):
-        if self.fdef.check is not None:
+        if self.field.check is not None:
             return '''
-                if $var_name is not None and not $check_invocation:
-                    raise $FieldValueError("$expr_descr: %r is not a valid value" % ($var_name,))
+                if $variable_name is not None and not $check_invocation:
+                    raise $FieldValueError("$description: %r is not a valid value" % ($variable_name,))
             '''
 
     @property
     def check_invocation(self):
-        return ExternalCodeInvocation(self.fdef.check, self.var_name)
+        return ExternalCodeInvocation(self.field.check, self.variable_name)
 
     @property
     def type_check(self):
-        if self.fdef.coerce is not self.fdef.type:
+        if self.field.coerce is not self.field.type:
             return '''
                 if $not_null_and not $type_check_expr:
-                    raise $FieldTypeError("$expr_descr should be of type $fdef_type_name, not %s (%r)" % (
-                        $var_name.__class__.__name__,
-                        $var_name,
+                    raise $FieldTypeError("$description should be of type $field_type_name, not %s (%r)" % (
+                        $variable_name.__class__.__name__,
+                        $variable_name,
                     ))
             '''
 
     @property
     def type_check_expr(self):
-        if self.fdef.type is RecursiveType:
-            # `self.fdef.type' will be imperatively modified after the class is compiled
+        if self.field.type is RecursiveType:
+            # `self.field.type' will be imperatively modified after the class is compiled
             return ExternalCodeInvocation(
-                lambda value: isinstance(value, self.fdef.type),
-                '$var_name',
+                lambda value: isinstance(value, self.field.type),
+                '$variable_name',
             )
         else:
-            return 'isinstance($var_name, $fdef_type)'
+            return 'isinstance($variable_name, $field_type)'
 
     @property
     def not_null_and(self):
-        if self.fdef.nullable:
-            return '$var_name is not None and '
+        if self.field.nullable:
+            return '$variable_name is not None and '
 
 #----------------------------------------------------------------------------------------------------------------------------------

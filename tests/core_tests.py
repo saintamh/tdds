@@ -26,7 +26,7 @@ from .plumbing import *
 #----------------------------------------------------------------------------------------------------------------------------------
 # init
 
-ALL_TESTS,test = build_test_registry()
+ALL_TESTS, test = build_test_registry()
 
 #----------------------------------------------------------------------------------------------------------------------------------
 # core core
@@ -137,8 +137,8 @@ def _():
 
 @test("properties cannot have an fset function")
 def _():
-    def fset_x(self, val):
-        self.x = val
+    def fset_x(self, value):
+        self.x = value
     square_prop = property(
         lambda self: self.x*self.x,
         fset_x,
@@ -201,7 +201,7 @@ def _():
 def _():
     class R(Record):
         x = int
-        parse = classmethod(lambda cls, val: cls(int(val)))
+        parse = classmethod(lambda cls, value: cls(int(value)))
     r = R.parse('9')
     assert_eq(r.x, 9)
 
@@ -210,8 +210,8 @@ def _():
     class R(Record):
         x = int
         @classmethod
-        def parse(cls, val):
-            return cls(int(val))
+        def parse(cls, value):
+            return cls(int(value))
     r = R.parse('9')
     assert_eq(r.x, 9)
 
@@ -219,14 +219,14 @@ def _():
 def _():
     class R(Record):
         x = int
-        parse = classmethod(lambda cls, val: cls(int(val)))
+        parse = classmethod(lambda cls, value: cls(int(value)))
     assert_eq(list(R.record_fields.keys()), ['x'])
 
 @test("the classmethod cannot be passed in to the constructor")
 def _():
     class R(Record):
         x = int
-        parse = classmethod(lambda cls, val: cls(int(val)))
+        parse = classmethod(lambda cls, value: cls(int(value)))
     with expected_error(TypeError):
         R(x=10, parse='blah')
 
@@ -237,7 +237,7 @@ def _():
 def _():
     class R(Record):
         x = int
-        square = staticmethod(lambda val: val*val)
+        square = staticmethod(lambda value: value*value)
     r = R(3)
     assert_eq(R.square(9), 81)
 
@@ -246,8 +246,8 @@ def _():
     class R(Record):
         x = int
         @staticmethod
-        def square(val):
-            return val*val
+        def square(value):
+            return value*value
     r = R(3)
     assert_eq(R.square(9), 81)
 
@@ -255,14 +255,14 @@ def _():
 def _():
     class R(Record):
         x = int
-        square = staticmethod(lambda val: val*val)
+        square = staticmethod(lambda value: value*value)
     assert_eq(list(R.record_fields.keys()), ['x'])
 
 @test("the staticmethod cannot be passed in to the constructor")
 def _():
     class R(Record):
         x = int
-        square = staticmethod(lambda val: val*val)
+        square = staticmethod(lambda value: value*value)
     with expected_error(TypeError):
         R(x=10, square='blah')
 
@@ -275,7 +275,7 @@ def _():
         x = int
         y = int
     assert_eq(
-        text_type(Point(5,6)),
+        text_type(Point(5, 6)),
         'Point(x=5, y=6)',
     )
 
@@ -287,7 +287,7 @@ def _():
         def __str__(self):
             return '[%d,%d]' % (self.x, self.y)
     assert_eq(
-        text_type(Point(5,6)),
+        text_type(Point(5, 6)),
         '[5,6]',
     )
 
@@ -297,7 +297,7 @@ def _():
         x = int
         y = int
     assert_eq(
-        repr(Point(5,6)),
+        repr(Point(5, 6)),
         'Point(x=5, y=6)',
     )
 
@@ -309,7 +309,7 @@ def _():
         def __repr__(self):
             return 'Point(%d,%d)' % (self.x, self.y)
     assert_eq(
-        repr(Point(5,6)),
+        repr(Point(5, 6)),
         'Point(5,6)',
     )
 
@@ -363,8 +363,8 @@ def _():
         x = randrange(1000)
         y = randrange(1000)
         assert_eq(
-            hash(Point(x,y)),
-            hash(Point(x,y)),
+            hash(Point(x, y)),
+            hash(Point(x, y)),
         )
 
 @test("classes can define their own __hash__")
@@ -379,7 +379,7 @@ def _():
         x = randrange(1000)
         y = randrange(1000)
         assert_eq(
-            hash(Point(x,y)),
+            hash(Point(x, y)),
             hash_impl(x, y),
         )
 
@@ -393,8 +393,8 @@ def _():
     for _ in range(1000):
         x = randrange(1000)
         assert_eq(
-            hash(Point(x,randrange(1000))),
-            hash(Point(x,randrange(1000))),
+            hash(Point(x, randrange(1000))),
+            hash(Point(x, randrange(1000))),
         )
 
 #----------------------------------------------------------------------------------------------------------------------------------

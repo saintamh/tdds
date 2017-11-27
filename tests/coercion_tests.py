@@ -22,7 +22,7 @@ from .plumbing import *
 #----------------------------------------------------------------------------------------------------------------------------------
 # init
 
-ALL_TESTS,test = build_test_registry()
+ALL_TESTS, test = build_test_registry()
 
 #----------------------------------------------------------------------------------------------------------------------------------
 # "coerce" function specified as a callable
@@ -216,9 +216,9 @@ def _():
 @test("unlike in struct.py, the coerce function is always called, even if the value is of the correct type")
 def _():
     all_vals = []
-    def coercion(val):
-        all_vals.append(val)
-        return val
+    def coercion(value):
+        all_vals.append(value)
+        return value
     class R(Record):
         id = Field(
             type = int,

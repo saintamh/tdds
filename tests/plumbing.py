@@ -30,17 +30,17 @@ def build_test_registry():
     ALL_TESTS = []
     def test(test_id):
         def register_test_func(func):
-            if any(prev_test_id == test_id for prev_test_id,prev_func in ALL_TESTS):
+            if any(prev_test_id == test_id for prev_test_id, prev_func in ALL_TESTS):
                 raise ValueError("Two tests with id '%s'" % test_id)
             ALL_TESTS.append((test_id, func))
             return func
         return register_test_func
-    return ALL_TESTS,test
+    return ALL_TESTS, test
 
 def foreach(args):
     def register(func):
         for a in args:
-            if not isinstance(a,tuple):
+            if not isinstance(a, tuple):
                 a = (a,)
             func(*a)
     return register
@@ -63,15 +63,15 @@ class expected_error(object):
 
 def assert_eq(v1, v2):
     if v1 != v2:
-        raise AssertionError("%r != %r" % (v1,v2))
+        raise AssertionError("%r != %r" % (v1, v2))
 
 def assert_is(v1, v2):
     if v1 is not v2:
-        raise AssertionError("%r is not %r" % (v1,v2))
+        raise AssertionError("%r is not %r" % (v1, v2))
 
 def assert_isinstance(v, cls):
     if not isinstance(v, cls):
-        raise AssertionError("%r is not a %s instance" % (v,cls.__name__))
+        raise AssertionError("%r is not a %s instance" % (v, cls.__name__))
 
 def assert_none(v):
     if v is not None:

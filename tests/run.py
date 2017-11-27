@@ -50,7 +50,7 @@ def iter_all_tests(selected_mod_name):
     mod_name = lambda mod: re.sub(r'.+\.', '', re.sub(r'_tests$', '', mod.__name__))
     found = False
     for mod in ALL_TEST_MODS:
-        if selected_mod_name in (None,mod_name(mod)):
+        if selected_mod_name in (None, mod_name(mod)):
             found = True
             for test in mod.ALL_TESTS:
                 yield test
@@ -68,9 +68,9 @@ def iter_all_tests(selected_mod_name):
 def main(selected_mod_name=None):
     tally = Counter()
     all_tests = tuple(iter_all_tests(selected_mod_name))
-    test_id_fmt = "{{:.<{width}}}".format(width = 3 + max(len(test_id) for test_id,test_func in all_tests))
+    test_id_fmt = "{{:.<{width}}}".format(width = 3 + max(len(test_id) for test_id, test_func in all_tests))
     result_fmt = "[{:^4}] {}"
-    for test_id,test_func in all_tests:
+    for test_id, test_func in all_tests:
         tally['total'] += 1
         print(test_id_fmt.format(test_id+' '), end='')
         try:

@@ -13,7 +13,7 @@ Edinburgh
 from __future__ import absolute_import, division, print_function, unicode_literals
 
 # record
-from .basics import Field, FieldValueError, compile_field_def
+from .basics import Field, FieldValueError, compile_field
 from .pods import PodsMethodsForSeqTemplate, PodsMethodsForDictTemplate
 from .record import FieldHandlingStmtsTemplate
 from .unpickler import RecordRegistryMetaClass, RecordUnpickler
@@ -27,12 +27,12 @@ from .utils.immutabledict import ImmutableDict
 class CollectionTypeCodeTemplate(SourceCodeTemplate):
 
     template = '''
-        class $cls_name($superclass, $RecordRegistryMetaClass(str('Registry'), (object,), {})):
+        class $class_name($superclass, $RecordRegistryMetaClass(str('Registry'), (object,), {})):
 
-            def $constructor(cls_or_self, iter_elems):
-                return $superclass.$constructor(cls_or_self, $cls_name.check_elems(iter_elems))
+            def $constructor(class_or_self, iter_elems):
+                return $superclass.$constructor(class_or_self, $class_name.check_elems(iter_elems))
 
-            $cls_fields
+            $class_fields
 
             @staticmethod
             def check_elems(iter_elems):
@@ -43,7 +43,7 @@ class CollectionTypeCodeTemplate(SourceCodeTemplate):
             $core_methods
 
             def __reduce__(self):
-                return($RecordUnpickler("$cls_name"), ($superclass(self),))
+                return($RecordUnpickler("$class_name"), ($superclass(self),))
     '''
 
     RecordRegistryMetaClass = RecordRegistryMetaClass
@@ -59,19 +59,19 @@ class SequenceCollCodeTemplate(CollectionTypeCodeTemplate):
 
     superclass = tuple
     constructor = '__new__'
-    cls_name_suffix = 'Seq'
+    class_name_suffix = 'Seq'
 
-    def __init__(self, elem_fdef):
-        self.cls_name = _ucfirst(elem_fdef.type.__name__) + self.cls_name_suffix
-        self.pods_methods = PodsMethodsForSeqTemplate(elem_fdef)
+    def __init__(self, element_field):
+        self.class_name = _ucfirst(element_field.type.__name__) + self.class_name_suffix
+        self.pods_methods = PodsMethodsForSeqTemplate(element_field)
         self.elem_check_impl = FieldHandlingStmtsTemplate(
-            elem_fdef,
+            element_field,
             'elem',
-            expr_descr='[elem]',
+            description='[elem]',
         )
-        self.cls_fields = SourceCodeTemplate(
-            'elem_fdef = $elem_fdef',
-            elem_fdef=elem_fdef,
+        self.class_fields = SourceCodeTemplate(
+            'element_field = $element_field',
+            element_field=element_field,
         )
 
     check_elems_body = '''
@@ -82,10 +82,10 @@ class SequenceCollCodeTemplate(CollectionTypeCodeTemplate):
 
 class PairCollCodeTemplate(SequenceCollCodeTemplate):
     FieldValueError = FieldValueError
-    cls_name_suffix = 'Pair'
+    class_name_suffix = 'Pair'
     check_elems_body = '''
         num_elems = 0
-        for i,elem in enumerate(iter_elems):
+        for i, elem in enumerate(iter_elems):
             if i > 1:
                 raise $FieldValueError("A pair cannot have more than two elements")
             num_elems = i+1
@@ -97,7 +97,7 @@ class PairCollCodeTemplate(SequenceCollCodeTemplate):
 
 class SetCollCodeTemplate(SequenceCollCodeTemplate):
     superclass = frozenset
-    cls_name_suffix = 'Set'
+    class_name_suffix = 'Set'
     core_methods = '''
         def __cmp__(self, other):
             return cmp(sorted(self), sorted(other))
@@ -107,75 +107,75 @@ class DictCollCodeTemplate(CollectionTypeCodeTemplate):
     superclass = ImmutableDict
     constructor = '__init__'
 
-    def __init__(self, key_fdef, val_fdef):
-        self.cls_name = '{}To{}Dict'.format(
-            _ucfirst(key_fdef.type.__name__),
-            _ucfirst(val_fdef.type.__name__),
+    def __init__(self, key_field, value_field):
+        self.class_name = '{}To{}Dict'.format(
+            _ucfirst(key_field.type.__name__),
+            _ucfirst(value_field.type.__name__),
         )
-        self.key_handling_stmts = FieldHandlingStmtsTemplate(key_fdef, 'key', expr_descr='<key>')
-        self.val_handling_stmts = FieldHandlingStmtsTemplate(val_fdef, 'val', expr_descr='<val>')
-        self.pods_methods = PodsMethodsForDictTemplate(key_fdef, val_fdef)
-        self.cls_fields = SourceCodeTemplate(
+        self.key_handling_stmts = FieldHandlingStmtsTemplate(key_field, 'key', description='<key>')
+        self.val_handling_stmts = FieldHandlingStmtsTemplate(value_field, 'value', description='<value>')
+        self.pods_methods = PodsMethodsForDictTemplate(key_field, value_field)
+        self.class_fields = SourceCodeTemplate(
             '''
-            key_fdef = $key_fdef
-            val_fdef = $val_fdef
+            key_field = $key_field
+            value_field = $value_field
             ''',
-            key_fdef = key_fdef,
-            val_fdef = val_fdef,
+            key_field = key_field,
+            value_field = value_field,
         )
 
     check_elems_body = '''
-        for key,val in getattr(iter_elems, "items", iter_elems.__iter__)():
+        for key, value in getattr(iter_elems, "items", iter_elems.__iter__)():
             $key_handling_stmts
             $val_handling_stmts
-            yield key,val
+            yield key, value
     '''
 
 #----------------------------------------------------------------------------------------------------------------------------------
 
-def make_coll(templ, **kwargs):
+def compile_collection_field(templ, **kwargs):
     verbose = kwargs.pop('__verbose', False)
-    coll_cls = compile_expr(templ, templ.cls_name, verbose=verbose)
+    collection = compile_expr(templ, templ.class_name, verbose=verbose)
     user_supplied_coerce = kwargs.pop('coerce', None)
     if user_supplied_coerce is None:
-        kwargs['coerce'] = lambda elems: coll_cls(elems) if elems is not None else None
+        kwargs['coerce'] = lambda elems: collection(elems) if elems is not None else None
     else:
-        kwargs['coerce'] = lambda elems: coll_cls(user_supplied_coerce(elems))
-    return Field(coll_cls, **kwargs)
+        kwargs['coerce'] = lambda elems: collection(user_supplied_coerce(elems))
+    return Field(collection, **kwargs)
 
 # NB there's no reason for the dunder in "__verbose", except that it makes it the same as in the call to `record', where it *is*
 # needed.
 
-def seq_of(elem_fdef, **kwargs):
-    elem_fdef = compile_field_def(elem_fdef)
-    return make_coll(
-        SequenceCollCodeTemplate(elem_fdef),
-        subfields = [elem_fdef],
+def seq_of(element_field, **kwargs):
+    element_field = compile_field(element_field)
+    return compile_collection_field(
+        SequenceCollCodeTemplate(element_field),
+        subfields = [element_field],
         **kwargs
     )
 
-def pair_of(elem_fdef, **kwargs):
-    elem_fdef = compile_field_def(elem_fdef)
-    return make_coll(
-        PairCollCodeTemplate(elem_fdef),
-        subfields = [elem_fdef],
+def pair_of(element_field, **kwargs):
+    element_field = compile_field(element_field)
+    return compile_collection_field(
+        PairCollCodeTemplate(element_field),
+        subfields = [element_field],
         **kwargs
     )
 
-def set_of(elem_fdef, **kwargs):
-    elem_fdef = compile_field_def(elem_fdef)
-    return make_coll(
-        SetCollCodeTemplate(elem_fdef),
-        subfields = [elem_fdef],
+def set_of(element_field, **kwargs):
+    element_field = compile_field(element_field)
+    return compile_collection_field(
+        SetCollCodeTemplate(element_field),
+        subfields = [element_field],
         **kwargs
     )
 
-def dict_of(key_fdef, val_fdef, **kwargs):
-    key_fdef = compile_field_def(key_fdef)
-    val_fdef = compile_field_def(val_fdef)
-    return make_coll(
-        DictCollCodeTemplate(key_fdef, val_fdef),
-        subfields = [key_fdef, val_fdef],
+def dict_of(key_field, value_field, **kwargs):
+    key_field = compile_field(key_field)
+    value_field = compile_field(value_field)
+    return compile_collection_field(
+        DictCollCodeTemplate(key_field, value_field),
+        subfields = [key_field, value_field],
         **kwargs
     )
 

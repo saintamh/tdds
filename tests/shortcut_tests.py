@@ -25,7 +25,7 @@ from .plumbing import *
 #----------------------------------------------------------------------------------------------------------------------------------
 # init
 
-ALL_TESTS,test = build_test_registry()
+ALL_TESTS, test = build_test_registry()
 
 #----------------------------------------------------------------------------------------------------------------------------------
 # number utils
@@ -142,7 +142,7 @@ def _():
 @test("all arguments to one_of must have the same type")
 def _():
     with expected_error(ValueError):
-        one_of('a',object())
+        one_of('a', object())
     
 @test("one_of compares values based on == rather than `is'")
 def _():
@@ -177,7 +177,7 @@ def _():
     (text_type, 'text strings', ''),
     (seq_of(int), 'seqeuence fields', ()),
     (set_of(int), 'set fields', ()),
-    (dict_of(int,int), 'dict fields', {}),
+    (dict_of(int, int), 'dict fields', {}),
 ))
 def _(ftype, ftype_name, empty_val):
 

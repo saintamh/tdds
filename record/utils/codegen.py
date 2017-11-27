@@ -59,10 +59,10 @@ class ExternalValue(SourceCodeGenerator):
         return ns.intern(self.value)
 
 class UnknownVariableInTemplate(ValueError):
-    def __init__(self, host, var_name, template_str):
-        super(UnknownVariableInTemplate,self).__init__('{}\n\n{!r} not found in {!r}'.format(
+    def __init__(self, host, variable_name, template_str):
+        super(UnknownVariableInTemplate, self).__init__('{}\n\n{!r} not found in {!r}'.format(
             template_str,
-            var_name,
+            variable_name,
             host,
         ))
 
@@ -81,16 +81,16 @@ class SourceCodeTemplate(SourceCodeGenerator):
     def __init__(self, template=None, **vars):
         if template is not None:
             self.template = template
-        for k,v in vars.items():
+        for k, v in vars.items():
             setattr(self, k, v)
 
-    def lookup(self, var_name, ns):
+    def lookup(self, variable_name, ns):
         not_found = object()
-        var_value = getattr(self, var_name, not_found)
-        if var_value is not_found:
-            raise UnknownVariableInTemplate(self, var_name, self.template)
+        variable_value = getattr(self, variable_name, not_found)
+        if variable_value is not_found:
+            raise UnknownVariableInTemplate(self, variable_name, self.template)
         else:
-            return self.code_string(ns, var_value)
+            return self.code_string(ns, variable_value)
 
     def replace_whole_lines(self, src, ns, expanded_vars=frozenset()):
         """
@@ -98,15 +98,15 @@ class SourceCodeTemplate(SourceCodeGenerator):
         that the variable resolves to is a multiline piece of code, each line will be indented to be at the same level as the
         variable originally appeared within the template.
         """
-        def whole_line_subst(indent, var_name, eol):
-            if var_name not in expanded_vars:
-                subst = shift_left(self.lookup(var_name, ns))
-                subst = shift_right(indent,subst).lstrip()
+        def whole_line_subst(indent, variable_name, eol):
+            if variable_name not in expanded_vars:
+                subst = shift_left(self.lookup(variable_name, ns))
+                subst = shift_right(indent, subst).lstrip()
                 subst = subst and (indent + subst + '\n')
-                subst = self.replace_whole_lines(subst, ns, expanded_vars | set([var_name]))
+                subst = self.replace_whole_lines(subst, ns, expanded_vars | set([variable_name]))
                 return subst
             else:
-                return '$' + var_name
+                return '$' + variable_name
         return re.sub(
             r'(?<![^\n])(\ *)\$(?:(\w+)|\{(\w+)\})\ *($|\n)',
             lambda m: whole_line_subst(
@@ -118,14 +118,14 @@ class SourceCodeTemplate(SourceCodeGenerator):
         )
 
     def replace_all_variables(self, src, ns, expanded_vars=frozenset()):
-        def simple_subst(var_name):
-            if var_name not in expanded_vars:
-                subst = self.lookup(var_name,ns)
-                assert '\n' not in subst, (src,var_name,subst)
-                subst = self.replace_all_variables(subst, ns, expanded_vars | set([var_name]))
+        def simple_subst(variable_name):
+            if variable_name not in expanded_vars:
+                subst = self.lookup(variable_name, ns)
+                assert '\n' not in subst, (src, variable_name, subst)
+                subst = self.replace_all_variables(subst, ns, expanded_vars | set([variable_name]))
                 return subst
             else:
-                return '$' + var_name
+                return '$' + variable_name
         return re.sub(
             r'\$(?:(\w+)|\{(\w+)\})',
             lambda m: simple_subst(m.group(1) or m.group(2)),
@@ -286,7 +286,7 @@ class Joiner(SourceCodeGenerator):
         return '{prefix}{body}{suffix}'.format(
             prefix = self.prefix,
             suffix = self.suffix,
-            body = self.sep.join(shift_left(self.code_string(ns,v)) for v in self.values),
+            body = self.sep.join(shift_left(self.code_string(ns, v)) for v in self.values),
         )
 
 #----------------------------------------------------------------------------------------------------------------------------------

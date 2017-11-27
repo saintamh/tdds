@@ -94,67 +94,67 @@ class PodsMethodsTemplate(SourceCodeTemplate):
     '''
 
     @staticmethod
-    def value_to_pods(value_expr, fdef, needs_null_check=True):
-        if fdef.type in PODS_TYPES:
+    def value_to_pods(value_expr, field, needs_null_check=True):
+        if field.type in PODS_TYPES:
             return value_expr
-        elif fdef.type is RecursiveType or callable(getattr(fdef.type, 'record_pods', None)):
+        elif field.type is RecursiveType or callable(getattr(field.type, 'record_pods', None)):
             return wrap_in_null_check(
-                fdef.nullable and needs_null_check,
+                field.nullable and needs_null_check,
                 value_expr,
                 '{}.record_pods()'.format(value_expr),
             )
         else:
-            marshalling_code = lookup_marshalling_code_for_type(fdef.type)
+            marshalling_code = lookup_marshalling_code_for_type(field.type)
             if marshalling_code is not None:
                 return wrap_in_null_check(
-                    fdef.nullable,
+                    field.nullable,
                     value_expr,
                     ExternalCodeInvocation(marshalling_code, value_expr)
                 )
             else:
                 raise CannotBeSerializedToPods("Don't know how to serialize {} object to a PODS".format(
-                    fdef.type.__name__,
+                    field.type.__name__,
                 ))
 
     @staticmethod
-    def pods_to_value(value_expr, fdef):
-        if fdef.type in PODS_TYPES:
+    def pods_to_value(value_expr, field):
+        if field.type in PODS_TYPES:
             return value_expr
-        elif fdef.type is RecursiveType or callable(getattr(fdef.type, 'from_pods', None)):
+        elif field.type is RecursiveType or callable(getattr(field.type, 'from_pods', None)):
             return wrap_in_null_check(
-                fdef.nullable,
+                field.nullable,
                 value_expr,
                 SourceCodeTemplate(
                     '$cls.from_pods($value)',
                     cls = (
-                        ExternalCodeInvocation(lambda: fdef.type, '')
-                        if fdef.type is RecursiveType
-                        else fdef.type
+                        ExternalCodeInvocation(lambda: field.type, '')
+                        if field.type is RecursiveType
+                        else field.type
                     ),
                     value = value_expr,
                 ),
             )
         else:
-            unmarshalling_code = lookup_unmarshalling_code_for_type(fdef.type)
+            unmarshalling_code = lookup_unmarshalling_code_for_type(field.type)
             if unmarshalling_code is not None:
                 return wrap_in_null_check(
-                    fdef.nullable,
+                    field.nullable,
                     value_expr,
                     ExternalCodeInvocation(unmarshalling_code, value_expr),
                 )
                 return ExternalCodeInvocation(unmarshalling_code, value_expr)
             else:
                 raise CannotBeSerializedToPods("Don't know how to load {} object from a PODS".format(
-                    fdef.type.__name__,
+                    field.type.__name__,
                 ))
 
 #----------------------------------------------------------------------------------------------------------------------------------
 
 class PodsMethodsForRecordTemplate(PodsMethodsTemplate):
 
-    def __init__(self, cls_name, field_defs):
-        self.cls_name = cls_name
-        self.field_defs = field_defs
+    def __init__(self, class_name, fields):
+        self.class_name = class_name
+        self.fields = fields
 
     @property
     @serialization_exceptions_at_runtime
@@ -162,20 +162,20 @@ class PodsMethodsForRecordTemplate(PodsMethodsTemplate):
         return Joiner('\n', 'pods = {}\n', '\nreturn pods', tuple(
             SourceCodeTemplate(
                 '''
-                if self.$fname is not None:
+                if self.$field_id is not None:
                     pods[$key] = $value
                 '''
-                if fdef.nullable
+                if field.nullable
                 else 'pods[$key] = $value',
-                fname = fname,
-                key = repr(fname),
+                field_id = field_id,
+                key = repr(field_id),
                 value = self.value_to_pods(
-                    'self.{}'.format(fname),
-                    fdef,
+                    'self.{}'.format(field_id),
+                    field,
                     needs_null_check = False,
                 ),
             )
-            for fname,fdef in sorted(self.field_defs.items())
+            for field_id, field in sorted(self.fields.items())
         ))
 
     @property
@@ -184,28 +184,28 @@ class PodsMethodsForRecordTemplate(PodsMethodsTemplate):
         return Joiner(', ', 'return cls(', ')', tuple(
             SourceCodeTemplate(
                 '$key = $value',
-                key = fname,
+                key = field_id,
                 value = self.pods_to_value(
-                    'pods.get({})'.format(repr(fname)),
-                    fdef,
+                    'pods.get({})'.format(repr(field_id)),
+                    field,
                 ),
             )
-            for fname,fdef in self.field_defs.items()
+            for field_id, field in self.fields.items()
         ))
 
 #----------------------------------------------------------------------------------------------------------------------------------
 
 class PodsMethodsForSeqTemplate(PodsMethodsTemplate):
 
-    def __init__(self, elem_fdef):
-        self.elem_fdef = elem_fdef
+    def __init__(self, element_field):
+        self.element_field = element_field
 
     @property
     @serialization_exceptions_at_runtime
     def record_pods_impl(self):
         return SourceCodeTemplate(
             'return [ $code_for_elem for elem in self ]',
-            code_for_elem = self.value_to_pods('elem', self.elem_fdef),
+            code_for_elem = self.value_to_pods('elem', self.element_field),
         )
 
     @property
@@ -213,33 +213,33 @@ class PodsMethodsForSeqTemplate(PodsMethodsTemplate):
     def from_pods_impl(self):
         return SourceCodeTemplate(
             'return [ $code_for_elem for elem in pods ]',
-            code_for_elem = self.pods_to_value('elem', self.elem_fdef),
+            code_for_elem = self.pods_to_value('elem', self.element_field),
         )            
 
 #----------------------------------------------------------------------------------------------------------------------------------
 
 class PodsMethodsForDictTemplate(PodsMethodsTemplate):
 
-    def __init__(self, key_fdef, val_fdef):
-        self.key_fdef = key_fdef
-        self.val_fdef = val_fdef
+    def __init__(self, key_field, value_field):
+        self.key_field = key_field
+        self.value_field = value_field
 
     @property
     @serialization_exceptions_at_runtime
     def record_pods_impl(self):
         return SourceCodeTemplate(
-            'return { $code_for_key:$code_for_val for key,val in self.items() }',
-            code_for_key = self.value_to_pods('key', self.key_fdef),
-            code_for_val = self.value_to_pods('val', self.val_fdef),
+            'return { $code_for_key:$code_for_val for key, value in self.items() }',
+            code_for_key = self.value_to_pods('key', self.key_field),
+            code_for_val = self.value_to_pods('value', self.value_field),
         )
 
     @property
     @serialization_exceptions_at_runtime
     def from_pods_impl(self):
         return SourceCodeTemplate(
-            'return { $code_for_key:$code_for_val for key,val in pods.items() }',
-            code_for_key = self.pods_to_value('key', self.key_fdef),
-            code_for_val = self.pods_to_value('val', self.val_fdef),
+            'return { $code_for_key:$code_for_val for key, value in pods.items() }',
+            code_for_key = self.pods_to_value('key', self.key_field),
+            code_for_val = self.pods_to_value('value', self.value_field),
         )
 
 #----------------------------------------------------------------------------------------------------------------------------------

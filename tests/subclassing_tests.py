@@ -22,7 +22,7 @@ from .plumbing import *
 #----------------------------------------------------------------------------------------------------------------------------------
 # init
 
-ALL_TESTS,test = build_test_registry()
+ALL_TESTS, test = build_test_registry()
 
 #----------------------------------------------------------------------------------------------------------------------------------
 
@@ -54,7 +54,7 @@ def _():
         animate = bool
     class Child(Parent):
         def __init__(self, name):
-            super(Child,self).__init__(
+            super(Child, self).__init__(
                 name = name,
                 animate = True,
             )
@@ -70,7 +70,7 @@ def _():
     class Child(Parent):
         def __init__(self, name, favourite_color):
             self.favourite_color = favourite_color # <-- boom
-            super(Child,self).__init__(
+            super(Child, self).__init__(
                 name = name,
                 animate = True,
             )
@@ -85,15 +85,15 @@ def _():
         x = int
         y = int
     assert_eq(
-        sorted([Point(0,0), Point(0,10), Point(10,0), Point(10,10)]),
-        [Point(0,0), Point(0,10), Point(10,0), Point(10,10)],
+        sorted([Point(0, 0), Point(0, 10), Point(10, 0), Point(10, 10)]),
+        [Point(0, 0), Point(0, 10), Point(10, 0), Point(10, 10)],
     )
     class DownPoint(Point):
         def __key__(self):
             return (-self.y, -self.x)
     assert_eq(
-        sorted([DownPoint(0,0), DownPoint(0,10), DownPoint(10,0), DownPoint(10,10)]),
-        [DownPoint(10,10), DownPoint(0,10), DownPoint(10,0), DownPoint(0,0)],
+        sorted([DownPoint(0, 0), DownPoint(0, 10), DownPoint(10, 0), DownPoint(10, 10)]),
+        [DownPoint(10, 10), DownPoint(0, 10), DownPoint(10, 0), DownPoint(0, 0)],
     )
 
 @test("if a non-record subclass defines its own __hash__, it overrides the default one")
@@ -105,7 +105,7 @@ def _():
         def __hash__(self):
             return 1488451651
     assert_eq(
-        hash(DownPoint(5,5)),
+        hash(DownPoint(5, 5)),
         1488451651,
     )
 
@@ -118,7 +118,7 @@ def _():
         def __repr__(self):
             return '{%d--%d}' % (self.x, self.y)
     assert_eq(
-        repr(DownPoint(13,7)),
+        repr(DownPoint(13, 7)),
         '{13--7}',
     )
 
@@ -178,7 +178,7 @@ def _():
 #     c1 = Child(x=LoudComparable(5), y=LoudComparable(9))
 #     c2 = Child(x=LoudComparable(5), y=LoudComparable(8))
 #     _ = (c1 < c2)
-#     assert_eq(compared, [5,5), (9,8)])
+#     assert_eq(compared, [5, 5), (9, 8)])
 
 @test("if a record subclasses another, the subclass's record_pods includes fields from both")
 def _():
@@ -243,9 +243,9 @@ def _():
         x = int
     class Child(Parent, Record):
         y = int
-    c = Child(1,2)
-    assert_eq(c.record_derive(x=3), Child(3,2))
-    assert_eq(c.record_derive(y=4), Child(1,4))
+    c = Child(1, 2)
+    assert_eq(c.record_derive(x=3), Child(3, 2))
+    assert_eq(c.record_derive(y=4), Child(1, 4))
 
 # 2017-03-03 - I'm comment this one out even though it passes, but 3-way inheritance doesn't work anyway because of some problem
 # with __slots__ (see "Layout Conflicts" at http://mcjeff.blogspot.co.uk/2009/05/odd-python-errors.html)

@@ -25,7 +25,7 @@ from .plumbing import *
 #----------------------------------------------------------------------------------------------------------------------------------
 # init
 
-ALL_TESTS,test = build_test_registry()
+ALL_TESTS, test = build_test_registry()
 
 #----------------------------------------------------------------------------------------------------------------------------------
 # check function specified as a callable
@@ -263,9 +263,9 @@ def _():
 def _():
     obj = object()
     class R(Record):
-        val = nullable(object, default=obj)
+        value = nullable(object, default=obj)
     r = R()
-    assert_is(r.val, obj)
+    assert_is(r.value, obj)
 
 @test("the default value doesn't need a __repr__ that compiles as valid Python code")
 def _():

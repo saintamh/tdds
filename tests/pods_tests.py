@@ -27,7 +27,7 @@ from .plumbing import *
 #----------------------------------------------------------------------------------------------------------------------------------
 # init
 
-ALL_TESTS,test = build_test_registry()
+ALL_TESTS, test = build_test_registry()
 
 #----------------------------------------------------------------------------------------------------------------------------------
 # sanity
@@ -56,7 +56,7 @@ def _():
     class Person(Record):
         name = Name
         age = int
-    p = Person(name=Name(first="Robert",last="Smith"), age=100)
+    p = Person(name=Name(first="Robert", last="Smith"), age=100)
     d = p.record_pods()
     assert_eq(d, {
         "name": {
@@ -75,8 +75,8 @@ def _other_record():
     return R2
 
 @foreach(
-    (cls_name, cls, val, nullable_or_not)
-    for cls_name,cls,non_null_val in (
+    (class_name, cls, value, nullable_or_not)
+    for class_name, cls, non_null_val in (
         ('bytes', bytes_type, b'\xE2\x9C\x93\'\\\"\xE2\x9C\x93'),
         ('text', text_type, 'Herv\u00E9\'\\\"Herv\u00E9'),
         ('ascii-only text', text_type, 'ASCII'),
@@ -86,33 +86,33 @@ def _other_record():
     ) + (
         ('float', float, 0.3),
         ('bool', bool, True),
-        ('sequence (nonempty)', seq_of(int), (1,2,3)),
+        ('sequence (nonempty)', seq_of(int), (1, 2, 3)),
         ('sequence (empty)', seq_of(int), []),
-        ('set (nonempty)', set_of(int), (1,2,3)),
+        ('set (nonempty)', set_of(int), (1, 2, 3)),
         ('set (empty)', set_of(int), []),
-        ('dict (nonempty)', dict_of(text_type,int), {'one':1,'two':2}),
-        ('dict (empty)', dict_of(text_type,int), []),
+        ('dict (nonempty)', dict_of(text_type, int), {'one':1,'two':2}),
+        ('dict (empty)', dict_of(text_type, int), []),
         ('datetime', datetime, datetime(2016, 4, 15, 10, 1, 59)),
         ('timedelta', timedelta, timedelta(days=1, hours=2, minutes=3, seconds=4)),
         (lambda R2: ('other record', R2, R2(2)))(_other_record()),
     )
-    for nullable_or_not,vals in (
+    for nullable_or_not, vals in (
         (lambda f: f, (non_null_val,)),
-        (nullable, (non_null_val,None)),
+        (nullable, (non_null_val, None)),
     )
-    for val in vals
+    for value in vals
 )
-def _(cls_name, cls, val, nullable_or_not):
+def _(class_name, cls, value, nullable_or_not):
 
     @test("Record with {}{} field (set to {!r}) -> PODS -> Record".format(
         'nullable ' if nullable_or_not is nullable else '',
-        cls_name,
-        val,
+        class_name,
+        value,
     ))
     def _():
         class R(Record):
             field = nullable_or_not(cls)
-        r1 = R(field=val)
+        r1 = R(field=value)
         d = r1.record_pods()
         assert_isinstance(d, dict)
         r2 = R.from_pods(d)
@@ -126,11 +126,11 @@ def _(cls_name, cls, val, nullable_or_not):
 #         two = seq_of(int),
 #     )
 #     Collection = record ('Collection', items=seq_of(Item))
-#     c = Collection([Item(one=None,two=[1,2,3])])
+#     c = Collection([Item(one=None, two=[1, 2, 3])])
 #     d = json.loads(c.json_dumps())
 #     assert_eq (d, {
 #         "items": [{
-#             "two": [1,2,3]
+#             "two": [1, 2, 3]
 #         }]
 #     })
 
@@ -148,7 +148,7 @@ def _():
     class Person(Record):
         name = Name
         age = int
-    p = Person(name=Name(first="Robert",last="Smith"), age=100)
+    p = Person(name=Name(first="Robert", last="Smith"), age=100)
     d = p.record_pods()
     assert_eq(d, {
         "name": ["Robert", "Smith"],
@@ -207,36 +207,36 @@ def _():
 def _():
     class R(Record):
         elems = seq_of(int)
-    r = R(elems=[1,2,3])
+    r = R(elems=[1, 2, 3])
     assert_eq(r.record_pods(), {
-        "elems": [1,2,3],
+        "elems": [1, 2, 3],
     })
 
 @test("pair fields get serialized to plain lists")
 def _():
     class R(Record):
         elems = pair_of(int)
-    r = R(elems=[1,2])
+    r = R(elems=[1, 2])
     assert_eq(r.record_pods(), {
-        "elems": [1,2],
+        "elems": [1, 2],
     })
 
 @test("set_of fields get serialized to plain lists")
 def _():
     class R(Record):
         elems = set_of(int)
-    r = R(elems=[1,2,3])
+    r = R(elems=[1, 2, 3])
     elems = r.record_pods()['elems']
     assert isinstance(elems, list), repr(elems)
     assert_eq(
         sorted(elems),
-        [1,2,3],
+        [1, 2, 3],
     )
 
 @test("dict_of fields get serialized to plain dicts")
 def _():
     class R(Record):
-        elems = dict_of(text_type,int)
+        elems = dict_of(text_type, int)
     r = R(elems={'uno':1,'zwei':2})
     assert_eq(r.record_pods(), {
         "elems": {'uno':1,'zwei':2},
@@ -245,7 +245,7 @@ def _():
 @test("an empty dict gets serialized to '{}'")
 def _():
     class R(Record):
-        v = dict_of(text_type,text_type)
+        v = dict_of(text_type, text_type)
     assert_eq(R({}).record_pods(), {
         'v': {},
     })
@@ -294,7 +294,7 @@ def _():
 # built-in marshallers
 
 @foreach((
-    (datetime(2009,10,28,8,53,2), "2009-10-28T08:53:02"),
+    (datetime(2009, 10, 28, 8, 53, 2), "2009-10-28T08:53:02"),
     (Decimal('10.3'), "10.3"),
 ))
 def _(obj, marshalled_text):
@@ -316,12 +316,12 @@ def _():
     Point = namedtuple('Point', ('x','y'))
     marshaller = Marshaller(
         lambda pt: '%d,%d' % pt,
-        lambda s: Point(*map(int,s.split(','))),
+        lambda s: Point(*map(int, s.split(','))),
     )
     with temporary_marshaller_registration(Point, marshaller):
         class R(Record):
             pt = Point
-        r1 = R(Point(1,2))
+        r1 = R(Point(1, 2))
         assert_eq(
             r1.record_pods(),
             {"pt": "1,2"},
@@ -336,11 +336,11 @@ def _():
     Point = namedtuple('Point', ('x','y'))
     marshaller = Marshaller(
         lambda pt: '%d,%d' % pt,
-        lambda s: Point(*map(int,s.split(','))),
+        lambda s: Point(*map(int, s.split(','))),
     )
     class R(Record):
         pt = Point
     with expected_error(CannotBeSerializedToPods):
-        R(Point(1,2)).record_pods()
+        R(Point(1, 2)).record_pods()
 
 #----------------------------------------------------------------------------------------------------------------------------------

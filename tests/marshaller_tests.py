@@ -26,7 +26,7 @@ from .plumbing import *
 #----------------------------------------------------------------------------------------------------------------------------------
 # init
 
-ALL_TESTS,test = build_test_registry()
+ALL_TESTS, test = build_test_registry()
 
 #----------------------------------------------------------------------------------------------------------------------------------
 
@@ -43,24 +43,24 @@ ALL_TESTS,test = build_test_registry()
 ))
 def _(value, marshalled_text):
     cls = value.__class__
-    cls_name = cls.__name__
+    class_name = cls.__name__
     marshaller = lookup_marshaller_for_type(cls)
 
-    @test("%s fields can be marshalled" % cls_name)
+    @test("%s fields can be marshalled" % class_name)
     def _():
         assert_isinstance(
             marshaller.marshal(value),
             text_type
         )
 
-    @test("%s fields have the expected marshalled byte representation" % cls_name)
+    @test("%s fields have the expected marshalled byte representation" % class_name)
     def _():
         assert_eq(
             marshaller.marshal(value),
             marshalled_text,
         )
 
-    @test("%s fields marshalled to str can be unmarshalled" % cls_name)
+    @test("%s fields marshalled to str can be unmarshalled" % class_name)
     def _():
         assert_eq(
             value,
@@ -77,7 +77,7 @@ def _():
         lambda value: text_type(value),
         lambda v: None,
     )
-    with temporary_marshaller_registration(Point,bogus_marshaller):
+    with temporary_marshaller_registration(Point, bogus_marshaller):
         assert_is(bogus_marshaller, lookup_marshaller_for_type(Point))
     assert_none(lookup_marshaller_for_type(Point))
 
