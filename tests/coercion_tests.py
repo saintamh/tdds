@@ -65,7 +65,7 @@ def _():
 
 @test("a 'coerce' function specified as a string must contain a '{}'")
 def _():
-    with expected_error(ValueError):
+    with assert_raises(ValueError):
         class R(Record):
             id = Field(
                 type = text_type,
@@ -74,7 +74,7 @@ def _():
 
 @test("a 'coerce' function specified as a string must contain a '{}' with nothing in it")
 def _():
-    with expected_error(ValueError):
+    with assert_raises(ValueError):
         class R(Record):
             id = Field(
                 type = text_type,
@@ -83,7 +83,7 @@ def _():
 
 @test("a 'coerce' function specified as a string may not contain more than one '{}'")
 def _():
-    with expected_error(ValueError):
+    with assert_raises(ValueError):
         class R(Record):
             id = Field(
                 type = text_type,
@@ -107,7 +107,7 @@ def _():
 
 @test("a 'coerce' function specified as a SourceCodeTemplate must contain a '{}'")
 def _():
-    with expected_error(ValueError):
+    with assert_raises(ValueError):
         class R(Record):
             id = Field(
                 type = text_type,
@@ -119,7 +119,7 @@ def _():
 
 @test("a 'coerce' function specified as a SourceCodeTemplate must contain a '{}' with nothing in it")
 def _():
-    with expected_error(ValueError):
+    with assert_raises(ValueError):
         class R(Record):
             id = Field(
                 type = text_type,
@@ -131,7 +131,7 @@ def _():
 
 @test("a 'coerce' function specified as a SourceCodeTemplate may not contain more than one '{}'")
 def _():
-    with expected_error(ValueError):
+    with assert_raises(ValueError):
         class R(Record):
             id = Field(
                 type = text_type,
@@ -176,7 +176,7 @@ def _():
             type = text_type,
             coerce = lambda s: None,
         )
-    with expected_error(FieldNotNullable):
+    with assert_raises(FieldNotNullable):
         r = R('a')
 
 @test("the 'coerce' function may return None if the field is nullable")
@@ -197,7 +197,7 @@ def _():
             type = text_type,
             coerce = lambda v: 10,
         )
-    with expected_error(FieldTypeError):
+    with assert_raises(FieldTypeError):
         R(id='not ten')
 
 @test("if the field is not nullable, the coercion function may not return None")
@@ -207,7 +207,7 @@ def _():
             type = text_type,
             coerce = lambda v: None,
         )
-    with expected_error(FieldNotNullable):
+    with assert_raises(FieldNotNullable):
         R(id='not None')
 
 #----------------------------------------------------------------------------------------------------------------------------------
@@ -229,7 +229,7 @@ def _():
 
 @test("specifying something other than a string, a SourceCodeGenerator or a callable as 'coerce' raises a TypeError")
 def _():
-    with expected_error(TypeError):
+    with assert_raises(TypeError):
         class R(Record):
             id = Field(
                 type = text_type,

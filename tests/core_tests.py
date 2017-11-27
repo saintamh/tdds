@@ -36,7 +36,7 @@ def _():
     class R(Record):
         id = int
     r = R(10)
-    with expected_error(RecordsAreImmutable):
+    with assert_raises(RecordsAreImmutable):
         r.id = 11
 
 #----------------------------------------------------------------------------------------------------------------------------------
@@ -52,7 +52,7 @@ def val_type_tests(val_type):
     def _():
         class R(Record):
             id = val_type
-        with expected_error(FieldNotNullable):
+        with assert_raises(FieldNotNullable):
             R(id=None)
 
     @test("non-nullable {} fields can be zero".format(val_type_name))
@@ -80,7 +80,7 @@ def val_type_tests(val_type):
     def _():
         class R(Record):
             id = val_type
-        with expected_error(FieldNotNullable):
+        with assert_raises(FieldNotNullable):
             R(id=None)
 
 #----------------------------------------------------------------------------------------------------------------------------------
@@ -143,7 +143,7 @@ def _():
         lambda self: self.x*self.x,
         fset_x,
     )
-    with expected_error(TypeError):
+    with assert_raises(TypeError):
         class R(Record):
             x = int
             square = square_prop
@@ -156,7 +156,7 @@ def _():
         lambda self: self.x*self.x,
         fdel = fdel_x,
     )
-    with expected_error(TypeError):
+    with assert_raises(TypeError):
         class R(Record):
             x = int
             square = square_prop
@@ -167,7 +167,7 @@ def _():
         x = int
         square = property(lambda self: self.x*self.x)
     r = R(3)
-    with expected_error(RecordsAreImmutable):
+    with assert_raises(RecordsAreImmutable):
         r.square = 18
 
 @test("cannot override a property with a new one either")
@@ -176,7 +176,7 @@ def _():
         x = int
         square = property(lambda self: self.x*self.x)
     r = R(3)
-    with expected_error(RecordsAreImmutable):
+    with assert_raises(RecordsAreImmutable):
         r.square = property(lambda self: self.x**3)
 
 @test("the property is not part of the record's fields")
@@ -191,7 +191,7 @@ def _():
     class R(Record):
         x = int
         square = property(lambda self: self.x*self.x)
-    with expected_error(TypeError):
+    with assert_raises(TypeError):
         R(x=10, square=99)
 
 #----------------------------------------------------------------------------------------------------------------------------------
@@ -227,7 +227,7 @@ def _():
     class R(Record):
         x = int
         parse = classmethod(lambda cls, value: cls(int(value)))
-    with expected_error(TypeError):
+    with assert_raises(TypeError):
         R(x=10, parse='blah')
 
 #----------------------------------------------------------------------------------------------------------------------------------
@@ -263,7 +263,7 @@ def _():
     class R(Record):
         x = int
         square = staticmethod(lambda value: value*value)
-    with expected_error(TypeError):
+    with assert_raises(TypeError):
         R(x=10, square='blah')
 
 #----------------------------------------------------------------------------------------------------------------------------------

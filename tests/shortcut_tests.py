@@ -34,7 +34,7 @@ ALL_TESTS, test = build_test_registry()
 def _():
     class R(Record):
         id = nonnegative(int)
-    with expected_error(FieldValueError):
+    with assert_raises(FieldValueError):
         R(id=-1)
 
 @test("nonnegative numbers can be zero")
@@ -53,14 +53,14 @@ def _():
 def _():
     class R(Record):
         id = strictly_positive(int)
-    with expected_error(FieldValueError):
+    with assert_raises(FieldValueError):
         R(id=-1)
 
 @test("strictly_positive numbers cannot be zero")
 def _():
     class R(Record):
         id = strictly_positive(int)
-    with expected_error(FieldValueError):
+    with assert_raises(FieldValueError):
         R(id=0)
 
 @test("strictly_positive numbers can be greater than zero")
@@ -82,21 +82,21 @@ def _():
 def _():
     class R(Record):
         s = uppercase_letters(3)
-    with expected_error(FieldValueError):
+    with assert_raises(FieldValueError):
         R(s='AB')
 
 @test("uppercase_letters(3) doesn't accept more than 3 letters")
 def _():
     class R(Record):
         s = uppercase_letters(3)
-    with expected_error(FieldValueError):
+    with assert_raises(FieldValueError):
         R(s='ABCD')
 
 @test("uppercase_letters doesn't accept lowercase letters")
 def _():
     class R(Record):
         s = uppercase_letters(3)
-    with expected_error(FieldValueError):
+    with assert_raises(FieldValueError):
         R(s='abc')
 
 @test("uppercase_letters() accepts any number of uppercase letters")
@@ -115,7 +115,7 @@ def _():
 def _():
     class R(Record):
         s = uppercase_letters()
-    with expected_error(FieldValueError):
+    with assert_raises(FieldValueError):
         R(s='a')
 
 #----------------------------------------------------------------------------------------------------------------------------------
@@ -131,17 +131,17 @@ def _():
 def _():
     class R(Record):
         v = one_of('a','b','c')
-    with expected_error(FieldValueError):
+    with assert_raises(FieldValueError):
         R(v='d')
 
 @test("one_of does not accept an empty argument list")
 def _():
-    with expected_error(ValueError):
+    with assert_raises(ValueError):
         one_of()
 
 @test("all arguments to one_of must have the same type")
 def _():
-    with expected_error(ValueError):
+    with assert_raises(ValueError):
         one_of('a', object())
     
 @test("one_of compares values based on == rather than `is'")
@@ -190,7 +190,7 @@ def _(ftype, ftype_name, empty_val):
     def _():
         class R(Record):
             v = nonempty(ftype)
-        with expected_error(FieldValueError):
+        with assert_raises(FieldValueError):
             R(empty_val)
 
 #----------------------------------------------------------------------------------------------------------------------------------

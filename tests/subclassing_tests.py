@@ -74,7 +74,7 @@ def _():
                 name = name,
                 animate = True,
             )
-    with expected_error(RecordsAreImmutable):
+    with assert_raises(RecordsAreImmutable):
         Child('Pearl', 'red')
 
 #----------------------------------------------------------------------------------------------------------------------------------
@@ -196,7 +196,7 @@ def _():
 def _():
     class Parent(Record):
         x = int
-    with expected_error(TypeError):
+    with assert_raises(TypeError):
         class Child(Parent, Record):
             x = int
 
@@ -204,7 +204,7 @@ def _():
 def _():
     class Parent(Record):
         x = int
-    with expected_error(TypeError):
+    with assert_raises(TypeError):
         class Child(Parent, Record):
             def x(self):
                 pass
@@ -213,7 +213,7 @@ def _():
 def _():
     class Parent(Record):
         x = int
-    with expected_error(TypeError):
+    with assert_raises(TypeError):
         class Child(Parent, Record):
             x = property(lambda self: 'ex')
 
@@ -221,7 +221,7 @@ def _():
 def _():
     class Parent(Record):
         x = int
-    with expected_error(TypeError):
+    with assert_raises(TypeError):
         class Child(Parent, Record):
             @classmethod
             def x(cls):
@@ -231,7 +231,7 @@ def _():
 def _():
     class Parent(Record):
         x = int
-    with expected_error(TypeError):
+    with assert_raises(TypeError):
         class Child(Parent, Record):
             @staticmethod
             def x():
@@ -256,7 +256,7 @@ def _():
 #         x = int
 #     class RightParent(Record):
 #         x = int
-#     with expected_error(TypeError):
+#     with assert_raises(TypeError):
 #         class Child(LeftParent, RightParent, Record):
 #             y = int
 

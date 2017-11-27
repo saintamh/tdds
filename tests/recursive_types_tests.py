@@ -38,7 +38,7 @@ def _():
 def _():
     class R(Record):
         nxt = nullable(RecursiveType)
-    with expected_error(FieldTypeError):
+    with assert_raises(FieldTypeError):
         R("something else")
 
 @test("RecursiveType works with subtypes")
@@ -82,7 +82,7 @@ def _():
 def _():
     class R (Record):
         children = seq_of(RecursiveType)
-    with expected_error(FieldTypeError):
+    with assert_raises(FieldTypeError):
         R(["something else"])
 
 @test("RecursiveType works with pairs")
@@ -98,7 +98,7 @@ def _():
 def _():
     class R (Record):
         children = pair_of(RecursiveType)
-    with expected_error(FieldTypeError):
+    with assert_raises(FieldTypeError):
         R(["something", "else"])
 
 @test("RecursiveType works with sets")
@@ -113,7 +113,7 @@ def _():
 def _():
     class R (Record):
         children = set_of(RecursiveType)
-    with expected_error(FieldTypeError):
+    with assert_raises(FieldTypeError):
         R(["something else"])
 
 @test("RecursiveType works with dict keys")
@@ -128,7 +128,7 @@ def _():
 def _():
     class R (Record):
         children = dict_of(text_type, RecursiveType)
-    with expected_error(FieldTypeError):
+    with assert_raises(FieldTypeError):
         R({'1': "one"})
 
 @test("RecursiveType works with dict values")
@@ -143,7 +143,7 @@ def _():
 def _():
     class R (Record):
         children = dict_of(text_type, RecursiveType)
-    with expected_error(FieldTypeError):
+    with assert_raises(FieldTypeError):
         R({'1': "something else"})
 
 #----------------------------------------------------------------------------------------------------------------------------------

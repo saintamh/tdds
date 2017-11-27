@@ -161,7 +161,7 @@ def _():
     class R(Record):
         name = Name
     r = R(Name('peter'))
-    with expected_error(CannotBeSerializedToPods):
+    with assert_raises(CannotBeSerializedToPods):
         r.record_pods()
 
 #----------------------------------------------------------------------------------------------------------------------------------
@@ -197,7 +197,7 @@ def _():
         def __getattr__(self, attr):
             # ensure that the value given to `from_pods' below isn't even looked at in any way
             raise Exception("boom")
-    with expected_error(CannotBeSerializedToPods):
+    with assert_raises(CannotBeSerializedToPods):
         R.from_pods(CantTouchThis())
 
 #----------------------------------------------------------------------------------------------------------------------------------
@@ -279,7 +279,7 @@ def _():
     class R(Record):
         x = int
         y = int
-    with expected_error(FieldNotNullable):
+    with assert_raises(FieldNotNullable):
         R.from_pods({"x":11,"y":None})
 
 @test("if the field is not nullable, FieldNotNullable is raised when parsing an implicit null")
@@ -287,7 +287,7 @@ def _():
     class R(Record):
         x = int
         y = int
-    with expected_error(FieldNotNullable):
+    with assert_raises(FieldNotNullable):
         R.from_pods({"x":11})
 
 #----------------------------------------------------------------------------------------------------------------------------------
@@ -340,7 +340,7 @@ def _():
     )
     class R(Record):
         pt = Point
-    with expected_error(CannotBeSerializedToPods):
+    with assert_raises(CannotBeSerializedToPods):
         R(Point(1, 2)).record_pods()
 
 #----------------------------------------------------------------------------------------------------------------------------------

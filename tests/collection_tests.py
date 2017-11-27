@@ -64,14 +64,14 @@ def _():
     class R(Record):
         elems = seq_of(int)
     r = R(elems=[1, 2, 3])
-    with expected_error(TypeError):
+    with assert_raises(TypeError):
         r.elems[2] = 4
 
 @test("elements of the sequence must be of the correct type")
 def _():
     class R(Record):
         elems = seq_of(int)
-    with expected_error(FieldTypeError):
+    with assert_raises(FieldTypeError):
         R(elems=['1','2','3'])
 
 @test("Two sequences can use types of the same name, they won't clash")
@@ -96,14 +96,14 @@ def _():
         elems = seq_of(C1)
     class R2(Record):
         elems = seq_of(C2)
-    with expected_error(FieldTypeError):
+    with assert_raises(FieldTypeError):
         R1(elems=[C2()])
 
 @test("seq_of params can be field defs themselves")
 def _():
     class R(Record):
         elems = seq_of(pair_of(int))
-    with expected_error(FieldValueError):
+    with assert_raises(FieldValueError):
         R([(1, 2, 3)])
     assert_eq(
         R([(1, 2),(3, 4)]).elems,
@@ -143,7 +143,7 @@ def _():
             check = lambda s: len(s) == 3,
         )
     assert_eq(R((1, 2, 3)).v, (1, 2, 3))
-    with expected_error(FieldValueError):
+    with assert_raises(FieldValueError):
         R((1, 2, 3, 4))
 
 @test("seq_of accepts a `nullable' kwarg")
@@ -154,9 +154,9 @@ def _():
     assert_none(R(None).v)
     class R(Record):
         v = seq_of(int, nullable=False)
-    with expected_error(TypeError):
+    with assert_raises(TypeError):
         R()
-    with expected_error(FieldNotNullable):
+    with assert_raises(FieldNotNullable):
         R(None)
 
 @test("seq_of accepts a `default' kwarg")
@@ -190,7 +190,7 @@ def _():
     class R(Record):
         elems = pair_of(int)
     r = R(elems=[1, 2])
-    with expected_error(TypeError):
+    with assert_raises(TypeError):
         r.elems[1] = 4
     assert_eq(r.elems, (1, 2))
 
@@ -198,21 +198,21 @@ def _():
 def _():
     class R(Record):
         elems = pair_of(int)
-    with expected_error(FieldTypeError):
+    with assert_raises(FieldTypeError):
         R(elems=['1','2'])
 
 @test("pairs cannot have 1 element")
 def _():
     class R(Record):
         elems = pair_of(int)
-    with expected_error(FieldValueError):
+    with assert_raises(FieldValueError):
         R(elems=[1])
 
 @test("pairs cannot have more than 2")
 def _():
     class R(Record):
         elems = pair_of(int)
-    with expected_error(FieldValueError):
+    with assert_raises(FieldValueError):
         R(elems=[1, 2, 3
         ])
 
@@ -238,7 +238,7 @@ def _():
         elems = pair_of(C1)
     class R2(Record):
         elems = pair_of(C2)
-    with expected_error(FieldTypeError):
+    with assert_raises(FieldTypeError):
         R1(elems=[C2(), C2()])
 
 @test("a nullable pair can be null")
@@ -274,7 +274,7 @@ def _():
             check = lambda s: sum(s) == 3,
         )
     assert_eq(R((1, 2)).v, (1, 2))
-    with expected_error(FieldValueError):
+    with assert_raises(FieldValueError):
         R((4, 5))
 
 @test("pair_of accepts a `nullable' kwarg")
@@ -285,9 +285,9 @@ def _():
     assert_none(R(None).v)
     class R(Record):
         v = pair_of(int, nullable=False)
-    with expected_error(TypeError):
+    with assert_raises(TypeError):
         R()
-    with expected_error(FieldNotNullable):
+    with assert_raises(FieldNotNullable):
         R(None)
 
 @test("pair_of accepts a `default' kwarg")
@@ -323,7 +323,7 @@ def _():
 def _():
     class R(Record):
         elems = set_of(int)
-    with expected_error(FieldTypeError):
+    with assert_raises(FieldTypeError):
         R(elems=['1','2','3'])
 
 @test("Two sets can use types of the same name, they won't clash")
@@ -348,7 +348,7 @@ def _():
         elems = set_of(C1)
     class R2(Record):
         elems = set_of(C2)
-    with expected_error(FieldTypeError):
+    with assert_raises(FieldTypeError):
         R1(elems=[C2()])
 
 @test("a nullable set can be null")
@@ -384,7 +384,7 @@ def _():
             check = lambda s: len(s) == 3,
         )
     assert_eq(R({1, 2, 3}).v, {1, 2, 3})
-    with expected_error(FieldValueError):
+    with assert_raises(FieldValueError):
         R({1, 2, 3, 4})
 
 @test("set_of accepts a `nullable' kwarg")
@@ -395,9 +395,9 @@ def _():
     assert_none(R(None).v)
     class R(Record):
         v = set_of(int, nullable=False)
-    with expected_error(TypeError):
+    with assert_raises(TypeError):
         R()
-    with expected_error(FieldNotNullable):
+    with assert_raises(FieldNotNullable):
         R(None)
 
 @test("set_of accepts a `default' kwarg")
@@ -429,14 +429,14 @@ def _():
 def _():
     class R(Record):
         elems = dict_of(int, text_type)
-    with expected_error(FieldTypeError):
+    with assert_raises(FieldTypeError):
         R(elems={'1':'uno'})
 
 @test("values of the dict must be of the correct type")
 def _():
     class R(Record):
         elems = dict_of(int, text_type)
-    with expected_error(FieldTypeError):
+    with assert_raises(FieldTypeError):
         R(elems={1:1})
 
 @test("dict_of fields are ImmutableDict instances, and therefore immutable")
@@ -468,7 +468,7 @@ def _():
         elems = dict_of(int, C1)
     class R2(Record):
         elems = dict_of(int, C2)
-    with expected_error(FieldTypeError):
+    with assert_raises(FieldTypeError):
         R1(elems={9:C2()})
 
 @test("dict_of params can be field defs themselves")
@@ -478,9 +478,9 @@ def _():
             text_type,
             pair_of(int),
         )
-    with expected_error(FieldTypeError):
+    with assert_raises(FieldTypeError):
         R({object(): (1, 2)})
-    with expected_error(FieldValueError):
+    with assert_raises(FieldValueError):
         R({'ABC': (1, 2, 3)})
     assert_eq(
         R({'ABC':(1, 2)}).elems,
@@ -522,7 +522,7 @@ def _():
             check = lambda s: len(s) == 3,
         )
     assert_eq(R({1:1, 2:2, 3:3}).v, {1:1, 2:2, 3:3})
-    with expected_error(FieldValueError):
+    with assert_raises(FieldValueError):
         R({1:1, 2:2, 3:3, 4:4})
 
 @test("dict_of accepts a `nullable' kwarg")
@@ -533,9 +533,9 @@ def _():
     assert_none(R(None).v)
     class R(Record):
         v = dict_of(int, int, nullable=False)
-    with expected_error(TypeError):
+    with assert_raises(TypeError):
         R()
-    with expected_error(FieldNotNullable):
+    with assert_raises(FieldNotNullable):
         R(None)
 
 @test("dict_of accepts a `default' kwarg")
@@ -557,49 +557,49 @@ def _():
 @test("ImmutableDict objects are immutable, and therefore you can't assign to their keys")
 def _():
     elems = ImmutableDict({1:'uno', 2:'zwei'})
-    with expected_error(TypeError):
+    with assert_raises(TypeError):
         elems[2] = 'two'
     assert_eq(elems, {1:'uno', 2:'zwei'})
 
 @test("ImmutableDict objects are immutable, and therefore you can't delete their keys")
 def _():
     elems = ImmutableDict({1:'uno', 2:'zwei'})
-    with expected_error(TypeError):
+    with assert_raises(TypeError):
         del elems[2]
     assert_eq(elems, {1:'uno', 2:'zwei'})
 
 @test("ImmutableDict objects are immutable, and therefore you can't call .clear() on them")
 def _():
     elems = ImmutableDict({1:'uno', 2:'zwei'})
-    with expected_error(AttributeError):
+    with assert_raises(AttributeError):
         elems.clear()
     assert_eq(elems, {1:'uno', 2:'zwei'})
 
 @test("ImmutableDict objects are immutable, and therefore you can't call .pop() on them")
 def _():
     elems = ImmutableDict({1:'uno', 2:'zwei'})
-    with expected_error(AttributeError):
+    with assert_raises(AttributeError):
         elems.pop(1)
     assert_eq(elems, {1:'uno', 2:'zwei'})
 
 @test("ImmutableDict objects are immutable, and therefore you can't call .popitem() on them")
 def _():
     elems = ImmutableDict({1:'uno', 2:'zwei'})
-    with expected_error(AttributeError):
+    with assert_raises(AttributeError):
         elems.popitem()
     assert_eq(elems, {1:'uno', 2:'zwei'})
 
 @test("ImmutableDict objects are immutable, and therefore you can't call .setdefault() on them")
 def _():
     elems = ImmutableDict({1:'uno', 2:'zwei'})
-    with expected_error(AttributeError):
+    with assert_raises(AttributeError):
         elems.setdefault(3,'trois')
     assert_eq(elems, {1:'uno', 2:'zwei'})
 
 @test("ImmutableDict objects are immutable, and therefore you can't call .update() on them")
 def _():
     elems = ImmutableDict({1:'uno', 2:'zwei'})
-    with expected_error(AttributeError):
+    with assert_raises(AttributeError):
         elems.update({3:'trois'})
     assert_eq(elems, {1:'uno', 2:'zwei'})
 

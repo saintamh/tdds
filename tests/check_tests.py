@@ -41,7 +41,7 @@ def _():
             check = Upper(),
         )
     assert_eq(R('valid').id, 'valid')
-    with expected_error(FieldValueError):
+    with assert_raises(FieldValueError):
         R('invalid')
 
 #----------------------------------------------------------------------------------------------------------------------------------
@@ -55,12 +55,12 @@ def _():
             check = '{} == "valid"',
         )
     assert_eq(R('valid').id, 'valid')
-    with expected_error(FieldValueError):
+    with assert_raises(FieldValueError):
         R('invalid')
 
 @test("a 'check' function specified as a string must contain a '{}'")
 def _():
-    with expected_error(ValueError):
+    with assert_raises(ValueError):
         class R(Record):
             id = Field(
                 type = text_type,
@@ -69,7 +69,7 @@ def _():
 
 @test("a 'check' function specified as a string must contain a '{}' with nothing in it")
 def _():
-    with expected_error(ValueError):
+    with assert_raises(ValueError):
         class R(Record):
             id = Field(
                 type = text_type,
@@ -78,7 +78,7 @@ def _():
 
 @test("a 'check' function specified as a string may not contain more than one '{}'")
 def _():
-    with expected_error(ValueError):
+    with assert_raises(ValueError):
         class R(Record):
             id = Field(
                 type = text_type,
@@ -99,12 +99,12 @@ def _():
             ),
         )
     assert_eq(R('A').id, 'A')
-    with expected_error(FieldValueError):
+    with assert_raises(FieldValueError):
         R('a')
 
 @test("a 'check' function specified as a SourceCodeTemplate must contain a '{}'")
 def _():
-    with expected_error(ValueError):
+    with assert_raises(ValueError):
         class R(Record):
             id = Field(
                 type = text_type,
@@ -116,7 +116,7 @@ def _():
 
 @test("a 'check' function specified as a SourceCodeTemplate must contain a '{}' with nothing in it")
 def _():
-    with expected_error(ValueError):
+    with assert_raises(ValueError):
         class R(Record):
             id = Field(
                 type = text_type,
@@ -128,7 +128,7 @@ def _():
 
 @test("a 'check' function specified as a SourceCodeTemplate may not contain more than one '{}'")
 def _():
-    with expected_error(ValueError):
+    with assert_raises(ValueError):
         class R(Record):
             id = Field(
                 type = text_type,
@@ -153,7 +153,7 @@ def _():
             type = text_type,
             check = not_none,
         )
-    with expected_error(FieldNotNullable):
+    with assert_raises(FieldNotNullable):
         r = R(None)
 
 @test("the 'check' function will not receive a None value when the field is nullable, either")
@@ -191,7 +191,7 @@ def _():
             type = text_type,
             check = lambda s: s == 'valid',
         )
-    with expected_error(FieldValueError):
+    with assert_raises(FieldValueError):
         R('invalid')
 
 @test("if the 'check' function returns True, no FieldValueError exception is raised")
@@ -219,7 +219,7 @@ def _():
             type = text_type,
             check = re.compile(r'brac').search,
         )
-    with expected_error(FieldValueError):
+    with assert_raises(FieldValueError):
         R('abragadabra')
 
 @test("the 'check' function may raise exceptions, these are not caught and bubble up")
@@ -231,7 +231,7 @@ def _():
             type = text_type,
             check = boom,
         )
-    with expected_error(BufferError):
+    with assert_raises(BufferError):
         r = R('a')
 
 @test("the coercion function runs before the check, and may change a bad value to a good one")
@@ -253,7 +253,7 @@ def _():
             coerce = lambda s: s.lower(),
             check = lambda s: s == s.upper(),
         )
-    with expected_error(FieldValueError):
+    with assert_raises(FieldValueError):
         r2 = R('OK')
 
 #----------------------------------------------------------------------------------------------------------------------------------
@@ -287,7 +287,7 @@ def _():
 
 @test("specifying something other than a string, a SourceCodeGenerator or a callable as 'check' raises a TypeError")
 def _():
-    with expected_error(TypeError):
+    with assert_raises(TypeError):
         class R(Record):
             id = Field(
                 type = text_type,

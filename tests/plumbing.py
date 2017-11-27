@@ -13,6 +13,7 @@ Edinburgh
 from __future__ import absolute_import, division, print_function, unicode_literals
 
 # standards
+from contextlib import contextmanager
 import re
 from traceback import print_exc
 
@@ -47,19 +48,15 @@ def foreach(args):
 
 #----------------------------------------------------------------------------------------------------------------------------------
 
-class expected_error(object):
-    def __init__(self, exc_type):
-        self.exc_type = exc_type
-    def __enter__(self):
-        pass
-    def __exit__(self, exc_type, exc_value, exc_tb):
-        if exc_type is self.exc_type:
-            return True # swallow the exception, test passes
-        elif exc_type is None:
-            raise TestFailure("Expected %s, no exception raised" % self.exc_type.__name__)
-        else:
-            print_exc()
-            raise TestFailure("Expected %s, got %s: %s" % (self.exc_type.__name__, exc_type.__name__, exc_value))
+@contextmanager
+def assert_raises(exc_type):
+    try:
+        yield
+    except Exception as exception:
+        if not isinstance(exception, exc_type):
+            raise AssertionError("Expected %s, got %s: %s" % (exc_type.__name__, exception.__class__.__name__, exception))
+    else:
+        raise AssertionError("Expected %s, no exception raised" % exc_type.__name__)
 
 def assert_eq(v1, v2):
     if v1 != v2:
