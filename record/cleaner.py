@@ -30,8 +30,8 @@ class Cleaner(object):
             )
             for field_id, field in record_class.record_fields.items()
         }
-        if values:
-            raise TypeError("Unknown values: %s" % ','.join(sorted(values)))
+        # if values:
+        #     raise TypeError("Unknown values: %s" % ','.join(sorted(values)))
         return clean_values
 
     def _clean_field(self, field_id, field, value, prefix=''):
