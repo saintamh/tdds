@@ -62,7 +62,11 @@ class Cleaner(object):
             }
         if hasattr(field.type, 'record_fields') and isinstance(value, dict):
             try:
-                return self.clean(field.type, value, prefix=(prefix + field_id + '_'))
+                return field.type(**self.clean(
+                    field.type,
+                    value,
+                    prefix=(prefix + field_id + '_'),
+                ))
             except Exception:
                 raise ValueError("Couldn't clean '%s'" % (prefix + field_id))
         clean_by_type = self._cleaner_by_type(field)
