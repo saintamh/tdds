@@ -21,7 +21,7 @@ class Cleaner(object):
 
     def clean(self, record_class, values, prefix=''):
         values = dict(values)
-        clean_values = {
+        return {
             field_id: self._clean_field(
                 field_id,
                 field,
@@ -30,9 +30,6 @@ class Cleaner(object):
             )
             for field_id, field in record_class.record_fields.items()
         }
-        # if values:
-        #     raise TypeError("Unknown values: %s" % ','.join(sorted(values)))
-        return clean_values
 
     def _clean_field(self, field_id, field, value, prefix=''):
         if value is None:
@@ -71,8 +68,8 @@ class Cleaner(object):
                 raise ValueError("Couldn't clean '%s'" % (prefix + field_id))
         clean_by_type = self._cleaner_by_type(field)
         if clean_by_type:
-            return clean_by_type(value)
-        raise TypeError("Don't know how to clean %s '%s'" % (field.type.__name__, field_id))
+            value = clean_by_type(value)
+        return value
 
     def _cleaner_by_type(self, field):
         type_name = {
@@ -105,6 +102,16 @@ class Cleaner(object):
     def clean_decimal(self, value):
         if not isinstance(value, Decimal):
             value = Decimal(self.clean_text(value))
+        return value
+
+    def clean_bool(self, value):
+        if not isinstance(value, bool):
+            value = {
+                'true': True,
+                '1': True,
+                'false': False,
+                '0': False,
+            }[self.clean_text(value).lower()]
         return value
 
 #----------------------------------------------------------------------------------------------------------------------------------
