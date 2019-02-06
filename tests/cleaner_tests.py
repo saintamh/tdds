@@ -205,12 +205,14 @@ def _():
 
 #----------------------------------------------------------------------------------------------------------------------------------
 
-@test("cleaner will complain if you supply known fields")
+@test("cleaner does not complain about unknown fields")
 def _():
     class R(Record):
         value = int
-    with assert_raises(TypeError):
-        Cleaner().clean(R, {'value': 10, 'other': 11})
+    assert_eq(
+        Cleaner().clean(R, {'value': 10, 'other': 11}),
+        {'value': 10},
+    )
 
 @test("cleaner does not complain about missing values")
 def _():
