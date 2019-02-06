@@ -303,6 +303,7 @@ class FieldHandlingStmtsTemplate(SourceCodeTemplate):
 
     template = '''
         $default_value
+        $promote
         $coerce
         $null_check
         $value_check
@@ -314,6 +315,7 @@ class FieldHandlingStmtsTemplate(SourceCodeTemplate):
     FieldValueError = FieldValueError
     FieldNotNullable = FieldNotNullable
     re = re
+    integer_types = integer_types
 
     def __init__(self, field, variable_name, description):
         self.field = field
@@ -333,6 +335,15 @@ class FieldHandlingStmtsTemplate(SourceCodeTemplate):
     @property
     def default_expr(self):
         return ExternalValue(self.field.default)
+
+    @property
+    def promote(self):
+        # Literally the only implicit promotion we allow is if you expected a float and you got an int instead
+        if self.field.type is float:
+            return '''
+                if isinstance($variable_name, $integer_types):
+                    $variable_name = float($variable_name)
+            '''
 
     @property
     def coerce(self):
