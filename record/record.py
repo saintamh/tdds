@@ -338,11 +338,17 @@ class FieldHandlingStmtsTemplate(SourceCodeTemplate):
 
     @property
     def promote(self):
-        # Literally the only implicit promotion we allow is if you expected a float and you got an int instead
         if self.field.type is float:
+            # The only implicit promotion we allow among built-in scalar types is if you expected a float and you got an int
+            # instead
             return '''
                 if isinstance($variable_name, $integer_types):
                     $variable_name = float($variable_name)
+            '''
+        elif issubclass(self.field.type, Record):
+            return '''
+                if isinstance($variable_name, dict):
+                    $variable_name = $field_type(**$variable_name)
             '''
 
     @property
