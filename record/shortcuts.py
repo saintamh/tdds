@@ -67,6 +67,13 @@ absolute_http_url = Field(
 #----------------------------------------------------------------------------------------------------------------------------------
 # other field def utils
 
+class EnumField(Field):
+
+    def __init__(self, type, possible_values, **kwargs):
+        kwargs['check'] = possible_values.__contains__
+        object.__setattr__(self, 'possible_values', possible_values)
+        super(EnumField, self).__init__(type, **kwargs)
+
 def one_of(*values, **kwargs):
     if len(values) == 0:
         raise ValueError('one_of requires arguments')
@@ -78,11 +85,7 @@ def one_of(*values, **kwargs):
                 v.__class__.__name__,
             ))
     values = frozenset(values)
-    return Field(
-        type=type,
-        check=values.__contains__,
-        **kwargs
-    )
+    return EnumField(type, values, **kwargs)
 
 def nullable(field, default=None):
     return compile_field(field).derive(
