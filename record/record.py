@@ -254,10 +254,6 @@ class RecordClassTemplate(SourceCodeTemplate):
             def __repr__(self):
                 return "$class_name($repr_str)" % $values_as_tuple
         '''
-        yield '__hash__', '''
-            def __hash__(self):
-                return hash(self.__key__())
-        '''
         yield '__reduce__', '''
             def __reduce__(self):
                 return ($RecordUnpickler(self.__class__.__name__), $values_as_tuple)
@@ -272,15 +268,36 @@ class RecordClassTemplate(SourceCodeTemplate):
                 for field_id, _ in self._iter_fields_in_fixed_order(include_super=True)
             )),
         )
-        for op in ('eq', 'ne', 'lt', 'le', 'gt', 'ge'):
-            yield '__%s__' % op, SourceCodeTemplate(
-                '''
-                    def __${op}__(self, other):
-                        return $opfunc(self.__key__(), getattr(other, '__key__', tuple)())
-                ''',
-                op = op,
-                opfunc = getattr(operator, op),
-            )
+        # eq, lt and hash defined on the basis of __key__
+        yield '__eq__', '''
+            def __eq__(self, other):
+                return self.__key__() == other.__key__()
+        '''
+        yield '__lt__', '''
+            def __lt__(self, other):
+                return self.__key__() < other.__key__()
+        '''
+        yield '__hash__', '''
+            def __hash__(self):
+                return hash(self.__key__())
+        '''
+        # ne, le, gt and ge defined on the basis of eq and lt
+        yield '__ne__', '''
+            def __ne__(self, other):
+                return not (self == other)
+        '''
+        yield '__le__', '''
+            def __le__(self, other):
+                return self < other or self == other
+        '''
+        yield '__gt__', '''
+            def __gt__(self, other):
+                return not (self < other or self == other)
+        '''
+        yield '__ge__', '''
+            def __ge__(self, other):
+                return not (self < other)
+        '''
 
     @field_joiner_property(', ', include_super=True)
     def repr_str(self, findex, field_id, field):
