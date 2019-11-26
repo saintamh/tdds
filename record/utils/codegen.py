@@ -2,9 +2,6 @@
 # -*- coding: utf-8 -*-
 
 """
-Herve Saint-Amand
-Edinburgh
-
 A toolset for building and evaluating strings of Python code.
 """
 
@@ -18,17 +15,8 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 from itertools import count
 import logging
 import re
-from sys import version_info
 
-PY2 = (version_info[0] == 2)
-if PY2:
-    import __builtin__ as python_builtins
-    text_type = unicode
-    string_types = (str, unicode)
-else:
-    import builtins as python_builtins
-    text_type = str
-    string_types = (bytes, str)
+from .compatibility import python_builtins, string_types
 
 #----------------------------------------------------------------------------------------------------------------------------------
 
@@ -89,8 +77,7 @@ class SourceCodeTemplate(SourceCodeGenerator):
         variable_value = getattr(self, variable_name, not_found)
         if variable_value is not_found:
             raise UnknownVariableInTemplate(self, variable_name, self.template)
-        else:
-            return self.code_string(ns, variable_value)
+        return self.code_string(ns, variable_value)
 
     def replace_whole_lines(self, src, ns, expanded_vars=frozenset()):
         """
@@ -98,7 +85,7 @@ class SourceCodeTemplate(SourceCodeGenerator):
         that the variable resolves to is a multiline piece of code, each line will be indented to be at the same level as the
         variable originally appeared within the template.
         """
-        def whole_line_subst(indent, variable_name, eol):
+        def whole_line_subst(indent, variable_name):
             if variable_name not in expanded_vars:
                 subst = shift_left(self.lookup(variable_name, ns))
                 subst = shift_right(indent, subst).lstrip()
@@ -108,11 +95,10 @@ class SourceCodeTemplate(SourceCodeGenerator):
             else:
                 return '$' + variable_name
         return re.sub(
-            r'(?<![^\n])(\ *)\$(?:(\w+)|\{(\w+)\})\ *($|\n)',
+            r'(?<![^\n])(\ *)\$(?:(\w+)|\{(\w+)\})\ *(?:$|\n)',
             lambda m: whole_line_subst(
                 m.group(1),
                 m.group(2) or m.group(3),
-                m.group(4),
             ),
             src
         )
@@ -153,7 +139,7 @@ class ClassDefEvaluationNamespace(object):
         self.value_by_name = {}
 
     def intern(self, value):
-        if getattr(python_builtins, getattr(value,'__name__',''), None) is value:
+        if getattr(python_builtins, getattr(value, '__name__', ''), None) is value:
             # No need to alias 'int' etc
             return value.__name__
         value_id = id(value)
@@ -183,10 +169,10 @@ def compile_template(template, verbose=False):
     ns = ClassDefEvaluationNamespace()
     src_code_str = template.expand(ns)
     if verbose:
-        logging.debug("\n" + src_code_str)
+        logging.debug('\n%s', src_code_str)
     ns_dict = ns.as_dict()
     try:
-        eval(
+        eval(  # yes, pylint: disable=eval-used
             compile(src_code_str, '<string>', 'exec'),
             ns_dict,
             ns_dict,
@@ -200,7 +186,7 @@ def compile_expr(template, expr_name=None, verbose=False):
     if expr_name is None:
         m = re.search(r'^\s*(?:class|def)\s+(\w+)', template)
         if m is None:
-            raise ValueError("expr_name not specified and not found in template")
+            raise ValueError('expr_name not specified and not found in template')
         expr_name = m.group(1)
     ns_dict = compile_template(template, verbose=verbose)
     return ns_dict[expr_name]
@@ -225,7 +211,7 @@ def shift_left(src):
             parts.append(line)
         else:
             logging.error(src)
-            raise ValueError("code block must start with top-level indent (%r)" % line)
+            raise ValueError('code block must start with top-level indent (%r)' % line)
     return '\n'.join(parts)
 
 def shift_right(indent, src):
@@ -263,13 +249,13 @@ class ExternalCodeInvocation(SourceCodeGenerator):
                     # Avert your eyes. This checks that there is one and only one '{}' in the string. Escaped {{ and }} are allowed
                     r'^(?:[^\{\}]|\{\{|\}\})*\{\}(?:[^\{\}]|\{\{|\}\})*$',
                     code_ref,
-                    ):
+            ):
                 raise ValueError(code_ref)
             return '({})'.format(code_ref.format(self.param_expr))
         elif hasattr(code_ref, '__call__'):
             return '{coerce_sym}({param_expr})'.format(
-                coerce_sym = ns.intern(code_ref),
-                param_expr = self.param_expr,
+                coerce_sym=ns.intern(code_ref),
+                param_expr=self.param_expr,
             )
         else:
             raise TypeError(repr(code_ref))
@@ -284,9 +270,9 @@ class Joiner(SourceCodeGenerator):
 
     def expand(self, ns):
         return '{prefix}{body}{suffix}'.format(
-            prefix = self.prefix,
-            suffix = self.suffix,
-            body = self.sep.join(shift_left(self.code_string(ns, v)) for v in self.values),
+            prefix=self.prefix,
+            suffix=self.suffix,
+            body=self.sep.join(shift_left(self.code_string(ns, v)) for v in self.values),
         )
 
 #----------------------------------------------------------------------------------------------------------------------------------

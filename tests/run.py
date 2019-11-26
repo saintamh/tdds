@@ -1,11 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-"""
-Herve Saint-Amand
-Edinburgh
-"""
-
 #----------------------------------------------------------------------------------------------------------------------------------
 # includes
 
@@ -61,24 +56,25 @@ def iter_all_tests(selected_mod_name):
             selected_mod_name,
             ''.join(
                 '\n\t%s' % mod_name(mod)
-                for mod in ALL_TEST_MODS,
+                for mod in ALL_TEST_MODS
             ),
         ))
 
 #----------------------------------------------------------------------------------------------------------------------------------
 
-def main(selected_mod_name=None):
+def main(selected_mod_name=None, quick_fail=True):
     tally = Counter()
     all_tests = tuple(iter_all_tests(selected_mod_name))
-    test_id_fmt = "{{:.<{width}}}".format(width = 3 + max(len(test_id) for test_id, test_func in all_tests))
-    result_fmt = "[{:^4}] {}"
+    test_id_fmt = '{{:.<{width}}}'.format(width=3 + max(len(test_id) for test_id, test_func in all_tests))
+    result_fmt = '[{:^4}] {}'
     for test_id, test_func in all_tests:
         tally['total'] += 1
         print(test_id_fmt.format(test_id+' '), end='')
         try:
             test_func()
         except Exception as ex:
-            raise
+            if quick_fail:
+                raise
             print(result_fmt.format('FAIL', '{}: {}'.format(ex.__class__.__name__, ex)))
             tally['failed'] += 1
         else:
@@ -86,7 +82,7 @@ def main(selected_mod_name=None):
             tally['passed'] += 1
     print()
     for item in sorted(tally.items()):
-        print("{}: {}".format(*item))
+        print('{}: {}'.format(*item))
     exit(1 if tally.get('failed') else 0)
 
 if __name__ == '__main__':

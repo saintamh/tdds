@@ -1,0 +1,74 @@
+[MESSAGES CONTROL]
+
+disable=
+    broad-except,
+    duplicate-code,  # keeps flagging imports and can't be turned off per-line: https://github.com/PyCQA/pylint/issues/214
+    fixme,
+    inconsistent-return-statements,
+    maybe-no-member,  # pylint gets all confused with our dirty type building
+    missing-docstring,
+    no-else-return,
+    no-self-use,
+    redefined-builtin,
+    too-few-public-methods,
+    too-many-public-methods,
+    useless-object-inheritance,  # needed for Python 2 compat
+
+enable=
+    useless-suppression
+
+
+[REPORTS]
+
+# Tells whether to display a full report or only the messages
+reports=no
+score=no
+
+
+[VARIABLES]
+
+# Tells whether we should check for unused import in __init__ files.
+init-import=no
+
+# A regular expression matching the name of dummy variables (i.e. expectedly
+# not used).
+dummy-variables-rgx=_$|\w+_unused
+
+
+[FORMAT]
+
+# Maximum number of characters on a single line.
+max-line-length=132
+
+# pylint-quotes plugin config
+string-quote=single-avoid-escape
+triple-quote=single
+docstring-quote=double
+
+
+[DESIGN]
+
+# Maximum number of arguments for function / method
+max-args=10
+max-attributes=15
+
+
+[BASIC]
+
+# We're cool with map, filter, input
+bad-functions=
+
+# Remove restrictions on name lengths
+argument-rgx=[a-z_][a-z0-9_]*$
+attr-rgx=[a-z_][a-z0-9_]*$
+class-attribute-rgx=[A-Za-z_][A-Za-z0-9_]*
+function-rgx=[a-z_][a-z0-9_]*$
+method-rgx=[a-z_][a-z0-9_]*$
+variable-rgx=[a-z_][a-z0-9_]*$
+
+# We use this as a global decorator in our tests, even though it's not uppercase
+good-names=test
+
+
+[CLASSES]
+valid-metaclass-classmethod-first-arg=mcs

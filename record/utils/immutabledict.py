@@ -1,11 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-"""
-Herve Saint-Amand
-Edinburgh
-"""
-
 #----------------------------------------------------------------------------------------------------------------------------------
 
 class ImmutableDict(object):
@@ -47,7 +42,7 @@ class ImmutableDict(object):
     def get(self, key, **kwargs):
         return self.__impl.get(key, **kwargs)
 
-    def __hash__(self, _cache=[]):
+    def __hash__(self, _cache=[]):  # pylint: disable=dangerous-default-value
         if not _cache:
             _cache.append(hash(tuple(sorted(self.__impl.items()))))
         return _cache[0]

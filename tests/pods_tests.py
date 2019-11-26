@@ -1,11 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-"""
-Herve Saint-Amand
-Edinburgh
-"""
-
 #----------------------------------------------------------------------------------------------------------------------------------
 # includes
 
@@ -18,11 +13,22 @@ from datetime import datetime, timedelta
 from decimal import Decimal
 
 # record
-from record import *
+from record import (
+    CannotBeSerializedToPods,
+    FieldNotNullable,
+    Marshaller,
+    Record,
+    dict_of,
+    nullable,
+    pair_of,
+    seq_of,
+    set_of,
+    temporary_marshaller_registration,
+)
 from record.utils.compatibility import bytes_type, integer_types, text_type
 
 # this module
-from .plumbing import *
+from .plumbing import assert_eq, assert_isinstance, assert_raises, build_test_registry, foreach
 
 #----------------------------------------------------------------------------------------------------------------------------------
 # init
@@ -32,23 +38,23 @@ ALL_TESTS, test = build_test_registry()
 #----------------------------------------------------------------------------------------------------------------------------------
 # sanity
 
-@test("scalar fields are directly rendered to a PODS")
+@test('scalar fields are directly rendered to a PODS')
 def _():
-    class R(Record):
+    class MyRecord(Record):
         id = text_type
         label = text_type
         age = int
         salary = float
-    r = R(id='robert', label="Robert Smith", age=42, salary=12.70)
+    r = MyRecord(id='robert', label='Robert Smith', age=42, salary=12.70)
     d = r.record_pods()
     assert_eq(d, {
-        "id": "robert",
-        "label": "Robert Smith",
-        "age": 42,
-        "salary": 12.70,
+        'id': 'robert',
+        'label': 'Robert Smith',
+        'age': 42,
+        'salary': 12.70,
     })
 
-@test("nested records are rendered to a PODS as nested objects")
+@test('nested records are rendered to a PODS as nested objects')
 def _():
     class Name(Record):
         first = text_type
@@ -56,14 +62,14 @@ def _():
     class Person(Record):
         name = Name
         age = int
-    p = Person(name=Name(first="Robert", last="Smith"), age=100)
+    p = Person(name=Name(first='Robert', last='Smith'), age=100)
     d = p.record_pods()
     assert_eq(d, {
-        "name": {
-            "first": "Robert",
-            "last": "Smith",
+        'name': {
+            'first': 'Robert',
+            'last': 'Smith',
         },
-        "age": 100,
+        'age': 100,
     })
 
 #----------------------------------------------------------------------------------------------------------------------------------
@@ -90,7 +96,7 @@ def _other_record():
         ('sequence (empty)', seq_of(int), []),
         ('set (nonempty)', set_of(int), (1, 2, 3)),
         ('set (empty)', set_of(int), []),
-        ('dict (nonempty)', dict_of(text_type, int), {'one':1,'two':2}),
+        ('dict (nonempty)', dict_of(text_type, int), {'one':1, 'two':2}),
         ('dict (empty)', dict_of(text_type, int), []),
         ('datetime', datetime, datetime(2016, 4, 15, 10, 1, 59)),
         ('timedelta', timedelta, timedelta(days=1, hours=2, minutes=3, seconds=4)),
@@ -104,21 +110,21 @@ def _other_record():
 )
 def _(class_name, cls, value, nullable_or_not):
 
-    @test("Record with {}{} field (set to {!r}) -> PODS -> Record".format(
+    @test('Record with {}{} field (set to {!r}) -> PODS -> Record'.format(
         'nullable ' if nullable_or_not is nullable else '',
         class_name,
         value,
     ))
     def _():
-        class R(Record):
+        class MyRecord(Record):
             field = nullable_or_not(cls)
-        r1 = R(field=value)
+        r1 = MyRecord(field=value)
         d = r1.record_pods()
         assert_isinstance(d, dict)
-        r2 = R.from_pods(d)
+        r2 = MyRecord.from_pods(d)
         assert_eq(r1.field, r2.field)
 
-# @test("2016-04-15 - weird bug with serializing null values?")
+# @test('2016-04-15 - weird bug with serializing null values?')
 # def _():
 #     Item = record (
 #         'Item',
@@ -129,8 +135,8 @@ def _(class_name, cls, value, nullable_or_not):
 #     c = Collection([Item(one=None, two=[1, 2, 3])])
 #     d = json.loads(c.json_dumps())
 #     assert_eq (d, {
-#         "items": [{
-#             "two": [1, 2, 3]
+#         'items': [{
+#             'two': [1, 2, 3]
 #         }]
 #     })
 
@@ -148,19 +154,19 @@ def _():
     class Person(Record):
         name = Name
         age = int
-    p = Person(name=Name(first="Robert", last="Smith"), age=100)
+    p = Person(name=Name(first='Robert', last='Smith'), age=100)
     d = p.record_pods()
     assert_eq(d, {
-        "name": ["Robert", "Smith"],
-        "age": 100,
+        'name': ['Robert', 'Smith'],
+        'age': 100,
     })
 
 @test("If a class has a member with no `record_pods' method, it can still be instantiated, but it can't be serialized to a PODS")
 def _():
     Name = namedtuple('Name', ('name',))
-    class R(Record):
+    class MyRecord(Record):
         name = Name
-    r = R(Name('peter'))
+    r = MyRecord(Name('peter'))
     with assert_raises(CannotBeSerializedToPods):
         r.record_pods()
 
@@ -180,52 +186,52 @@ def _():
             return self.first == other.first and self.last == other.last
         def __repr__(self):
             return 'Name(%r, %r)' % (self.first, self.last)
-    class R(Record):
+    class MyRecord(Record):
         name = Name
     assert_eq(
-        R.from_pods({"name": "Arthur/Smith"}),
-        R(Name("Arthur", "Smith")),
+        MyRecord.from_pods({'name': 'Arthur/Smith'}),
+        MyRecord(Name('Arthur', 'Smith')),
     )
 
 @test("If a class has a member with no `from_pods' method, it can still be instantiated, but it can't be parsed from a PODS")
 def _():
     Name = namedtuple('Name', ('name',))
-    class R(Record):
+    class MyRecord(Record):
         name = Name
-    r = R(Name('peter'))
+    r = MyRecord(Name('peter'))
     class CantTouchThis(object):
         def __getattr__(self, attr):
             # ensure that the value given to `from_pods' below isn't even looked at in any way
-            raise Exception("boom")
+            raise Exception('boom')
     with assert_raises(CannotBeSerializedToPods):
-        R.from_pods(CantTouchThis())
+        MyRecord.from_pods(CantTouchThis())
 
 #----------------------------------------------------------------------------------------------------------------------------------
 # collections
 
-@test("sequence fields get serialized to plain lists")
+@test('sequence fields get serialized to plain lists')
 def _():
-    class R(Record):
+    class MyRecord(Record):
         elems = seq_of(int)
-    r = R(elems=[1, 2, 3])
+    r = MyRecord(elems=[1, 2, 3])
     assert_eq(r.record_pods(), {
-        "elems": [1, 2, 3],
+        'elems': [1, 2, 3],
     })
 
-@test("pair fields get serialized to plain lists")
+@test('pair fields get serialized to plain lists')
 def _():
-    class R(Record):
+    class MyRecord(Record):
         elems = pair_of(int)
-    r = R(elems=[1, 2])
+    r = MyRecord(elems=[1, 2])
     assert_eq(r.record_pods(), {
-        "elems": [1, 2],
+        'elems': [1, 2],
     })
 
-@test("set_of fields get serialized to plain lists")
+@test('set_of fields get serialized to plain lists')
 def _():
-    class R(Record):
+    class MyRecord(Record):
         elems = set_of(int)
-    r = R(elems=[1, 2, 3])
+    r = MyRecord(elems=[1, 2, 3])
     elems = r.record_pods()['elems']
     assert isinstance(elems, list), repr(elems)
     assert_eq(
@@ -233,114 +239,115 @@ def _():
         [1, 2, 3],
     )
 
-@test("dict_of fields get serialized to plain dicts")
+@test('dict_of fields get serialized to plain dicts')
 def _():
-    class R(Record):
+    class MyRecord(Record):
         elems = dict_of(text_type, int)
-    r = R(elems={'uno':1,'zwei':2})
+    r = MyRecord(elems={'uno':1, 'zwei':2})
     assert_eq(r.record_pods(), {
-        "elems": {'uno':1,'zwei':2},
+        'elems': {'uno':1, 'zwei':2},
     })
 
 @test("an empty dict gets serialized to '{}'")
 def _():
-    class R(Record):
+    class MyRecord(Record):
         v = dict_of(text_type, text_type)
-    assert_eq(R({}).record_pods(), {
+    assert_eq(MyRecord({}).record_pods(), {
         'v': {},
     })
 
 #----------------------------------------------------------------------------------------------------------------------------------
 # handling of null values
 
-@test("null fields are not included in the a PODS")
+@test('null fields are not included in the a PODS')
 def _():
-    class R(Record):
+    class MyRecord(Record):
         x = int
         y = nullable(int)
-    r = R(x=1, y=None)
+    r = MyRecord(x=1, y=None)
     d = r.record_pods()
     assert_eq(d, {'x':1})
 
 @test("explicit 'null' values can be parsed from a PODS")
 def _():
-    class R(Record):
+    class MyRecord(Record):
         x = int
         y = nullable(int)
-    r0 = R(11)
-    r1 = R.from_pods({"x":11})
-    r2 = R.from_pods({"x":11, "y":None})
+    r0 = MyRecord(11)
+    r1 = MyRecord.from_pods({'x':11})
+    r2 = MyRecord.from_pods({'x':11, 'y':None})
     assert_eq(r1, r0)
     assert_eq(r2, r0)
     assert_eq(r1, r2)
 
-@test("if the field is not nullable, FieldNotNullable is raised when parsing an explicit null")
+@test('if the field is not nullable, FieldNotNullable is raised when parsing an explicit null')
 def _():
-    class R(Record):
+    class MyRecord(Record):
         x = int
         y = int
     with assert_raises(FieldNotNullable):
-        R.from_pods({"x":11,"y":None})
+        MyRecord.from_pods({'x':11, 'y':None})
 
-@test("if the field is not nullable, FieldNotNullable is raised when parsing an implicit null")
+@test('if the field is not nullable, FieldNotNullable is raised when parsing an implicit null')
 def _():
-    class R(Record):
+    class MyRecord(Record):
         x = int
         y = int
     with assert_raises(FieldNotNullable):
-        R.from_pods({"x":11})
+        MyRecord.from_pods({'x':11})
 
 #----------------------------------------------------------------------------------------------------------------------------------
 # built-in marshallers
 
 @foreach((
-    (datetime(2009, 10, 28, 8, 53, 2), "2009-10-28T08:53:02"),
-    (Decimal('10.3'), "10.3"),
+    (datetime(2009, 10, 28, 8, 53, 2), '2009-10-28T08:53:02'),
+    (Decimal('10.3'), '10.3'),
 ))
 def _(obj, marshalled_text):
 
-    @test("{} objects automatically get marshalled and unmarshalled as expected".format(obj.__class__.__name__))
+    @test('{} objects automatically get marshalled and unmarshalled as expected'.format(obj.__class__.__name__))
     def _():
-        class R(Record):
+        class MyRecord(Record):
             fobj = obj.__class__
-        r1 = R(obj)
+        r1 = MyRecord(obj)
         d = r1.record_pods()
-        assert_eq(d, {"fobj": marshalled_text})
-        assert_eq(r1, R.from_pods(d))
+        assert_eq(d, {'fobj': marshalled_text})
+        assert_eq(r1, MyRecord.from_pods(d))
 
 #----------------------------------------------------------------------------------------------------------------------------------
 # custom marshallers
 
-@test("fields can be serialized and deserialized using custom marshallers")
+@test('fields can be serialized and deserialized using custom marshallers')
 def _():
-    Point = namedtuple('Point', ('x','y'))
+    Point = namedtuple('Point', ('x', 'y'))
     marshaller = Marshaller(
         lambda pt: '%d,%d' % pt,
         lambda s: Point(*map(int, s.split(','))),
     )
     with temporary_marshaller_registration(Point, marshaller):
-        class R(Record):
+        class MyRecord(Record):
             pt = Point
-        r1 = R(Point(1, 2))
+        r1 = MyRecord(Point(1, 2))
         assert_eq(
             r1.record_pods(),
-            {"pt": "1,2"},
+            {'pt': '1,2'},
         )
         assert_eq(
-            R.from_pods(r1.record_pods()),
+            MyRecord.from_pods(r1.record_pods()),
             r1,
         )
 
-@test("the marshaller must be available when the class is compiled, not when record_pods() is called")
+@test('the marshaller must be available when the class is compiled, not when record_pods() is called')
 def _():
-    Point = namedtuple('Point', ('x','y'))
+    Point = namedtuple('Point', ('x', 'y'))
     marshaller = Marshaller(
         lambda pt: '%d,%d' % pt,
         lambda s: Point(*map(int, s.split(','))),
     )
-    class R(Record):
+    class MyRecord(Record):
         pt = Point
-    with assert_raises(CannotBeSerializedToPods):
-        R(Point(1, 2)).record_pods()
+    with temporary_marshaller_registration(Point, marshaller):
+        with assert_raises(CannotBeSerializedToPods):
+            MyRecord(Point(1, 2)).record_pods()
 
 #----------------------------------------------------------------------------------------------------------------------------------

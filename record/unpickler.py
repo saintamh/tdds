@@ -1,11 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-"""
-Herve Saint-Amand
-Edinburgh
-"""
-
 #----------------------------------------------------------------------------------------------------------------------------------
 # includes
 
@@ -28,14 +23,15 @@ ALL_RECORDS = {}
 class RecordRegistryMetaClass(type):
     # All this does is that it registers the record class, and all its subclasses, for unpickling
 
-    def __new__(mcls, name, bases, attrib):
-        cls = type.__new__(mcls, name, bases, attrib)
-        mcls.register(name, cls)
+    def __new__(mcs, name, bases, attrib):
+        cls = type.__new__(mcs, name, bases, attrib)
+        mcs.register(name, cls)
         return cls
 
     @classmethod
-    def register(mcls, name, cls):
+    def register(mcs, name, cls):
         ALL_RECORDS[name] = cls
+
 
 class RecordUnpickler(object):
 

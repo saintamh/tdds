@@ -1,11 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-"""
-Herve Saint-Amand
-Edinburgh
-"""
-
 #----------------------------------------------------------------------------------------------------------------------------------
 # includes
 
@@ -24,36 +19,36 @@ class BuilderMetaClass(type):
     `self'), and return the corresponding value.
     """
 
-    def __new__(mcls, name, bases, attrib):
-        return type.__new__(mcls, name, bases, dict(mcls._expand_multiple_field_methods(bases, attrib)))
+    def __new__(mcs, name, bases, attrib):
+        return type.__new__(mcs, name, bases, dict(mcs._expand_multiple_field_methods(bases, attrib)))
 
     @classmethod
-    def _expand_multiple_field_methods(mcls, bases, attrib):
-        record_cls = mcls._find_record_cls(bases)
+    def _expand_multiple_field_methods(mcs, bases, attrib):
+        record_cls = mcs._find_record_cls(bases)
         for key, value in attrib.items():
             if record_cls is not None \
                     and '_and_' in key \
                     and callable(value) \
                     and all(f in record_cls.record_fields for f in key.split('_and_')):
-                memoized_method = mcls._memoize(key, value)
+                memoized_method = mcs._memoize(key, value)
                 for i, f in enumerate(key.split('_and_')):
                     if f in attrib:
                         raise Exception("Can't have both %r and %r" % (key, f))
-                    yield f, mcls._single_field_method(memoized_method, i)
+                    yield f, mcs._single_field_method(memoized_method, i)
             else:
                 yield key, value
 
     @staticmethod
     def _find_record_cls(bases):
-        for b in bases:
+        for b in bases:  # you're confused, pylint: disable=not-an-iterable
             record_cls = getattr(b, 'record_cls', None)
             if record_cls:
                 return record_cls
-        return Exception("record_cls not found")
-        
+        return Exception('record_cls not found')
+
     @staticmethod
     def _single_field_method(memoized_method, field_index):
-        return lambda self: memoized_method(self)[field_index]
+        return lambda self: memoized_method(self)[field_index]  # still confused, pylint: disable=unsubscriptable-object, no-value-for-parameter
 
     @staticmethod
     def _memoize(name, method):
@@ -91,12 +86,12 @@ class BuilderBase(object):
     def __call__(self):
         try:
             kwargs = {}
-            for field_id, field in self.record_cls.record_fields.items():
+            for field_id in self.record_cls.record_fields.keys():
                 value = getattr(self, field_id, None)
                 if callable(value):
                     value = value()
                 kwargs[field_id] = value
-            return self.record_cls(**kwargs)
+            return self.record_cls(**kwargs)  # pylint: disable=not-callable
         except Exception as ex:
             self._on_error(ex)
             raise

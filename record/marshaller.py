@@ -1,11 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-"""
-Herve Saint-Amand
-Edinburgh
-"""
-
 #----------------------------------------------------------------------------------------------------------------------------------
 # includes
 
@@ -19,7 +14,7 @@ from decimal import Decimal
 
 # this module
 from .utils.codegen import ExternalCodeInvocation, ExternalValue, SourceCodeTemplate, compile_expr
-from .utils.compatibility import bytes_type, integer_types, text_type
+from .utils.compatibility import integer_types, text_type
 
 #----------------------------------------------------------------------------------------------------------------------------------
 # constants, config
@@ -34,19 +29,19 @@ class Marshaller(object):
     def __init__(self, marshalling_code, unmarshalling_code):
         # These can be either strings for code with exactly one '{}' in them, or SourceCodeGenerator objects that generate such a
         # string, or callable objects. They'll be made into ExternalCodeInvocation instances for insertion into the generated code.
-        # 
+        #
         # `marshal' must return text, not bytes.
-        # 
+        #
         self.marshalling_code = marshalling_code
         self.unmarshalling_code = unmarshalling_code
 
         # These are here for tests and debugging, since normally you don't call the code directly, you insert it in a code template
-        # 
+        #
         self.marshal, self.unmarshal = (
             compile_expr(
                 SourceCodeTemplate(
                     'f = lambda v: $code',
-                    code = ExternalCodeInvocation(code, 'v'),
+                    code=ExternalCodeInvocation(code, 'v'),
                 ),
                 'f',
             )
@@ -66,33 +61,33 @@ STANDARD_MARSHALLERS = {
     bool: Marshaller(text_type, bool),
 
     Decimal: Marshaller(
-        lambda value: text_type(value),
-        lambda value: Decimal(value),
+        text_type,
+        Decimal,
     ),
 
     datetime: Marshaller(
         SourceCodeTemplate(
             '$text_type({}.strftime($fmt))',
-            text_type = text_type,
-            fmt = ExternalValue(DATETIME_FORMAT),
+            text_type=text_type,
+            fmt=ExternalValue(DATETIME_FORMAT),
         ),
         SourceCodeTemplate(
             '$datetime.strptime({}, $fmt)',
-            datetime = datetime,
-            fmt = ExternalValue(DATETIME_FORMAT),
+            datetime=datetime,
+            fmt=ExternalValue(DATETIME_FORMAT),
         ),
     ),
 
     date: Marshaller(
         SourceCodeTemplate(
             '$text_type({}.strftime($fmt))',
-            text_type = text_type,
-            fmt = ExternalValue(DATE_FORMAT),
+            text_type=text_type,
+            fmt=ExternalValue(DATE_FORMAT),
         ),
         SourceCodeTemplate(
             '$datetime.strptime({}, $fmt).date()',
-            datetime = datetime,
-            fmt = ExternalValue(DATE_FORMAT),
+            datetime=datetime,
+            fmt=ExternalValue(DATE_FORMAT),
         ),
     ),
 
@@ -100,7 +95,7 @@ STANDARD_MARSHALLERS = {
         'repr({}.total_seconds())',
         SourceCodeTemplate(
             '$timedelta(seconds=float({}))',
-            timedelta = timedelta,
+            timedelta=timedelta,
         ),
     ),
 
@@ -132,10 +127,10 @@ def lookup_marshaller_for_type(cls):
     marshaller = CUSTOM_MARSHALLERS.get(cls)
     if marshaller is None:
         marshaller = STANDARD_MARSHALLERS.get(cls)
-        if marshaller is None:
-            if hasattr(getattr(cls,'marshall_to_text', None), '__call__') \
-                    and hasattr(getattr(cls,'unmarshall_from_text', None), '__call__'):
-                marshaller = DuckTypedMarshaller(cls)
+        # if marshaller is None:
+        #     if hasattr(getattr(cls, 'marshall_to_text', None), '__call__') \
+        #             and hasattr(getattr(cls, 'unmarshall_from_text', None), '__call__'):
+        #         marshaller = DuckTypedMarshaller(cls)
     return marshaller
 
 def lookup_marshalling_code_for_type(cls):
@@ -160,8 +155,8 @@ def wrap_in_null_check(nullable, value_expr, code):
     if nullable:
         return SourceCodeTemplate(
             'None if $value is None else $code',
-            value = value_expr,
-            code = code,
+            value=value_expr,
+            code=code,
         )
     else:
         return code

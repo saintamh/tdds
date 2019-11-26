@@ -1,11 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-"""
-Herve Saint-Amand
-Edinburgh
-"""
-
 #----------------------------------------------------------------------------------------------------------------------------------
 # includes
 
@@ -14,7 +9,6 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 
 # standards
 from itertools import chain
-import operator
 import re
 
 # this module
@@ -23,35 +17,37 @@ from .basics import Field, FieldError, FieldValueError, FieldTypeError, FieldNot
 from .pods import PodsMethodsForRecordTemplate
 from .unpickler import RecordRegistryMetaClass, RecordUnpickler
 from .utils.codegen import ExternalCodeInvocation, ExternalValue, Joiner, SourceCodeTemplate, compile_expr
-from .utils.compatibility import PY2, integer_types, native_string, string_types
+from .utils.compatibility import PY2, integer_types, native_string, string_types  # you're confused, pylint: disable=unused-import
 from .utils.immutabledict import ImmutableDict
 
 #----------------------------------------------------------------------------------------------------------------------------------
 # the `Record' class is the main export of this module.
 
 if PY2:
-    builtin_module = '__builtin__'
+    builtin_module = '__builtin__'  # pylint: disable=invalid-name
 else:
-    builtin_module = 'builtins'
+    builtin_module = 'builtins'  # pylint: disable=invalid-name
+
 
 class RecordMetaClass(RecordRegistryMetaClass):
-    def __new__(mcls, class_name, bases, attrib):
+    def __new__(mcs, class_name, bases, attrib):
         attrib.pop('__qualname__', None)
         module = attrib.pop('__module__', None)
         is_codegen = (module == builtin_module)
         if bases == (object,) or is_codegen or Record not in bases:
-            return type.__new__(mcls, class_name, bases, attrib)
+            return type.__new__(mcs, class_name, bases, attrib)
         verbose = attrib.pop('_%s__verbose' % class_name, False)
         src_code_gen = RecordClassTemplate(class_name, bases, **attrib)
         cls = compile_expr(src_code_gen, class_name, verbose=verbose)
         if module is not None:
             setattr(cls, '__module__', module)
-        mcls.register(class_name, cls)
-        for field_id, field in cls.record_fields.items():
+        mcs.register(class_name, cls)
+        for field in cls.record_fields.values():
             field.set_recursive_type(cls)
         return cls
 
-Record = RecordMetaClass(
+
+Record = RecordMetaClass(  # pylint: disable=invalid-name
     native_string('Record'),
     (object,),
     {}
@@ -110,6 +106,7 @@ class RecordClassTemplate(SourceCodeTemplate):
     RecordUnpickler = RecordUnpickler
 
     def __init__(self, class_name, bases, **fields):
+        super(RecordClassTemplate, self).__init__()
         self.class_name = class_name
         self.super_records = tuple(spr for spr in bases if spr is not Record and issubclass(spr, Record))
         self.super_fields = self._compile_super_fields(self.super_records, fields)
@@ -143,7 +140,7 @@ class RecordClassTemplate(SourceCodeTemplate):
         for spr in super_records:
             for field_id, field in spr.record_fields.items():
                 if field_id in super_fields:
-                    raise TypeError("Multiple superclasses have a field called %r" % field_id)
+                    raise TypeError('Multiple superclasses have a field called %r' % field_id)
                 if field_id in fields:
                     raise TypeError("Can't override superclass field %r" % field_id)
                 super_fields[field_id] = field
@@ -155,29 +152,29 @@ class RecordClassTemplate(SourceCodeTemplate):
                 self.fields_including_super if include_super
                 else self.fields
             ),
-            key = lambda item: (item[1].nullable, item[0]),
+            key=lambda item: (item[1].nullable, item[0]),
         )
 
-    def field_joiner_property(sep, prefix='', suffix='', include_super=False):
+    def field_joiner_property(sep, prefix='', suffix='', include_super=False):  # not really a method, pylint: disable=no-self-argument
         return lambda raw_meth: property(
             lambda self: Joiner(sep, prefix, suffix, (
-                raw_meth(self, findex, field_id, field)
-                for findex,(field_id, field) in enumerate(self._iter_fields_in_fixed_order(include_super))
+                raw_meth(self, field_id, field)
+                for field_id, field in self._iter_fields_in_fixed_order(include_super)  # pylint: disable=protected-access
             ))
         )
 
     @field_joiner_property('', prefix='(', suffix=')')
-    def slots(self, findex, field_id, field):
+    def slots(self, field_id, _field_unused):
         # NB trailing comma to ensure single value still a tuple
-        return "{!r},".format(field_id)
+        return '{!r},'.format(field_id)
 
     @field_joiner_property('', prefix='(', suffix=')', include_super=True)
-    def values_as_tuple(self, findex, field_id, field):
+    def values_as_tuple(self, field_id, _field_unused):
         # NB trailing comma here too, for the same reason
         return 'self.{},'.format(field_id)
 
     @field_joiner_property(', ', include_super=True)
-    def init_params(self, findex, field_id, field):
+    def init_params(self, field_id, field):
         return '{}{}'.format(field_id, '=None' if field.nullable else '')
 
     @property
@@ -195,7 +192,7 @@ class RecordClassTemplate(SourceCodeTemplate):
         )
 
     @field_joiner_property('\n')
-    def field_checks(self, findex, field_id, field):
+    def field_checks(self, field_id, field):
         return FieldHandlingStmtsTemplate(
             field,
             field_id,
@@ -203,16 +200,16 @@ class RecordClassTemplate(SourceCodeTemplate):
         )
 
     @field_joiner_property('\n')
-    def set_fields(self, findex, field_id, field):
+    def set_fields(self, field_id, _field_unused):
         # you can cheat past our fake immutability by using object.__setattr__, but don't tell anyone
         return 'object.__setattr__(self, "{0}", {0})'.format(field_id)
 
     @property
     def properties(self):
         if any(prop.fset is not None for prop in self.property_defs.values()):
-            raise TypeError("record properties may not have an fset function")
+            raise TypeError('record properties may not have an fset function')
         if any(prop.fdel is not None for prop in self.property_defs.values()):
-            raise TypeError("record properties may not have an field function")
+            raise TypeError('record properties may not have an field function')
         return self._class_level_definitions(self.property_defs)
 
     @property
@@ -231,8 +228,8 @@ class RecordClassTemplate(SourceCodeTemplate):
         return Joiner(sep='\n', values=(
             SourceCodeTemplate(
                 '$field_id = $value',
-                field_id = field_id,
-                value = value,
+                field_id=field_id,
+                value=value,
             )
             for field_id, value in defs.items()
         ))
@@ -263,7 +260,7 @@ class RecordClassTemplate(SourceCodeTemplate):
                 def __key__(self):
                     return ($key)
             ''',
-            key = Joiner(' ', values=(
+            key=Joiner(' ', values=(
                 'self.{},'.format(field_id)
                 for field_id, _ in self._iter_fields_in_fixed_order(include_super=True)
             )),
@@ -300,7 +297,7 @@ class RecordClassTemplate(SourceCodeTemplate):
         '''
 
     @field_joiner_property(', ', include_super=True)
-    def repr_str(self, findex, field_id, field):
+    def repr_str(self, field_id, _field_unused):
         return '{}=%r'.format(field_id)
 
 #----------------------------------------------------------------------------------------------------------------------------------
@@ -335,6 +332,7 @@ class FieldHandlingStmtsTemplate(SourceCodeTemplate):
     integer_types = integer_types
 
     def __init__(self, field, variable_name, description):
+        super(FieldHandlingStmtsTemplate, self).__init__()
         self.field = field
         self.variable_name = variable_name
         self.description = description

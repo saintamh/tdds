@@ -40,32 +40,34 @@ class Cleaner(object):
             None,
         )
         if clean_by_fname:
-            return clean_by_fname(value)
-        if issubclass(field.type, tuple) and hasattr(field.type, 'element_field'):
-            return tuple(
+            cleaned = clean_by_fname(value)
+        elif issubclass(field.type, tuple) and hasattr(field.type, 'element_field'):
+            cleaned = tuple(
                 self._clean_field(prefix + field_id + '_element', field.type.element_field, element)
                 for element in value
             )
-        if issubclass(field.type, frozenset) and hasattr(field.type, 'element_field'):
-            return frozenset(
+        elif issubclass(field.type, frozenset) and hasattr(field.type, 'element_field'):
+            cleaned = frozenset(
                 self._clean_field(prefix + field_id + '_element', field.type.element_field, element)
                 for element in value
             )
-        if issubclass(field.type, ImmutableDict) and hasattr(field.type, 'key_field') and hasattr(field.type, 'value_field'):
-            return {
+        elif issubclass(field.type, ImmutableDict) and hasattr(field.type, 'key_field') and hasattr(field.type, 'value_field'):
+            cleaned = {
                 self._clean_field(field_id + '_key', field.type.key_field, key):
                     self._clean_field(field_id + '_value', field.type.value_field, value)
                 for key, value in value.items()
             }
-        if hasattr(field.type, 'record_fields') and isinstance(value, dict):
+        elif hasattr(field.type, 'record_fields') and isinstance(value, dict):
             try:
-                return self.clean(field.type, value, prefix=(prefix + field_id + '_'))
+                cleaned = self.clean(field.type, value, prefix=(prefix + field_id + '_'))
             except Exception:
                 raise ValueError("Couldn't clean '%s'" % (prefix + field_id))
-        clean_by_type = self._cleaner_by_type(field)
-        if clean_by_type:
-            value = clean_by_type(value)
-        return value
+        else:
+            clean_by_type = self._cleaner_by_type(field)
+            if clean_by_type:
+                value = clean_by_type(value)
+            cleaned = value
+        return cleaned
 
     def _cleaner_by_type(self, field):
         type_name = {

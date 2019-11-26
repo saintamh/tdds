@@ -1,11 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-"""
-Herve Saint-Amand
-Edinburgh
-"""
-
 #----------------------------------------------------------------------------------------------------------------------------------
 # includes
 
@@ -13,11 +8,11 @@ Edinburgh
 from __future__ import absolute_import, division, print_function, unicode_literals
 
 # record
-from record import *
+from record import Record, RecordsAreImmutable
 from record.utils.compatibility import text_type
 
 # this module
-from .plumbing import *
+from .plumbing import assert_eq, assert_is, assert_matches, assert_raises, build_test_registry
 
 #----------------------------------------------------------------------------------------------------------------------------------
 # init
@@ -26,19 +21,19 @@ ALL_TESTS, test = build_test_registry()
 
 #----------------------------------------------------------------------------------------------------------------------------------
 
-@test("objects can be of a subclass of the declared type")
+@test('objects can be of a subclass of the declared type')
 def _():
     class Parent(object):
         pass
     class Child(Parent):
         pass
-    class R(Record):
+    class MyRecord(Record):
         obj = Parent
     c = Child()
-    r = R(c)
+    r = MyRecord(c)
     assert_is(r.obj, c)
 
-@test("record classes can be subclassed as normal")
+@test('record classes can be subclassed as normal')
 def _():
     class Parent(Record):
         name = text_type
@@ -47,7 +42,7 @@ def _():
             return 'Hello, {}'.format(self.name)
     assert_eq(Child('Pearl').greet(), 'Hello, Pearl')
 
-@test("non-record subclasses just need to pass up constructor kwards")
+@test('non-record subclasses just need to pass up constructor kwargs')
 def _():
     class Parent(Record):
         name = text_type
@@ -55,14 +50,14 @@ def _():
     class Child(Parent):
         def __init__(self, name):
             super(Child, self).__init__(
-                name = name,
-                animate = True,
+                name=name,
+                animate=True,
             )
     pearl = Child('Pearl')
     assert_eq(pearl.name, 'Pearl')
     assert_is(pearl.animate, True)
 
-@test("non-record subclasses are still immutable, though")
+@test('non-record subclasses are still immutable, though')
 def _():
     class Parent(Record):
         name = text_type
@@ -71,15 +66,15 @@ def _():
         def __init__(self, name, favourite_color):
             self.favourite_color = favourite_color # <-- boom
             super(Child, self).__init__(
-                name = name,
-                animate = True,
+                name=name,
+                animate=True,
             )
     with assert_raises(RecordsAreImmutable):
         Child('Pearl', 'red')
 
 #----------------------------------------------------------------------------------------------------------------------------------
 
-@test("if a non-record subclass defines its own __key__, it overrides the default one")
+@test('if a non-record subclass defines its own __key__, it overrides the default one')
 def _():
     class Point(Record):
         x = int
@@ -90,13 +85,13 @@ def _():
     )
     class DownPoint(Point):
         def __key__(self):
-            return (-self.y, -self.x)
+            return (-self.y, -self.x)  # pylint: disable=invalid-unary-operand-type
     assert_eq(
         sorted([DownPoint(0, 0), DownPoint(0, 10), DownPoint(10, 0), DownPoint(10, 10)]),
         [DownPoint(10, 10), DownPoint(0, 10), DownPoint(10, 0), DownPoint(0, 0)],
     )
 
-@test("if a non-record subclass defines its own __hash__, it overrides the default one")
+@test('if a non-record subclass defines its own __hash__, it overrides the default one')
 def _():
     class Point(Record):
         x = int
@@ -109,7 +104,7 @@ def _():
         1488451651,
     )
 
-@test("if a non-record subclass defines its own __repr__, it overrides the default one")
+@test('if a non-record subclass defines its own __repr__, it overrides the default one')
 def _():
     class Point(Record):
         x = int
@@ -197,7 +192,7 @@ def _():
     class Parent(Record):
         x = int
     with assert_raises(TypeError):
-        class Child(Parent, Record):
+        class Child(Parent, Record):  # pylint: disable=unused-variable
             x = int
 
 @test("if a record subclasses another, it cannot override the superclass's fields, even with a method")
@@ -205,7 +200,7 @@ def _():
     class Parent(Record):
         x = int
     with assert_raises(TypeError):
-        class Child(Parent, Record):
+        class Child(Parent, Record):  # pylint: disable=unused-variable
             def x(self):
                 pass
 
@@ -214,7 +209,7 @@ def _():
     class Parent(Record):
         x = int
     with assert_raises(TypeError):
-        class Child(Parent, Record):
+        class Child(Parent, Record):  # pylint: disable=unused-variable
             x = property(lambda self: 'ex')
 
 @test("if a record subclasses another, it cannot override the superclass's fields, even with a classmethod")
@@ -222,7 +217,7 @@ def _():
     class Parent(Record):
         x = int
     with assert_raises(TypeError):
-        class Child(Parent, Record):
+        class Child(Parent, Record):  # pylint: disable=unused-variable
             @classmethod
             def x(cls):
                 pass
@@ -232,12 +227,12 @@ def _():
     class Parent(Record):
         x = int
     with assert_raises(TypeError):
-        class Child(Parent, Record):
+        class Child(Parent, Record):  # pylint: disable=unused-variable
             @staticmethod
             def x():
                 pass
 
-@test("if a record subclasses another, record_derive still works")
+@test('if a record subclasses another, record_derive still works')
 def _():
     class Parent(Record):
         x = int
@@ -248,8 +243,8 @@ def _():
     assert_eq(c.record_derive(y=4), Child(1, 4))
 
 # 2017-03-03 - I'm comment this one out even though it passes, but 3-way inheritance doesn't work anyway because of some problem
-# with __slots__ (see "Layout Conflicts" at http://mcjeff.blogspot.co.uk/2009/05/odd-python-errors.html)
-# 
+# with __slots__ (see 'Layout Conflicts' at http://mcjeff.blogspot.co.uk/2009/05/odd-python-errors.html)
+#
 # @test("can't subclass two record classes with a field having the same name, as I don't see how that could work")
 # def _():
 #     class LeftParent(Record):

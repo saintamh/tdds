@@ -1,11 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-"""
-Herve Saint-Amand
-Edinburgh
-"""
-
 #----------------------------------------------------------------------------------------------------------------------------------
 # includes
 
@@ -62,6 +57,7 @@ class SequenceCollCodeTemplate(CollectionTypeCodeTemplate):
     class_name_suffix = 'Seq'
 
     def __init__(self, element_field):
+        super(SequenceCollCodeTemplate, self).__init__()
         self.class_name = _ucfirst(element_field.type.__name__) + self.class_name_suffix
         self.pods_methods = PodsMethodsForSeqTemplate(element_field)
         self.elem_check_impl = FieldHandlingStmtsTemplate(
@@ -108,6 +104,7 @@ class DictCollCodeTemplate(CollectionTypeCodeTemplate):
     constructor = '__init__'
 
     def __init__(self, key_field, value_field):
+        super(DictCollCodeTemplate, self).__init__()
         self.class_name = '{}To{}Dict'.format(
             _ucfirst(key_field.type.__name__),
             _ucfirst(value_field.type.__name__),
@@ -120,8 +117,8 @@ class DictCollCodeTemplate(CollectionTypeCodeTemplate):
             key_field = $key_field
             value_field = $value_field
             ''',
-            key_field = key_field,
-            value_field = value_field,
+            key_field=key_field,
+            value_field=value_field,
         )
 
     check_elems_body = '''
@@ -150,7 +147,7 @@ def seq_of(element_field, **kwargs):
     element_field = compile_field(element_field)
     return compile_collection_field(
         SequenceCollCodeTemplate(element_field),
-        subfields = [element_field],
+        subfields=[element_field],
         **kwargs
     )
 
@@ -158,7 +155,7 @@ def pair_of(element_field, **kwargs):
     element_field = compile_field(element_field)
     return compile_collection_field(
         PairCollCodeTemplate(element_field),
-        subfields = [element_field],
+        subfields=[element_field],
         **kwargs
     )
 
@@ -166,7 +163,7 @@ def set_of(element_field, **kwargs):
     element_field = compile_field(element_field)
     return compile_collection_field(
         SetCollCodeTemplate(element_field),
-        subfields = [element_field],
+        subfields=[element_field],
         **kwargs
     )
 
@@ -175,7 +172,7 @@ def dict_of(key_field, value_field, **kwargs):
     value_field = compile_field(value_field)
     return compile_collection_field(
         DictCollCodeTemplate(key_field, value_field),
-        subfields = [key_field, value_field],
+        subfields=[key_field, value_field],
         **kwargs
     )
 
