@@ -177,6 +177,33 @@ def _():
     assert_eq(MyRecord('a').v, 'a')
     assert_none(MyRecord(None).v)
 
+@test('one_of fields can also be made nullable using a kwarg')
+def _():
+    class MyRecord(Record):
+        v = one_of('a', 'b', 'c', nullable=True)
+    assert_eq(MyRecord('a').v, 'a')
+    assert_none(MyRecord(None).v)
+
+@test('one_of accepts a `default` kwarg')
+def _():
+    class MyRecord(Record):
+        v = one_of('a', 'b', 'c', nullable=True, default='b')
+    assert_eq(MyRecord().v, 'b')
+    assert_eq(MyRecord(None).v, 'b')
+
+@test('the default needs to be in the whitelist')
+def _():
+    class MyRecord(Record):
+        v = one_of('a', 'b', 'c', nullable=True, default='z')
+    with assert_raises(FieldValueError, "MyRecord.v: 'z' is not a valid value"):
+        assert_eq(MyRecord().v, 'b')
+
+@test('one_of also accepts a `coerce` kwarg')
+def _():
+    class MyRecord(Record):
+        v = one_of('a', 'b', 'c', coerce=text_type.lower)
+    assert_eq(MyRecord('C').v, 'c')
+
 #----------------------------------------------------------------------------------------------------------------------------------
 # nonempty
 

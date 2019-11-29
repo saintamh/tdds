@@ -67,7 +67,7 @@ absolute_http_url = Field(
 #----------------------------------------------------------------------------------------------------------------------------------
 # other field def utils
 
-def one_of(*values):
+def one_of(*values, **kwargs):
     if len(values) == 0:
         raise ValueError('one_of requires arguments')
     type = values[0].__class__
@@ -81,6 +81,7 @@ def one_of(*values):
     return Field(
         type=type,
         check=values.__contains__,
+        **kwargs
     )
 
 def nullable(field, default=None):
