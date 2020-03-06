@@ -5,7 +5,7 @@
 
 from .basics import \
     Field, \
-    FieldValueError, FieldTypeError, FieldNotNullable, RecordsAreImmutable, \
+    FieldError, FieldValueError, FieldTypeError, FieldNotNullable, RecordsAreImmutable, \
     RecursiveType
 
 from .record import \
