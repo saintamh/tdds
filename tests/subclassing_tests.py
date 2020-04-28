@@ -7,9 +7,9 @@
 # 2+3 compat
 from __future__ import absolute_import, division, print_function, unicode_literals
 
-# record
-from record import Record, RecordsAreImmutable
-from record.utils.compatibility import text_type
+# cargo
+from cargo import Record, RecordsAreImmutable
+from cargo.utils.compatibility import text_type
 
 # this module
 from .plumbing import assert_eq, assert_is, assert_matches, assert_raises, build_test_registry

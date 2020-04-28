@@ -10,8 +10,8 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 # standards
 from functools import total_ordering
 
-# record
-from record import (
+# cargo
+from cargo import (
     FieldValueError,
     Record,
     dict_of,
@@ -25,7 +25,7 @@ from record import (
     uppercase_letters,
     uppercase_wchars,
 )
-from record.utils.compatibility import bytes_type, text_type
+from cargo.utils.compatibility import bytes_type, text_type
 
 # this module
 from .plumbing import assert_eq, assert_none, assert_raises, build_test_registry, foreach

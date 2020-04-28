@@ -7,7 +7,7 @@
 # 2+3 compat
 from __future__ import absolute_import, division, print_function, unicode_literals
 
-# record
+# cargo
 from .basics import Field, FieldValueError, compile_field
 from .pods import PodsMethodsForSeqTemplate, PodsMethodsForDictTemplate
 from .record import FieldHandlingStmtsTemplate

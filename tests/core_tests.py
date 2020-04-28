@@ -11,9 +11,9 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 from abc import ABCMeta
 from random import randrange
 
-# record
-from record import Field, FieldNotNullable, Record, RecordsAreImmutable, nullable
-from record.utils.compatibility import integer_types, native_string, string_types, text_type
+# cargo
+from cargo import Field, FieldNotNullable, Record, RecordsAreImmutable, nullable
+from cargo.utils.compatibility import integer_types, native_string, string_types, text_type
 
 # this module
 from .plumbing import assert_eq, assert_is, assert_none, assert_raises, build_test_registry, foreach

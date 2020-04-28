@@ -10,9 +10,9 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 # standards
 import re
 
-# record
-from record import Field, FieldNotNullable, FieldValueError, Record, SourceCodeTemplate, nullable
-from record.utils.compatibility import text_type
+# cargo
+from cargo import Field, FieldNotNullable, FieldValueError, Record, SourceCodeTemplate, nullable
+from cargo.utils.compatibility import text_type
 
 # this module
 from .plumbing import assert_eq, assert_is, assert_raises, build_test_registry

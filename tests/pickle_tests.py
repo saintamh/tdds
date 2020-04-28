@@ -10,9 +10,9 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 # standards
 import pickle
 
-# record
-from record import Record, dict_of, pair_of, seq_of, set_of
-from record.utils.compatibility import text_type
+# cargo
+from cargo import Record, dict_of, pair_of, seq_of, set_of
+from cargo.utils.compatibility import text_type
 
 # this module
 from .plumbing import assert_eq, build_test_registry

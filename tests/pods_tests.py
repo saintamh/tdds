@@ -12,8 +12,8 @@ from collections import namedtuple
 from datetime import datetime, timedelta
 from decimal import Decimal
 
-# record
-from record import (
+# cargo
+from cargo import (
     CannotBeSerializedToPods,
     FieldNotNullable,
     Marshaller,
@@ -25,7 +25,7 @@ from record import (
     set_of,
     temporary_marshaller_registration,
 )
-from record.utils.compatibility import bytes_type, integer_types, text_type
+from cargo.utils.compatibility import bytes_type, integer_types, text_type
 
 # this module
 from .plumbing import assert_eq, assert_isinstance, assert_raises, build_test_registry, foreach

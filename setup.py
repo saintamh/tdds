@@ -2,20 +2,22 @@
 
 #----------------------------------------------------------------------------------------------------------------------------------
 
+# 2+3 compatibility
 from __future__ import unicode_literals
 
-from distutils.core import setup
+# standards
+import setuptools
 
 #----------------------------------------------------------------------------------------------------------------------------------
 
-setup(
-    name='Record',
-    version='0.1',
+setuptools.setup(
+    name='cargo',
+    version='1.0',
     description='Immutable type-checked data structures',
     author='Herv\u00e9 Saint-Amand',
-    author_email='record@saintamh.org',
-    url='https://saintamh.org/code/record/',
-    packages=['record'],
+    author_email='cargo@saintamh.org',
+    url='https://github.com/saintamh/cargo/',
+    packages=setuptools.find_packages(),
 )
 
 #----------------------------------------------------------------------------------------------------------------------------------
