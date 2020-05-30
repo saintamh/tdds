@@ -107,8 +107,8 @@ Records are also picklable
 True
 ```
 
-The library offers many more features such as automatic type coercion, custom validation functions, and more. See the
-[tests](tests) directory for a specification of sorts.
+The library offers many more features such as automatic type coercion, custom validation functions, enum fields, typed collections,
+and more. See the [tests](tests) directory for a specification of sorts.
 
 
 See also
@@ -120,5 +120,6 @@ This project is similar in spirit to these other fine libraries:
 * [kim](https://kim.readthedocs.io/)
 * [cluegen](https://github.com/dabeaz/cluegen)
 * [typing.NamedTuple](https://docs.python.org/3.8/library/typing.html#typing.NamedTuple)
+* [Scala's case classes](https://docs.scala-lang.org/tour/case-classes.html)
 
 but this one is mine.
