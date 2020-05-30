@@ -102,7 +102,7 @@ True
 
 Records are also picklable
 
-```
+```python
 >>> pickle.loads(pickle.dumps(album)) == album
 True
 ```
