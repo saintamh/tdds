@@ -13,6 +13,7 @@ import json
 from os import path
 import pickle
 import re
+import sys
 
 # this module
 from .plumbing import build_test_registry
@@ -26,6 +27,15 @@ ALL_TESTS, test = build_test_registry()
 
 @test('Readme file examples are valid')
 def t():
+    if sys.version_info[0] == 2:
+        # This test is disabled in Python2. There are too many subtle differences in the syntax ('str' has to be renamed 'unicode',
+        # 'u' prefix is needed in front of string literals, etc), it's too hacky to preserve compatibility.
+        #
+        # In any case this test isn't to verify that the library works in Python2, it's too check that the README is up to date
+        # with the code. So it doesn't matter.
+        #
+        return
+
     readme_file_path = path.join(path.dirname(__file__), '..', 'README.md')
     with open(readme_file_path, 'rb') as file_in:
         doctest_str = '\n\n'.join(
