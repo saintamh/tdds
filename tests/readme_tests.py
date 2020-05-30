@@ -27,8 +27,15 @@ ALL_TESTS, test = build_test_registry()
 @test('Readme file examples are valid')
 def t():
     readme_file_path = path.join(path.dirname(__file__), '..', 'README.md')
-    with open(readme_file_path, 'rt', encoding='UTF-8') as file_in:
-        doctest_str = '\n\n'.join(re.findall(r'```pycon\s+(.+?)```', file_in.read(), flags=re.S))
+    with open(readme_file_path, 'rb') as file_in:
+        doctest_str = '\n\n'.join(
+            re.findall(
+                r'```python\s+(.+?)```',
+                file_in.read().decode('UTF-8'),
+                flags=re.S,
+            ),
+        )
+    assert doctest_str
     parser = DocTestParser()
     runner = DocTestRunner()
     runner.run(
