@@ -12,8 +12,8 @@ from collections import namedtuple
 from datetime import datetime, timedelta
 from decimal import Decimal
 
-# record
-from record import (
+# tdds
+from tdds import (
     CannotBeSerializedToPods,
     FieldNotNullable,
     Marshaller,
@@ -25,7 +25,7 @@ from record import (
     set_of,
     temporary_marshaller_registration,
 )
-from record.utils.compatibility import bytes_type, integer_types, text_type
+from tdds.utils.compatibility import bytes_type, integer_types, text_type
 
 # this module
 from .plumbing import assert_eq, assert_isinstance, assert_raises, build_test_registry, foreach
@@ -198,7 +198,7 @@ def _():
     Name = namedtuple('Name', ('name',))
     class MyRecord(Record):
         name = Name
-    r = MyRecord(Name('peter'))
+    MyRecord(Name('peter'))
     class CantTouchThis(object):
         def __getattr__(self, attr):
             # ensure that the value given to `from_pods' below isn't even looked at in any way

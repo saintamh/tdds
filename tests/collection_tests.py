@@ -7,8 +7,8 @@
 # 2+3 compat
 from __future__ import absolute_import, division, print_function, unicode_literals
 
-# record
-from record import (
+# tdds
+from tdds import (
     Field,
     FieldNotNullable,
     FieldTypeError,
@@ -21,7 +21,7 @@ from record import (
     seq_of,
     set_of,
 )
-from record.utils.compatibility import native_string, text_type
+from tdds.utils.compatibility import native_string, text_type
 
 # this module
 from .plumbing import assert_eq, assert_is, assert_none, assert_raises, build_test_registry

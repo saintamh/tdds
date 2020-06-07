@@ -10,9 +10,9 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 # standards
 import re
 
-# record
-from record import Field, FieldNotNullable, FieldValueError, Record, SourceCodeTemplate, nullable
-from record.utils.compatibility import text_type
+# tdds
+from tdds import Field, FieldNotNullable, FieldValueError, Record, SourceCodeTemplate, nullable
+from tdds.utils.compatibility import text_type
 
 # this module
 from .plumbing import assert_eq, assert_is, assert_raises, build_test_registry
@@ -149,7 +149,7 @@ def _():
             check=not_none,
         )
     with assert_raises(FieldNotNullable, 'MyRecord.id cannot be None'):
-        r = MyRecord(None)
+        MyRecord(None)
 
 @test("the 'check' function will not receive a None value when the field is nullable, either")
 def _():
@@ -229,7 +229,7 @@ def _():
             check=boom,
         )
     with assert_raises(BufferError, 'boom'):
-        r = MyRecord('a')
+        MyRecord('a')
 
 @test('the coercion function runs before the check, and may change a bad value to a good one')
 def _():

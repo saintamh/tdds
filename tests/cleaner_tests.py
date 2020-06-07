@@ -11,9 +11,9 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 from collections import namedtuple
 from decimal import Decimal
 
-# record
-from record import Cleaner, Record, dict_of, seq_of, set_of
-from record.utils.compatibility import text_type
+# tdds
+from tdds import Cleaner, Record, dict_of, seq_of, set_of
+from tdds.utils.compatibility import text_type
 
 # this module
 from .plumbing import assert_eq, build_test_registry

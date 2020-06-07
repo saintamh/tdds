@@ -7,9 +7,9 @@
 # 2+3 compat
 from __future__ import absolute_import, division, print_function, unicode_literals
 
-# record
-from record import Field, FieldNotNullable, FieldTypeError, Record, SourceCodeTemplate
-from record.utils.compatibility import text_type
+# tdds
+from tdds import Field, FieldNotNullable, FieldTypeError, Record, SourceCodeTemplate
+from tdds.utils.compatibility import text_type
 
 # this module
 from .plumbing import assert_eq, assert_none, assert_raises, build_test_registry

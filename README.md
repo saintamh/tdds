@@ -1,4 +1,4 @@
-[![Build Status](https://travis-ci.org/saintamh/record.svg?branch=master)](https://travis-ci.org/saintamh/record)
+[![Build Status](https://travis-ci.org/saintamh/tdds.svg?branch=master)](https://travis-ci.org/saintamh/tdds)
 
 This package provides immutable data classes for Python2.7 and Python 3.5+
 
@@ -8,7 +8,7 @@ Synopsis
 You declare a class by listing its fields, and the type of each field
 
 ```python
->>> from record import Field, Record, seq_of
+>>> from tdds import Field, Record, seq_of
 
 >>> class Track(Record):
 ...     title = str
@@ -52,7 +52,7 @@ Record objects are immutable, hashable and comparable.
 >>> album.artist = 'Schwah-schwah'
 Traceback (most recent call last):
   ...
-record.basics.RecordsAreImmutable: Album objects are immutable
+tdds.basics.RecordsAreImmutable: Album objects are immutable
 
 >>> Track(title='Hull', total_seconds=7) == Track(title='Hull', total_seconds=7)
 True
@@ -67,7 +67,7 @@ The constructor checks the type of each of the given values, and refuses to proc
 >>> Track(title='Fireworks', total_seconds='9')
 Traceback (most recent call last):
   ...
-record.basics.FieldTypeError: Track.total_seconds should be of type int, not str ('9')
+tdds.basics.FieldTypeError: Track.total_seconds should be of type int, not str ('9')
 ```
 
 There are functions to convert to and from Plain Old Data Structures, i.e. just lists and dicts. This is useful e.g. for JSON serialisation.

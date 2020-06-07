@@ -12,8 +12,8 @@ from contextlib import contextmanager
 from functools import partial
 import re
 
-# record
-from record.utils.compatibility import PY2, string_types
+# tdds
+from tdds.utils.compatibility import PY2, string_types
 
 #----------------------------------------------------------------------------------------------------------------------------------
 

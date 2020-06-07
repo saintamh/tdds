@@ -11,9 +11,9 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 from collections import namedtuple
 from datetime import date, datetime
 
-# record
-from record.marshaller import Marshaller, lookup_marshaller_for_type, temporary_marshaller_registration
-from record.utils.compatibility import integer_types, text_type
+# tdds
+from tdds.marshaller import Marshaller, lookup_marshaller_for_type, temporary_marshaller_registration
+from tdds.utils.compatibility import integer_types, text_type
 
 # this module
 from .plumbing import assert_eq, assert_is, assert_isinstance, assert_none, build_test_registry, foreach
