@@ -47,7 +47,7 @@ class RecordMetaClass(RecordRegistryMetaClass):
         return cls
 
 
-Record = RecordMetaClass(  # pylint: disable=invalid-name
+Record = RecordMetaClass(
     native_string('Record'),
     (object,),
     {}

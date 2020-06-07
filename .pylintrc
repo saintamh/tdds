@@ -9,6 +9,7 @@ disable=
     missing-docstring,
     no-else-return,
     no-self-use,
+    non-str-assignment-to-dunder-name,
     redefined-builtin,
     too-few-public-methods,
     too-many-public-methods,

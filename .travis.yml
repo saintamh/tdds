@@ -10,5 +10,5 @@ install:
   - pip install -e .
   - pip install -r tests/requirements.txt
 script:
-  - pylint --rcfile=.pylintrc --load-plugins pylint_quotes
+  - pylint --rcfile=.pylintrc --load-plugins pylint_quotes setup.py tdds/ tests/
   - python -m tests.run

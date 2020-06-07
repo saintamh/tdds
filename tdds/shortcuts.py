@@ -1,8 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-# we have many globals with lowercase names in here, sorry pylint: disable=invalid-name
-
 #----------------------------------------------------------------------------------------------------------------------------------
 # includes
 

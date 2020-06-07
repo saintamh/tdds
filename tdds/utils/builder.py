@@ -40,7 +40,7 @@ class BuilderMetaClass(type):
 
     @staticmethod
     def _find_record_cls(bases):
-        for b in bases:  # you're confused, pylint: disable=not-an-iterable
+        for b in bases:
             record_cls = getattr(b, 'record_cls', None)
             if record_cls:
                 return record_cls
@@ -48,7 +48,7 @@ class BuilderMetaClass(type):
 
     @staticmethod
     def _single_field_method(memoized_method, field_index):
-        return lambda self: memoized_method(self)[field_index]  # still confused, pylint: disable=unsubscriptable-object, no-value-for-parameter
+        return lambda self: memoized_method(self)[field_index]
 
     @staticmethod
     def _memoize(name, method):
