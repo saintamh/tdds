@@ -1,4 +1,5 @@
 [![Build Status](https://travis-ci.org/saintamh/tdds.svg?branch=master)](https://travis-ci.org/saintamh/tdds)
+[![PyPI version](https://badge.fury.io/py/tdds.svg)](https://pypi.org/project/tdds/)
 
 This package provides immutable data classes for Python2.7 and Python 3.5+
 
