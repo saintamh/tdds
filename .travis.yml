@@ -1,4 +1,4 @@
-dist: xenial # required for python3.7
+dist: bionic
 language: python
 python:
   - "2.7"
@@ -8,5 +8,7 @@ python:
   - "3.8"
 install:
   - pip install -e .
+  - pip install -r tests/requirements.txt
 script:
+  - pylint --rcfile=.pylintrc --load-plugins pylint_quotes
   - python -m tests.run
