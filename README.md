@@ -3,6 +3,12 @@
 
 This package provides immutable data classes for Python2.7 and Python 3.5+
 
+
+> **This package is no longer developed** -- since the release of
+> [dataclasses](https://docs.python.org/3/library/dataclasses.html)
+> I no longer feel that this package is needed.
+
+
 Synopsis
 ========
 
